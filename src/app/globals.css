@@ -1,130 +1,198 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-display: var(--font-outfit), system-ui, sans-serif;
+  --font-modak: var(--font-modak), cursive, sans-serif;
+  --font-mouse-memoirs: var(--font-mouse-memoirs), sans-serif;
+  --font-mono: monospace;
 }
 
 :root {
-  --background: #F7F3E8;
-  --foreground: #24332B;
-  --card: #FFFFFF;
-  --card-foreground: #24332B;
-  --popover: #FFFFFF;
-  --popover-foreground: #24332B;
-  --primary: #496A5A;
+  --background: #f5e3cd;
+  --foreground: #1B4D3E;
+  --card: #FFF8EE;
+  --card-foreground: #1B4D3E;
+  --popover: #FFF8EE;
+  --popover-foreground: #1B4D3E;
+  --primary: #1B4D3E;
   --primary-foreground: #FFFFFF;
-  --secondary: #8FAF8F;
-  --secondary-foreground: #24332B;
-  --muted: #EDE9DC;
-  --muted-foreground: #7C817A;
-  --accent: #D86F45;
-  --accent-foreground: #FFFFFF;
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: #DDD9CC;
-  --input: #DDD9CC;
-  --ring: #496A5A;
-  --chart-1: #496A5A;
-  --chart-2: #8FAF8F;
-  --chart-3: #D86F45;
-  --chart-4: #24332B;
-  --chart-5: #7C817A;
-  --radius: 0.75rem;
-  --sidebar: #F7F3E8;
-  --sidebar-foreground: #24332B;
-  --sidebar-primary: #496A5A;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #EDE9DC;
-  --sidebar-accent-foreground: #24332B;
-  --sidebar-border: #DDD9CC;
-  --sidebar-ring: #496A5A;
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --secondary: #E5A00D;
+  --secondary-foreground: #0F3329;
+  --muted: #EAD8C1;
+  --muted-foreground: #4D6B5F;
+  --accent: #E5A00D;
+  --accent-foreground: #0F3329;
+  --border: #D8C4A9;
+  --input: #D8C4A9;
+  --ring: #1B4D3E;
+  --radius: 1.2rem;
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
-    @apply font-sans;
+    scroll-behavior: smooth;
+    font-family: var(--font-inter), system-ui, sans-serif;
   }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    overflow-x: hidden;
+  }
+}
+
+/* Lenis Smooth Scroll Core Styles */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* CRAV Fonts & Text Outline Classes */
+.font-modak {
+  font-family: var(--font-modak), cursive, sans-serif;
+}
+
+.font-mouse-memoirs {
+  font-family: var(--font-mouse-memoirs), sans-serif;
+}
+
+.font-outfit {
+  font-family: var(--font-outfit), system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.font-sans {
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+.text-stroke-180 {
+  -webkit-text-stroke: 4px #0F3329;
+  paint-order: stroke fill;
+}
+
+.text-stroke-small {
+  -webkit-text-stroke: 2px #0F3329;
+  paint-order: stroke fill;
+}
+
+.text-stroke-white {
+  -webkit-text-stroke: 3px #FFFFFF;
+  paint-order: stroke fill;
+}
+
+.bg-cream {
+  background-color: #f5e3cd !important;
+}
+
+.bg-emerald-accent {
+  background-color: #1B4D3E;
+}
+
+.bg-mustard-accent {
+  background-color: #E5A00D;
+}
+
+/* CRAV Glass & Panel Style */
+.retro-card {
+  background: #FFF8EE;
+  border: 3px solid #1B4D3E;
+  box-shadow: 6px 6px 0px #1B4D3E;
+  border-radius: 1.5rem;
+}
+
+.retro-card-dark {
+  background: #0F3329;
+  color: #f5e3cd;
+  border: 3px solid #E5A00D;
+  box-shadow: 6px 6px 0px #E5A00D;
+  border-radius: 1.5rem;
+}
+
+.retro-pill {
+  border: 2px solid #1B4D3E;
+  box-shadow: 3px 3px 0px #1B4D3E;
+}
+
+/* Sticker Hover Tilt Effect */
+.sticker-container {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.sticker-container:hover {
+  transform: scale(1.08) rotate(-4deg);
+}
+
+/* Hide Scrollbar across all browsers */
+::-webkit-scrollbar {
+  display: none;
+  width: 0px;
+  background: transparent;
+}
+
+html, body {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Footer Marquee & Big Text Animation */
+@keyframes footerMarquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-footer-marquee {
+  display: flex;
+  width: 200%;
+  animation: footerMarquee 30s linear infinite;
+}
+
+.animate-footer-marquee:hover {
+  animation-play-state: paused;
+}
+
+.text-stroke-footer {
+  -webkit-text-stroke: 6px #0F3329;
+  paint-order: stroke fill;
+}
+
+.text-stroke-yellow {
+  -webkit-text-stroke: 6px #E5A00D;
+  paint-order: stroke fill;
+}
+
+/* Floating Levitation Animations for Auth Stickers & Badges */
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px) rotate(var(--rot, -8deg)); }
+  50% { transform: translateY(-16px) rotate(calc(var(--rot, -8deg) + 4deg)); }
+}
+
+@keyframes floatReverse {
+  0%, 100% { transform: translateY(0px) rotate(var(--rot, 8deg)); }
+  50% { transform: translateY(16px) rotate(calc(var(--rot, 8deg) - 4deg)); }
+}
+
+.animate-float-slow {
+  animation: floatSlow 4.5s ease-in-out infinite;
+}
+
+.animate-float-reverse {
+  animation: floatReverse 5.5s ease-in-out infinite;
 }

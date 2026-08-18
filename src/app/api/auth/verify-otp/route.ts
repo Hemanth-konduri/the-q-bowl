@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   }
 
   await createSession({ userId: user[0].id, role: user[0].role });
-  const destination = user[0].role === "ADMIN" ? "/admin/dashboard" : "/";
+  const destination = user[0].role === "ADMIN" ? "/admin/dashboard" : "/user/dashboard";
   return NextResponse.json({
     success: true,
     redirect: destination,

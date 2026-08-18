@@ -116,7 +116,9 @@ export const addresses = pgTable("addresses", {
 export const deliveryAreas = pgTable("delivery_areas", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  pincode: text("pincode").unique().notNull(),
+  kitchenLat: real("kitchen_lat").notNull(),
+  kitchenLng: real("kitchen_lng").notNull(),
+  radius: real("radius").notNull(),
   deliveryFee: real("delivery_fee").default(0).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -188,6 +190,7 @@ export const subscriptionPlans = pgTable("subscription_plans", {
   description: text("description"),
   totalMeals: integer("total_meals").notNull(),
   price: real("price").notNull(),
+  mealTypes: mealTypeEnum("meal_types").array().default([]).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
