@@ -31,8 +31,7 @@ export async function middleware(req: NextRequest) {
   if (pathname.startsWith(ADMIN_PREFIX)) {
     if (!session) return NextResponse.redirect(new URL(ADMIN_LOGIN_ROUTE, req.url));
     if (session.role !== "ADMIN") {
-      const res = NextResponse.redirect(new URL("/", req.url));
-      res.cookies.delete("session");
+      const res = NextResponse.redirect(new URL("/user/dashboard", req.url));
       return res;
     }
     return NextResponse.next();
@@ -41,19 +40,27 @@ export async function middleware(req: NextRequest) {
   // ── Admin login page (/admin) ──
   if (pathname === ADMIN_LOGIN_ROUTE) {
     if (session?.role === "ADMIN") return NextResponse.redirect(new URL("/admin/dashboard", req.url));
-    if (session && session.role !== "ADMIN") return NextResponse.redirect(new URL("/", req.url));
+    if (session && session.role !== "ADMIN") return NextResponse.redirect(new URL("/user/dashboard", req.url));
     return NextResponse.next();
   }
 
-  // ── Public routes (no login required) ──
-  if (pathname === "/" || pathname === "/login" || pathname === "/register") {
-    if (session?.role === "CUSTOMER") return NextResponse.redirect(new URL("/", req.url));
+  // ── Auth pages (/login & /register) ──
+  if (pathname === "/login" || pathname === "/register") {
+    if (session?.role === "CUSTOMER") return NextResponse.redirect(new URL("/user/dashboard", req.url));
     if (session?.role === "ADMIN") return NextResponse.redirect(new URL("/admin/dashboard", req.url));
     return NextResponse.next();
   }
 
-  // ── All other routes require a valid customer session ──
-  if (!session) return NextResponse.redirect(new URL("/login", req.url));
+  // ── Public landing page ──
+  if (pathname === "/") {
+    return NextResponse.next();
+  }
+
+  // ── User Portal protected routes (/user/*) ──
+  if (pathname.startsWith("/user")) {
+    if (!session) return NextResponse.redirect(new URL("/login", req.url));
+    return NextResponse.next();
+  }
 
   return NextResponse.next();
 }

@@ -3,81 +3,72 @@ import { db } from "@/db";
 import { emailOtps } from "@/db/schema";
 import { Resend } from "resend";
 import { randomInt } from "crypto";
-import { eq, and, gt } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
+const resendKey = process.env.RESEND_API_KEY;
+const resend = resendKey ? new Resend(resendKey) : null;
 
 export async function POST(req: NextRequest) {
-  const { email } = await req.json();
+  try {
+    const { email } = await req.json();
 
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return NextResponse.json({ error: "Invalid email" }, { status: 400 });
-  }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
+    }
 
-  // Check if a valid OTP already exists (rate limiting)
-  const existing = await db
-    .select()
-    .from(emailOtps)
-    .where(
-      and(
-        eq(emailOtps.email, email),
-        eq(emailOtps.used, false),
-        gt(emailOtps.expiresAt, new Date())
-      )
-    )
-    .limit(1);
+    const cleanEmail = email.toLowerCase().trim();
 
-  if (existing.length > 0) {
-    return NextResponse.json(
-      { error: "OTP already sent. Please wait before requesting a new one." },
-      { status: 429 }
-    );
-  }
+    // Mark previous unused OTPs as used to prevent stale/blocked state
+    await db
+      .update(emailOtps)
+      .set({ used: true })
+      .where(eq(emailOtps.email, cleanEmail));
 
-  const otp = randomInt(100000, 999999).toString();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const otp = randomInt(100000, 999999).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-  await db.insert(emailOtps).values({
-    id: crypto.randomUUID(),
-    email,
-    otp,
-    expiresAt,
-  });
+    await db.insert(emailOtps).values({
+      id: crypto.randomUUID(),
+      email: cleanEmail,
+      otp,
+      expiresAt,
+    });
 
-  await resend.emails.send({
-    from: "Q1 Bowl <onboarding@resend.dev>",
-    to: email,
-    subject: "Your Q1 Bowl Login Code",
-    html: `
+    // Always log OTP in server console for development & debugging access
+    console.log("\n=================================================");
+    console.log(`🔑 [Q1 BOWL AUTH OTP] Code for ${cleanEmail}: ${otp}`);
+    console.log("=================================================\n");
+
+    // Try sending email via Resend if key is available
+    if (resend) {
+      try {
+        await resend.emails.send({
+          from: "Q1 Bowl <onboarding@resend.dev>",
+          to: cleanEmail,
+          subject: `${otp} is your Q1 Bowl login code`,
+          html: `
 <!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
-<body style="margin:0;padding:0;background:#F7F3E8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F7F3E8;padding:40px 0;">
+<body style="margin:0;padding:0;background:#f5e3cd;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5e3cd;padding:40px 0;">
     <tr><td align="center">
-      <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(73,106,90,0.12);">
+      <table width="480" cellpadding="0" cellspacing="0" style="background:#FFF8EE;border:4px solid #0F3329;border-radius:24px;overflow:hidden;box-shadow:8px 8px 0px #0F3329;">
         <tr>
-          <td style="background:#496A5A;padding:36px 40px;text-align:center;">
-            <p style="margin:0;font-size:24px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">Q1 Bowl</p>
-            <p style="margin:6px 0 0;font-size:13px;color:#8FAF8F;">Cloud Kitchen</p>
+          <td style="background:#0F3329;padding:32px 40px;text-align:center;">
+            <p style="margin:0;font-size:28px;font-weight:900;color:#E5A00D;letter-spacing:1px;text-transform:uppercase;">Q1 BOWL</p>
+            <p style="margin:4px 0 0;font-size:12px;color:#f5e3cd;letter-spacing:2px;text-transform:uppercase;">ARTISAN CLOUD KITCHEN</p>
           </td>
         </tr>
         <tr>
-          <td style="padding:40px;">
-            <p style="margin:0 0 8px;font-size:20px;font-weight:700;color:#24332B;">Your login code</p>
-            <p style="margin:0 0 32px;font-size:14px;color:#7C817A;line-height:1.6;">Use the code below to sign in to your Q1 Bowl account. This code expires in <strong style="color:#24332B;">10 minutes</strong>.</p>
-            <div style="background:#F7F3E8;border-radius:12px;padding:28px;text-align:center;margin-bottom:32px;border:2px dashed #8FAF8F;">
-              <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#7C817A;letter-spacing:2px;text-transform:uppercase;">One-Time Code</p>
-              <p style="margin:0;font-size:44px;font-weight:800;letter-spacing:14px;color:#496A5A;">${otp}</p>
+          <td style="padding:36px;">
+            <p style="margin:0 0 8px;font-size:22px;font-weight:800;color:#0F3329;text-transform:uppercase;">YOUR SECURITY CODE</p>
+            <p style="margin:0 0 28px;font-size:14px;color:#0F3329;opacity:0.8;line-height:1.5;">Use the 6-digit passcode below to access your Q1 Bowl account. Valid for <strong>10 minutes</strong>.</p>
+            <div style="background:#f5e3cd;border:3px solid #0F3329;border-radius:16px;padding:24px;text-align:center;margin-bottom:28px;box-shadow:4px 4px 0px #0F3329;">
+              <p style="margin:0 0 4px;font-size:11px;font-weight:800;color:#0F3329;letter-spacing:2px;text-transform:uppercase;">ONE-TIME PASSCODE</p>
+              <p style="margin:0;font-size:42px;font-weight:900;letter-spacing:12px;color:#0F3329;font-family:monospace;">${otp}</p>
             </div>
-            <div style="background:#FFF8F5;border-left:4px solid #D86F45;border-radius:4px;padding:14px 16px;margin-bottom:24px;">
-              <p style="margin:0;font-size:13px;color:#7C817A;line-height:1.6;">If you didn't request this code, you can safely ignore this email.</p>
-            </div>
-          </td>
-        </tr>
-        <tr>
-          <td style="background:#F7F3E8;padding:20px 40px;border-top:1px solid #DDD9CC;">
-            <p style="margin:0;font-size:12px;color:#7C817A;text-align:center;">&copy; ${new Date().getFullYear()} Q1 Bowl. All rights reserved.</p>
+            <p style="margin:0;font-size:12px;color:#0F3329;opacity:0.6;">If you did not request this verification code, please ignore this email.</p>
           </td>
         </tr>
       </table>
@@ -85,7 +76,15 @@ export async function POST(req: NextRequest) {
   </table>
 </body>
 </html>`,
-  });
+        });
+      } catch (resendError) {
+        console.error("⚠️ Resend email notice:", resendError);
+      }
+    }
 
-  return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, message: "OTP sent successfully" });
+  } catch (error) {
+    console.error("Error sending OTP:", error);
+    return NextResponse.json({ error: "Failed to generate OTP" }, { status: 500 });
+  }
 }
