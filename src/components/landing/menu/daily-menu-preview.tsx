@@ -1,10 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
+import Image, { StaticImageData } from "next/image";
 import { Clock, Star } from "lucide-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+import heroDishImg from "../../../../public/hero_dish.png";
+import dumBiryaniImg from "../../../../public/dum_biryani_hero.png";
+import paneerImg from "../../../../public/paneer.png";
+import biryaniImg from "../../../../public/biryani.png";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -15,7 +20,7 @@ interface MenuItem {
   category: string;
   mealType: "BREAKFAST" | "LUNCH" | "DINNER" | "SNACK";
   isVeg: boolean;
-  image: string;
+  image: StaticImageData | string;
   rating: number;
   calories: number;
   protein: string;
@@ -29,7 +34,7 @@ const TODAY_ITEMS: MenuItem[] = [
     category: "Meals",
     mealType: "LUNCH",
     isVeg: false,
-    image: "/hero_dish.png",
+    image: heroDishImg,
     rating: 4.9,
     calories: 540,
     protein: "38g",
@@ -41,46 +46,46 @@ const TODAY_ITEMS: MenuItem[] = [
     category: "Biryani",
     mealType: "LUNCH",
     isVeg: false,
-    image: "/dum_biryani_hero.png",
+    image: dumBiryaniImg,
     rating: 4.9,
     calories: 680,
     protein: "32g",
   },
   {
     id: "3",
-    name: "Royal Paneer Tikka Deluxe Thali",
+    name: "Royal Paneer Tikka Deluxe Bowl",
     price: 239,
     category: "Meals",
     mealType: "DINNER",
     isVeg: true,
-    image: "/paneer.png",
+    image: paneerImg,
     rating: 4.8,
     calories: 590,
     protein: "24g",
   },
   {
     id: "4",
-    name: "South-Indian Super Millet Dosa Set",
-    price: 149,
-    category: "Breakfast",
-    mealType: "BREAKFAST",
-    isVeg: true,
-    image: "/paneer.png",
-    rating: 4.7,
-    calories: 340,
-    protein: "12g",
+    name: "Special Artisanal Dum Biryani",
+    price: 329,
+    category: "Biryani",
+    mealType: "DINNER",
+    isVeg: false,
+    image: biryaniImg,
+    rating: 4.9,
+    calories: 710,
+    protein: "35g",
   },
 ];
 
 const TOMORROW_ITEMS: MenuItem[] = [
   {
     id: "5",
-    name: "Mediterranean Grilled Salmon Bowl",
+    name: "Mediterranean Protein Power Bowl",
     price: 349,
     category: "Meals",
     mealType: "LUNCH",
     isVeg: false,
-    image: "/hero_dish.png",
+    image: heroDishImg,
     rating: 4.9,
     calories: 520,
     protein: "42g",
@@ -92,22 +97,34 @@ const TOMORROW_ITEMS: MenuItem[] = [
     category: "Biryani",
     mealType: "DINNER",
     isVeg: false,
-    image: "/dum_biryani_hero.png",
+    image: dumBiryaniImg,
     rating: 4.8,
     calories: 740,
     protein: "36g",
   },
   {
     id: "7",
-    name: "Keto Broccoli & Cottage Cheese Steak",
+    name: "Keto Broccoli & Paneer Steak Bowl",
     price: 269,
     category: "Meals",
     mealType: "DINNER",
     isVeg: true,
-    image: "/paneer.png",
+    image: paneerImg,
     rating: 4.7,
     calories: 410,
     protein: "28g",
+  },
+  {
+    id: "8",
+    name: "Chef's Special Heritage Dum Biryani",
+    price: 359,
+    category: "Biryani",
+    mealType: "LUNCH",
+    isVeg: false,
+    image: biryaniImg,
+    rating: 4.9,
+    calories: 730,
+    protein: "34g",
   },
 ];
 
@@ -123,14 +140,30 @@ export default function DailyMenuPreview() {
 
   const [isChanging, setIsChanging] = useState(false);
 
-  const items =
-    selectedDay === "today" ? TODAY_ITEMS : TOMORROW_ITEMS;
+  const items = selectedDay === "today" ? TODAY_ITEMS : TOMORROW_ITEMS;
 
-  /*
-  =====================================================
-  INITIAL SCROLL ANIMATION
-  =====================================================
-  */
+  const changeDay = (day: "today" | "tomorrow") => {
+    if (day === selectedDay || isChanging) return;
+
+    setIsChanging(true);
+
+    if (gridRef.current) {
+      gsap.to(gridRef.current.children, {
+        opacity: 0,
+        y: -20,
+        duration: 0.3,
+        stagger: 0.05,
+        ease: "power2.in",
+        onComplete: () => {
+          setSelectedDay(day);
+          setIsChanging(false);
+        },
+      });
+    } else {
+      setSelectedDay(day);
+      setIsChanging(false);
+    }
+  };
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -168,8 +201,8 @@ export default function DailyMenuPreview() {
         {
           opacity: 1,
           y: 0,
-          duration: 0.9,
-          delay: 0.15,
+          duration: 0.8,
+          delay: 0.2,
           ease: "power3.out",
           scrollTrigger: {
             trigger: section,
@@ -179,26 +212,23 @@ export default function DailyMenuPreview() {
         }
       );
 
-      // Cards
+      // Grid items
       if (gridRef.current) {
         gsap.fromTo(
           gridRef.current.children,
           {
             opacity: 0,
-            y: 70,
-            scale: 0.96,
+            y: 50,
           },
           {
             opacity: 1,
             y: 0,
-            scale: 1,
-            duration: 0.9,
-            stagger: 0.12,
-            delay: 0.25,
+            duration: 0.8,
+            stagger: 0.1,
             ease: "power3.out",
             scrollTrigger: {
-              trigger: gridRef.current,
-              start: "top 85%",
+              trigger: section,
+              start: "top 65%",
               once: true,
             },
           }
@@ -208,41 +238,6 @@ export default function DailyMenuPreview() {
 
     return () => ctx.revert();
   }, []);
-
-  /*
-  =====================================================
-  TODAY / TOMORROW TRANSITION
-  =====================================================
-  */
-
-  const changeDay = (day: "today" | "tomorrow") => {
-    if (day === selectedDay || isChanging) return;
-
-    if (!gridRef.current) {
-      setSelectedDay(day);
-      return;
-    }
-
-    setIsChanging(true);
-
-    gsap.to(gridRef.current.children, {
-      opacity: 0,
-      y: 25,
-      scale: 0.97,
-      duration: 0.25,
-      stagger: 0.04,
-      ease: "power2.in",
-      onComplete: () => {
-        setSelectedDay(day);
-      },
-    });
-  };
-
-  /*
-  =====================================================
-  ANIMATE NEW MENU ITEMS
-  =====================================================
-  */
 
   useEffect(() => {
     if (!isChanging || !gridRef.current) return;
@@ -259,12 +254,9 @@ export default function DailyMenuPreview() {
           opacity: 1,
           y: 0,
           scale: 1,
-          duration: 0.55,
+          duration: 0.5,
           stagger: 0.08,
           ease: "power3.out",
-          onComplete: () => {
-            setIsChanging(false);
-          },
         }
       );
     });
@@ -284,10 +276,7 @@ export default function DailyMenuPreview() {
         pb-40
       "
     >
-      {/* =================================================
-          BACKGROUND GLOW
-      ================================================= */}
-
+      {/* BACKGROUND GLOW */}
       <div
         className="
           absolute
@@ -306,25 +295,6 @@ export default function DailyMenuPreview() {
 
       <div
         className="
-          absolute
-          pointer-events-none
-          left-1/2
-          top-[15%]
-          -translate-x-1/2
-          w-[500px]
-          h-[400px]
-          rounded-full
-          bg-[#E5A00D]/[0.035]
-          blur-[100px]
-        "
-      />
-
-      {/* =================================================
-          CONTENT
-      ================================================= */}
-
-      <div
-        className="
           relative
           z-10
           max-w-7xl
@@ -334,10 +304,7 @@ export default function DailyMenuPreview() {
           lg:px-8
         "
       >
-        {/* =================================================
-            HEADER
-        ================================================= */}
-
+        {/* HEADER */}
         <div
           ref={headerRef}
           className="
@@ -399,10 +366,7 @@ export default function DailyMenuPreview() {
           </p>
         </div>
 
-        {/* =================================================
-            CONTROLS
-        ================================================= */}
-
+        {/* CONTROLS */}
         <div
           ref={controlsRef}
           className="
@@ -418,7 +382,6 @@ export default function DailyMenuPreview() {
           "
         >
           {/* DAY SWITCH */}
-
           <div
             className="
               relative
@@ -432,8 +395,6 @@ export default function DailyMenuPreview() {
               shadow-[0_10px_30px_rgba(0,0,0,0.15)]
             "
           >
-            {/* Sliding yellow pill */}
-
             <div
               className="
                 absolute
@@ -511,8 +472,6 @@ export default function DailyMenuPreview() {
             </button>
           </div>
 
-          {/* CUTOFF */}
-
           <div
             className="
               flex
@@ -524,7 +483,6 @@ export default function DailyMenuPreview() {
             "
           >
             <Clock className="w-4 h-4" />
-
             <span>
               {selectedDay === "today"
                 ? "Lunch cutoff 11:30 AM · Dinner cutoff 7:00 PM"
@@ -533,10 +491,7 @@ export default function DailyMenuPreview() {
           </div>
         </div>
 
-        {/* =================================================
-            MENU GRID
-        ================================================= */}
-
+        {/* MENU GRID */}
         <div
           ref={gridRef}
           className="
@@ -557,31 +512,30 @@ export default function DailyMenuPreview() {
                 cursor-pointer
               "
             >
-              {/* IMAGE */}
-
               <div
                 className="
                   relative
-                  h-[300px]
-                  sm:h-[330px]
+                  h-[280px]
+                  sm:h-[300px]
                   w-full
                   overflow-hidden
                   rounded-[2rem]
                   bg-[#1B4D3E]
-                  border
-                  border-[#E5A00D]/20
-                  shadow-[0_20px_50px_rgba(0,0,0,0.25)]
+                  border-2
+                  border-[#E5A00D]/30
+                  shadow-[0_20px_50px_rgba(0,0,0,0.3)]
                 "
               >
                 <Image
                   src={dish.image}
                   alt={dish.name}
                   fill
-                  sizes="(max-width: 640px) 100vw,
-                         (max-width: 1024px) 50vw,
-                         25vw"
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                  priority
                   className="
                     object-cover
+                    w-full
+                    h-full
                     transition-transform
                     duration-700
                     ease-out
@@ -589,22 +543,7 @@ export default function DailyMenuPreview() {
                   "
                 />
 
-                {/* IMAGE GRADIENT */}
-
-                <div
-                  className="
-                    absolute
-                    inset-0
-                    bg-gradient-to-t
-                    from-[#0F3329]/60
-                    via-transparent
-                    to-transparent
-                    opacity-60
-                  "
-                />
-
-                {/* RATING */}
-
+                {/* RATING BADGE */}
                 <div
                   className="
                     absolute
@@ -614,98 +553,116 @@ export default function DailyMenuPreview() {
                     items-center
                     gap-1
                     px-3
-                    py-1.5
+                    py-1
                     rounded-full
                     bg-[#0F3329]/90
                     backdrop-blur-md
                     border
-                    border-[#E5A00D]/30
-                    text-[#E5A00D]
-                    font-outfit
+                    border-[#E5A00D]/40
+                    font-sans
                     text-xs
                     font-bold
+                    text-[#f5e3cd]
+                    shadow-md
+                    z-20
                   "
                 >
-                  <Star className="w-3.5 h-3.5 fill-[#E5A00D]" />
-
-                  {dish.rating}
+                  <Star className="w-3.5 h-3.5 fill-[#E5A00D] text-[#E5A00D]" />
+                  <span>{dish.rating}</span>
                 </div>
 
-                {/* VEG */}
-
+                {/* VEG / NON-VEG TAG */}
                 <div
                   className="
                     absolute
                     top-4
                     left-4
-                    w-7
-                    h-7
+                    px-2.5
+                    py-1
                     rounded-full
                     bg-[#0F3329]/90
                     backdrop-blur-md
+                    border
+                    border-[#E5A00D]/40
                     flex
                     items-center
-                    justify-center
+                    gap-1.5
+                    z-20
                   "
                 >
-                  <div
+                  <span
                     className={`
-                      w-3
-                      h-3
+                      w-2
+                      h-2
                       rounded-full
-                      ${
-                        dish.isVeg
-                          ? "bg-emerald-400"
-                          : "bg-red-400"
-                      }
+                      ${dish.isVeg ? "bg-emerald-400" : "bg-red-400"}
                     `}
                   />
+                  <span
+                    className="
+                      font-outfit
+                      text-[10px]
+                      font-bold
+                      uppercase
+                      tracking-wider
+                      text-[#f5e3cd]
+                    "
+                  >
+                    {dish.isVeg ? "Veg" : "Non-Veg"}
+                  </span>
                 </div>
               </div>
 
-              {/* INFORMATION */}
-
-              <div className="mt-5 flex items-start justify-between gap-4">
-                <div className="min-w-0">
+              {/* CARD DETAILS */}
+              <div className="mt-5 space-y-2">
+                <div className="flex items-start justify-between gap-2">
                   <h3
                     className="
                       font-outfit
-                      text-lg
-                      sm:text-xl
-                      font-bold
-                      leading-tight
+                      text-xl
+                      font-extrabold
                       text-[#f5e3cd]
-                      transition-colors
-                      duration-300
+                      uppercase
+                      tracking-tight
                       group-hover:text-[#E5A00D]
+                      transition-colors
+                      line-clamp-1
                     "
                   >
                     {dish.name}
                   </h3>
 
-                  <p
+                  <span
                     className="
-                      mt-2
-                      font-sans
-                      text-xs
-                      text-[#D8C4A9]
+                      font-outfit
+                      text-xl
+                      font-black
+                      text-[#E5A00D]
+                      shrink-0
                     "
                   >
-                    {dish.calories} kcal · {dish.protein} protein
-                  </p>
+                    ₹{dish.price}
+                  </span>
                 </div>
 
-                <span
+                <div
                   className="
-                    shrink-0
-                    font-outfit
-                    text-xl
-                    font-extrabold
-                    text-[#E5A00D]
+                    flex
+                    items-center
+                    justify-between
+                    font-sans
+                    text-xs
+                    text-[#D8C4A9]
                   "
                 >
-                  ₹{dish.price}
-                </span>
+                  <span>{dish.calories} kcal</span>
+                  <span>•</span>
+                  <span>{dish.protein} protein</span>
+                  <span>•</span>
+                  <span className="uppercase text-[#E5A00D] font-bold">
+                    {dish.mealType}
+                  </span>
+                </div>
               </div>
             </article>
           ))}
