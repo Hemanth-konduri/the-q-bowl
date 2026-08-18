@@ -1,287 +1,457 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
-import AuthBackground from "@/components/auth-background";
-import { Button } from "@/components/ui/button";
+import {
+  Sparkles,
+  CalendarCheck,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  ShoppingBag,
+  ArrowRight,
+  Flame,
+  Utensils,
+  ChevronRight,
+  MapPin,
+  TrendingUp,
+  Star,
+  RefreshCw,
+  Plus,
+} from "lucide-react";
 
-interface MenuItem {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  image: string;
-  category: string;
-}
+import dumBiryaniImg from "../../../../../public/dum_biryani_hero.png";
+import heroDishImg from "../../../../../public/hero_dish.png";
+import paneerImg from "../../../../../public/paneer.png";
+import biryaniImg from "../../../../../public/biryani.png";
 
-const featuredItems: MenuItem[] = [
-  {
-    id: "1",
-    name: "Superfood Bowl",
-    description: "Quinoa, kale, avocado, chickpeas, and tahini dressing",
-    price: 14.99,
-    image: "🥗",
-    category: "Healthy",
-  },
-  {
-    id: "2",
-    name: "Protein Power Bowl",
-    description: "Grilled chicken, brown rice, roasted vegetables, and pesto",
-    price: 16.99,
-    image: "🍗",
-    category: "High Protein",
-  },
-  {
-    id: "3",
-    name: "Vegan Delight",
-    description: "Tofu, sweet potato, black beans, and lime-cilantro dressing",
-    price: 13.99,
-    image: "🌱",
-    category: "Vegan",
-  },
-  {
-    id: "4",
-    name: "Mediterranean Feast",
-    description: "Falafel, hummus, tabbouleh, and pita bread",
-    price: 15.99,
-    image: "🍞",
-    category: "Mediterranean",
-  },
-];
-
-const subscriptionPlans = [
-  {
-    name: "Weekly",
-    price: 79.99,
-    features: ["5 meals per week", "Fresh ingredients", "Flexible schedule", "Free delivery"],
-    recommended: false,
-  },
-  {
-    name: "Bi-Weekly",
-    price: 149.99,
-    features: ["10 meals per week", "Fresh ingredients", "Flexible schedule", "Free delivery", "10% discount"],
-    recommended: true,
-  },
-  {
-    name: "Monthly",
-    price: 299.99,
-    features: ["20 meals per week", "Fresh ingredients", "Flexible schedule", "Free delivery", "15% discount", "Free meal on birthday"],
-    recommended: false,
-  },
-];
-
-export default function UserDashboard() {
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"order" | "subscribe">("order");
+export default function UserDashboardPage() {
+  const [lunchSkipped, setLunchSkipped] = useState(false);
+  const [dinnerSkipped, setDinnerSkipped] = useState(false);
+  const [activeTab, setActiveTab] = useState<"overview" | "menu">("overview");
 
   return (
-    <div className="min-h-screen flex flex-col font-sans">
-      <AuthBackground />
-
-      {/* Navbar */}
-      <nav className="w-full px-6 py-4 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#496A5A" }}>
-            <span className="text-white font-bold text-lg">Q</span>
+    <div className="space-y-8 pb-12 animate-in fade-in duration-500">
+      
+      {/* =========================================================
+          WELCOME HERO BANNER
+          ========================================================= */}
+      
+      <div className="p-8 sm:p-10 bg-[#FFF8EE] border-4 border-[#0F3329] rounded-[2.5rem] shadow-[8px_8px_0px_#0F3329] relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="space-y-3 max-w-2xl relative z-10">
+          <div className="flex items-center gap-2">
+            <span className="px-3.5 py-1 rounded-full bg-[#0F3329] text-[#E5A00D] font-outfit text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-[2px_2px_0px_#E5A00D]">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>ACTIVE SUBSCRIPTION MEMBER</span>
+            </span>
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-sans font-bold text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-400">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Kitchen Open • Dispatching</span>
+            </span>
           </div>
-          <span className="font-bold text-xl tracking-tight" style={{ color: "#24332B" }}>Q1 Bowl</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm" style={{ color: "#7C817A" }}>
-            Welcome, <span className="font-semibold" style={{ color: "#24332B" }}>User</span>
-          </span>
-          <Button variant="outline" asChild className="rounded-xl px-4 py-2 text-sm border-2" style={{ borderColor: "#496A5A", color: "#496A5A" }}>
-            <Link href="/api/auth/logout">Sign Out</Link>
-          </Button>
-        </div>
-      </nav>
 
-      {/* Hero Section */}
-      <header className="px-6 py-16 text-center">
-        <div className="max-w-3xl mx-auto">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6" style={{ color: "#24332B" }}>
-            Ready to eat healthier?
+          <h1 className="font-outfit font-black text-3xl sm:text-5xl text-[#0F3329] uppercase tracking-tight leading-none">
+            WELCOME BACK, <span className="text-[#1B4D3E]">FEAST CLUBBER!</span>
           </h1>
-          <p className="text-lg mb-8" style={{ color: "#7C817A" }}>
-            Order fresh meals or choose a subscription plan that fits your lifestyle.
+          <p className="font-sans text-sm sm:text-base text-[#0F3329]/80 font-medium">
+            Your fresh artisanal meals are prepared daily. Manage today&apos;s slots, customize tomorrow&apos;s menu, or track live dispatches.
           </p>
-          
-          {/* Tabs */}
-          <div className="flex justify-center gap-4 mb-12">
-            <button
-              onClick={() => setActiveTab("order")}
-              className={`px-8 py-3 rounded-xl font-semibold transition-all ${
-                activeTab === "order"
-                  ? "bg-[#496A5A] text-white shadow-lg"
-                  : "bg-white/50 text-[#24332B] hover:bg-white"
-              }`}
-            >
-              Order Meals
-            </button>
-            <button
-              onClick={() => setActiveTab("subscribe")}
-              className={`px-8 py-3 rounded-xl font-semibold transition-all ${
-                activeTab === "subscribe"
-                  ? "bg-[#496A5A] text-white shadow-lg"
-                  : "bg-white/50 text-[#24332B] hover:bg-white"
-              }`}
-            >
-              Subscriptions
-            </button>
-          </div>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="flex-1 px-6 pb-20">
-        {activeTab === "order" ? (
-          <div className="max-w-6xl mx-auto">
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-2xl font-bold" style={{ color: "#24332B" }}>
-                Featured Meals
-              </h2>
-              <Button asChild variant="outline" className="rounded-xl" style={{ borderColor: "#496A5A", color: "#496A5A" }}>
-                <Link href="/menu">View All Menu</Link>
-              </Button>
+        <div className="shrink-0 flex flex-wrap sm:flex-nowrap gap-3 relative z-10 w-full md:w-auto">
+          <Link
+            href="/user/subscriptions"
+            className="flex-1 md:flex-none px-6 py-3.5 rounded-2xl bg-[#0F3329] text-[#f5e3cd] border-2 border-[#0F3329] font-outfit text-xs sm:text-sm font-black uppercase tracking-wider hover:bg-[#E5A00D] hover:text-[#0F3329] transition-all shadow-[4px_4px_0px_#071914] text-center"
+          >
+            Manage Plan
+          </Link>
+          <Link
+            href="/#menu"
+            className="flex-1 md:flex-none px-6 py-3.5 rounded-2xl bg-[#E5A00D] text-[#0F3329] border-2 border-[#0F3329] font-outfit text-xs sm:text-sm font-black uppercase tracking-wider hover:bg-white transition-all shadow-[4px_4px_0px_#0F3329] text-center"
+          >
+            Order Extra Bowl
+          </Link>
+        </div>
+      </div>
+
+
+      {/* =========================================================
+          ACTIVE SUBSCRIPTION STATUS CARD
+          ========================================================= */}
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        {/* Left 7 Cols: Active Plan & Today's Meals */}
+        <div className="lg:col-span-7 space-y-8">
+          
+          <div className="p-7 bg-[#FFF8EE] border-4 border-[#0F3329] rounded-[2.5rem] shadow-[6px_6px_0px_#0F3329] space-y-6">
+            <div className="flex items-center justify-between border-b-2 border-[#0F3329]/15 pb-4">
+              <div>
+                <span className="font-mouse-memoirs text-xl text-[#E5A00D] uppercase font-bold tracking-widest block">
+                  CURRENT ACTIVE PLAN
+                </span>
+                <h2 className="font-outfit font-black text-2xl sm:text-3xl text-[#0F3329] uppercase tracking-tight">
+                  30-DAY ARTISAN BIRYANI &amp; BOWL PLAN
+                </h2>
+              </div>
+              <span className="px-4 py-1.5 rounded-full bg-emerald-100 text-emerald-800 border-2 border-emerald-600 font-outfit text-xs font-extrabold uppercase tracking-wider">
+                ACTIVE
+              </span>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {featuredItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 bg-white"
-                >
-                  <div className="aspect-square bg-gradient-to-br from-[#496A5A]/10 to-[#8FAF8F]/10 flex items-center justify-center">
-                    <span className="text-8xl">{item.image}</span>
-                  </div>
-                  <div className="p-5">
-                    <div className="text-xs font-semibold px-2 py-1 rounded-full inline-block mb-3" style={{ background: "#FFF8F5", color: "#D86F45" }}>
-                      {item.category}
-                    </div>
-                    <h3 className="text-lg font-bold mb-2" style={{ color: "#24332B" }}>
-                      {item.name}
-                    </h3>
-                    <p className="text-sm mb-4" style={{ color: "#7C817A" }}>
-                      {item.description}
-                    </p>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xl font-bold" style={{ color: "#24332B" }}>
-                        ${item.price.toFixed(2)}
-                      </span>
-                      <Button
-                        onClick={() => router.push("/user/checkout")}
-                        className="rounded-lg px-4 py-2 text-sm"
-                        style={{ background: "#496A5A" }}
-                      >
-                        Add to Cart
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Quick Stats */}
-            <div className="mt-16 grid md:grid-cols-3 gap-6">
-              {[
-                { icon: "⭐", title: "5-Star Rating", value: "4.9/5" },
-                { icon: "🍽️", title: "Meals Served", value: "50,000+" },
-                { icon: "🚚", title: "Happy Customers", value: "10,000+" },
-              ].map((stat, i) => (
-                <div key={i} className="text-center p-8 rounded-2xl" style={{ background: "#F7F3E8" }}>
-                  <div className="text-4xl mb-3">{stat.icon}</div>
-                  <h3 className="text-3xl font-bold mb-1" style={{ color: "#24332B" }}>
-                    {stat.value}
-                  </h3>
-                  <p className="text-sm" style={{ color: "#7C817A" }}>
-                    {stat.title}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-12">
-              <h2 className="text-2xl font-bold mb-4" style={{ color: "#24332B" }}>
-                Choose Your Subscription Plan
-              </h2>
-              <p className="text-lg" style={{ color: "#7C817A" }}>
-                Save more with longer subscription periods. All plans include fresh ingredients and free delivery.
+            {/* Meal Balance Progress */}
+            <div className="space-y-2">
+              <div className="flex justify-between items-center font-outfit text-xs font-black uppercase tracking-wider text-[#0F3329]">
+                <span>MEALS REMAINING BALANCE</span>
+                <span className="text-[#E5A00D] bg-[#0F3329] px-3 py-0.5 rounded-full">
+                  18 / 30 MEALS
+                </span>
+              </div>
+              <div className="w-full h-4 rounded-full bg-[#0F3329]/10 border-2 border-[#0F3329] overflow-hidden p-0.5">
+                <div className="h-full rounded-full bg-[#E5A00D] w-[60%] transition-all duration-1000 shadow-inner" />
+              </div>
+              <p className="font-sans text-xs text-[#0F3329]/70 font-semibold">
+                Valid until Sept 15, 2026 • 12 Meals enjoyed this month
               </p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8">
-              {subscriptionPlans.map((plan, i) => (
-                <div
-                  key={i}
-                  className={`rounded-3xl p-8 transition-all ${
-                    plan.recommended
-                      ? "bg-[#496A5A] text-white shadow-2xl scale-105"
-                      : "bg-white text-[#24332B] shadow-lg hover:shadow-xl"
+            {/* Today's Meal Slots */}
+            <div className="space-y-4 pt-2">
+              <span className="font-outfit text-xs font-black uppercase tracking-widest text-[#0F3329] block">
+                TODAY&apos;S SCHEDULED SLOTS (AUG 18)
+              </span>
+
+              {/* LUNCH SLOT */}
+              <div className="p-4 rounded-2xl bg-[#f5e3cd] border-3 border-[#0F3329] flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-14 h-14 rounded-xl bg-[#0F3329] p-1 shrink-0 relative overflow-hidden border border-[#E5A00D]/40">
+                    <Image src={dumBiryaniImg} alt="Lunch Dish" fill className="object-contain p-1" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-outfit text-xs font-extrabold text-[#E5A00D] bg-[#0F3329] px-2 py-0.5 rounded-full uppercase">
+                        LUNCH • 12:30 PM
+                      </span>
+                      {lunchSkipped && (
+                        <span className="font-outfit text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full uppercase border border-red-300">
+                          SKIPPED
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="font-outfit font-extrabold text-base text-[#0F3329] uppercase mt-1">
+                      Hyderabadi Chicken Dum Biryani
+                    </h3>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setLunchSkipped(!lunchSkipped)}
+                  className={`px-4 py-2 rounded-xl font-outfit text-xs font-extrabold uppercase tracking-wider border-2 transition-all shrink-0 ${
+                    lunchSkipped
+                      ? "bg-emerald-600 text-white border-emerald-800 hover:bg-emerald-700"
+                      : "bg-white text-red-700 border-red-600 hover:bg-red-50"
                   }`}
                 >
-                  {plan.recommended && (
-                    <div className="text-center mb-4">
-                      <span className="px-4 py-1 rounded-full text-xs font-bold" style={{ background: "#D86F45" }}>
-                        MOST POPULAR
-                      </span>
-                    </div>
-                  )}
-                  <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
-                  <div className="text-4xl font-bold mb-6">
-                    ${plan.price} <span className="text-lg font-normal opacity-70">/mo</span>
-                  </div>
-                  <ul className="space-y-3 mb-8">
-                    {plan.features.map((feature, j) => (
-                      <li key={j} className="flex items-center gap-3">
-                        <span className="text-lg">✓</span>
-                        <span className="text-sm">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Button
-                    className="w-full py-3 rounded-xl font-semibold"
-                    style={{ background: plan.recommended ? "#D86F45" : "#496A5A" }}
-                  >
-                    Choose {plan.name}
-                  </Button>
-                </div>
-              ))}
-            </div>
+                  {lunchSkipped ? "Unskip Slot" : "Skip Lunch"}
+                </button>
+              </div>
 
-            {/* Subscription Benefits */}
-            <div className="mt-16 grid md:grid-cols-4 gap-6">
-              {[
-                { icon: "🥗", title: "Fresh Ingredients", desc: "Locally sourced, organic produce" },
-                { icon: "📅", title: "Flexible Scheduling", desc: "Skip or cancel anytime" },
-                { icon: "🥗", title: "Dietary Options", desc: "Vegan, vegetarian, gluten-free" },
-                { icon: "🚚", title: "Free Delivery", desc: "Direct to your doorstep" },
-              ].map((benefit, i) => (
-                <div key={i} className="text-center p-6 rounded-2xl" style={{ background: "#F7F3E8" }}>
-                  <div className="text-3xl mb-3">{benefit.icon}</div>
-                  <h4 className="font-bold mb-2" style={{ color: "#24332B" }}>
-                    {benefit.title}
-                  </h4>
-                  <p className="text-sm" style={{ color: "#7C817A" }}>
-                    {benefit.desc}
-                  </p>
+              {/* DINNER SLOT */}
+              <div className="p-4 rounded-2xl bg-[#f5e3cd] border-3 border-[#0F3329] flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-14 h-14 rounded-xl bg-[#0F3329] p-1 shrink-0 relative overflow-hidden border border-[#E5A00D]/40">
+                    <Image src={paneerImg} alt="Dinner Dish" fill className="object-contain p-1" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-outfit text-xs font-extrabold text-[#E5A00D] bg-[#0F3329] px-2 py-0.5 rounded-full uppercase">
+                        DINNER • 8:00 PM
+                      </span>
+                      {dinnerSkipped && (
+                        <span className="font-outfit text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full uppercase border border-red-300">
+                          SKIPPED
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="font-outfit font-extrabold text-base text-[#0F3329] uppercase mt-1">
+                      Royal Paneer Tikka Deluxe Bowl
+                    </h3>
+                  </div>
                 </div>
-              ))}
+
+                <button
+                  onClick={() => setDinnerSkipped(!dinnerSkipped)}
+                  className={`px-4 py-2 rounded-xl font-outfit text-xs font-extrabold uppercase tracking-wider border-2 transition-all shrink-0 ${
+                    dinnerSkipped
+                      ? "bg-emerald-600 text-white border-emerald-800 hover:bg-emerald-700"
+                      : "bg-white text-red-700 border-red-600 hover:bg-red-50"
+                  }`}
+                >
+                  {dinnerSkipped ? "Unskip Slot" : "Skip Dinner"}
+                </button>
+              </div>
+
             </div>
           </div>
-        )}
-      </main>
 
-      {/* Footer */}
-      <footer className="py-8 px-6 border-t" style={{ borderColor: "#DDD9CC" }}>
-        <div className="max-w-6xl mx-auto text-center">
-          <p className="text-sm" style={{ color: "#7C817A" }}>
-            © {new Date().getFullYear()} Q1 Bowl. All rights reserved.
-          </p>
+          {/* ACTIVE DISPATCH LIVE TRACKER CARD */}
+          <div className="p-6 bg-[#0F3329] text-[#f5e3cd] border-4 border-[#0F3329] rounded-[2.5rem] shadow-[6px_6px_0px_#071914] space-y-4">
+            <div className="flex items-center justify-between border-b border-[#E5A00D]/20 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-[#E5A00D] animate-ping" />
+                <span className="font-outfit text-xs font-black uppercase tracking-wider text-[#E5A00D]">
+                  LIVE DISPATCH STATUS • ORDER #Q1B-8942
+                </span>
+              </div>
+              <span className="font-outfit text-xs font-extrabold text-[#E5A00D] bg-[#1B4D3E] px-3 py-1 rounded-full border border-[#E5A00D]/30">
+                OUT FOR DELIVERY
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex justify-between items-end">
+                <div>
+                  <h3 className="font-outfit font-black text-xl uppercase text-[#FFF8EE]">
+                    Lunch Dispatch On The Way
+                  </h3>
+                  <p className="font-sans text-xs text-[#D8C4A9] mt-0.5">
+                    Rider Ramesh K. • Hero Splendor (TS 09 EQ 4821)
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="font-outfit text-xs font-bold uppercase text-[#D8C4A9] block">EST. ARRIVAL</span>
+                  <span className="font-outfit text-2xl font-black text-[#E5A00D]">12:45 PM</span>
+                </div>
+              </div>
+
+              {/* Progress Steps */}
+              <div className="grid grid-cols-4 gap-2 pt-2">
+                <div className="h-2 rounded-full bg-[#E5A00D]" />
+                <div className="h-2 rounded-full bg-[#E5A00D]" />
+                <div className="h-2 rounded-full bg-[#E5A00D] animate-pulse" />
+                <div className="h-2 rounded-full bg-[#1B4D3E]" />
+              </div>
+
+              <div className="flex justify-between font-outfit text-[10px] font-bold uppercase text-[#D8C4A9]">
+                <span>Placed</span>
+                <span>Preparing</span>
+                <span className="text-[#E5A00D]">Out for Delivery</span>
+                <span>Delivered</span>
+              </div>
+            </div>
+          </div>
+
         </div>
-      </footer>
+
+        {/* Right 5 Cols: Stats & Saved Addresses */}
+        <div className="lg:col-span-5 space-y-8">
+          
+          {/* STATS OVERVIEW */}
+          <div className="p-7 bg-[#FFF8EE] border-4 border-[#0F3329] rounded-[2.5rem] shadow-[6px_6px_0px_#0F3329] space-y-5">
+            <span className="font-mouse-memoirs text-xl text-[#E5A00D] uppercase font-bold tracking-widest block">
+              YOUR SUBSCRIPTION SAVINGS
+            </span>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 rounded-2xl bg-[#f5e3cd] border-3 border-[#0F3329] space-y-1">
+                <span className="font-outfit text-[10px] font-extrabold uppercase text-[#0F3329]/70 block">
+                  MEALS ENJOYED
+                </span>
+                <span className="font-outfit text-3xl font-black text-[#0F3329] block">
+                  12 Bowls
+                </span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-[#0F3329] text-[#f5e3cd] border-3 border-[#0F3329] space-y-1">
+                <span className="font-outfit text-[10px] font-extrabold uppercase text-[#E5A00D] block">
+                  TOTAL SAVED
+                </span>
+                <span className="font-outfit text-3xl font-black text-[#E5A00D] block">
+                  ₹1,450
+                </span>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-white border-2 border-[#0F3329] flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-[#E5A00D] text-[#0F3329]">
+                  <Star className="w-5 h-5 fill-[#0F3329]" />
+                </div>
+                <div>
+                  <span className="font-outfit text-xs font-extrabold uppercase text-[#0F3329] block">
+                    MOST ORDERED DISH
+                  </span>
+                  <span className="font-sans text-xs font-bold text-[#0F3329]/70">
+                    Hyderabadi Chicken Dum Biryani
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* DEFAULT DELIVERY ADDRESS CARD */}
+          <div className="p-7 bg-[#FFF8EE] border-4 border-[#0F3329] rounded-[2.5rem] shadow-[6px_6px_0px_#0F3329] space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="font-mouse-memoirs text-xl text-[#E5A00D] uppercase font-bold tracking-widest">
+                DEFAULT DELIVERY LOCATION
+              </span>
+              <Link
+                href="/user/addresses"
+                className="font-outfit text-xs font-extrabold uppercase text-[#1B4D3E] underline hover:text-[#E5A00D]"
+              >
+                Change
+              </Link>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[#f5e3cd] border-2 border-[#0F3329] space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-outfit text-xs font-black uppercase text-[#0F3329] bg-[#E5A00D] px-2.5 py-0.5 rounded-full border border-[#0F3329]">
+                  HOME ADDRESS
+                </span>
+                <span className="font-sans text-xs font-bold text-emerald-800">
+                  ✓ Verified Serviceable Area
+                </span>
+              </div>
+              <p className="font-sans text-xs font-bold text-[#0F3329] leading-relaxed">
+                Flat 402, Golden Heights Appts, Road No 12, Jubilee Hills, Hyderabad - 500033
+              </p>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+
+      {/* =========================================================
+          EXPLORE TODAY'S FEATURED KITCHEN BOWL MENU
+          ========================================================= */}
+
+      <div className="p-8 sm:p-10 bg-[#FFF8EE] border-4 border-[#0F3329] rounded-[2.5rem] shadow-[8px_8px_0px_#0F3329] space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b-2 border-[#0F3329]/15 pb-4">
+          <div>
+            <span className="font-mouse-memoirs text-2xl text-[#E5A00D] uppercase font-bold tracking-widest block">
+              ADDITIONAL MEAL BOWLS
+            </span>
+            <h2 className="font-outfit font-black text-3xl sm:text-4xl text-[#0F3329] uppercase tracking-tight">
+              FRESH A LA CARTE DISHES TODAY
+            </h2>
+          </div>
+          <Link
+            href="/#menu"
+            className="inline-flex items-center gap-2 font-outfit text-xs sm:text-sm font-extrabold uppercase tracking-wider text-[#0F3329] hover:text-[#E5A00D] transition-colors"
+          >
+            <span>View Full Menu</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          
+          {/* ITEM 1 */}
+          <div className="p-4 rounded-3xl bg-[#f5e3cd] border-3 border-[#0F3329] space-y-3 flex flex-col justify-between group hover:shadow-[4px_4px_0px_#0F3329] transition-all">
+            <div className="relative h-44 w-full rounded-2xl bg-[#0F3329] border-2 border-[#0F3329] overflow-hidden flex items-center justify-center p-2">
+              <Image src={heroDishImg} alt="Protein Harvest Bowl" fill className="object-contain p-2 group-hover:scale-105 transition-transform" />
+              <span className="absolute top-2 right-2 font-outfit text-[10px] font-black uppercase text-[#0F3329] bg-[#E5A00D] px-2 py-0.5 rounded-full">
+                ★ 4.9
+              </span>
+            </div>
+            <div>
+              <h3 className="font-outfit font-black text-base uppercase text-[#0F3329]">
+                Protein Harvest Bowl
+              </h3>
+              <p className="font-sans text-xs text-[#0F3329]/70 font-semibold mt-0.5">
+                540 kcal • 38g Protein
+              </p>
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-[#0F3329]/15">
+              <span className="font-outfit text-lg font-black text-[#0F3329]">₹249</span>
+              <button className="px-3 py-1.5 rounded-xl bg-[#0F3329] text-[#E5A00D] border border-[#0F3329] font-outfit text-xs font-black uppercase tracking-wider hover:bg-[#E5A00D] hover:text-[#0F3329] transition-all flex items-center gap-1">
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add</span>
+              </button>
+            </div>
+          </div>
+
+          {/* ITEM 2 */}
+          <div className="p-4 rounded-3xl bg-[#f5e3cd] border-3 border-[#0F3329] space-y-3 flex flex-col justify-between group hover:shadow-[4px_4px_0px_#0F3329] transition-all">
+            <div className="relative h-44 w-full rounded-2xl bg-[#0F3329] border-2 border-[#0F3329] overflow-hidden flex items-center justify-center p-2">
+              <Image src={dumBiryaniImg} alt="Hyderabadi Dum Biryani" fill className="object-contain p-2 group-hover:scale-105 transition-transform" />
+              <span className="absolute top-2 right-2 font-outfit text-[10px] font-black uppercase text-[#0F3329] bg-[#E5A00D] px-2 py-0.5 rounded-full">
+                ★ 4.9
+              </span>
+            </div>
+            <div>
+              <h3 className="font-outfit font-black text-base uppercase text-[#0F3329]">
+                Hyderabadi Dum Biryani
+              </h3>
+              <p className="font-sans text-xs text-[#0F3329]/70 font-semibold mt-0.5">
+                680 kcal • 32g Protein
+              </p>
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-[#0F3329]/15">
+              <span className="font-outfit text-lg font-black text-[#0F3329]">₹299</span>
+              <button className="px-3 py-1.5 rounded-xl bg-[#0F3329] text-[#E5A00D] border border-[#0F3329] font-outfit text-xs font-black uppercase tracking-wider hover:bg-[#E5A00D] hover:text-[#0F3329] transition-all flex items-center gap-1">
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add</span>
+              </button>
+            </div>
+          </div>
+
+          {/* ITEM 3 */}
+          <div className="p-4 rounded-3xl bg-[#f5e3cd] border-3 border-[#0F3329] space-y-3 flex flex-col justify-between group hover:shadow-[4px_4px_0px_#0F3329] transition-all">
+            <div className="relative h-44 w-full rounded-2xl bg-[#0F3329] border-2 border-[#0F3329] overflow-hidden flex items-center justify-center p-2">
+              <Image src={paneerImg} alt="Royal Paneer Tikka Bowl" fill className="object-contain p-2 group-hover:scale-105 transition-transform" />
+              <span className="absolute top-2 right-2 font-outfit text-[10px] font-black uppercase text-[#0F3329] bg-[#E5A00D] px-2 py-0.5 rounded-full">
+                ★ 4.8
+              </span>
+            </div>
+            <div>
+              <h3 className="font-outfit font-black text-base uppercase text-[#0F3329]">
+                Royal Paneer Tikka Bowl
+              </h3>
+              <p className="font-sans text-xs text-[#0F3329]/70 font-semibold mt-0.5">
+                590 kcal • 24g Protein
+              </p>
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-[#0F3329]/15">
+              <span className="font-outfit text-lg font-black text-[#0F3329]">₹239</span>
+              <button className="px-3 py-1.5 rounded-xl bg-[#0F3329] text-[#E5A00D] border border-[#0F3329] font-outfit text-xs font-black uppercase tracking-wider hover:bg-[#E5A00D] hover:text-[#0F3329] transition-all flex items-center gap-1">
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add</span>
+              </button>
+            </div>
+          </div>
+
+          {/* ITEM 4 */}
+          <div className="p-4 rounded-3xl bg-[#f5e3cd] border-3 border-[#0F3329] space-y-3 flex flex-col justify-between group hover:shadow-[4px_4px_0px_#0F3329] transition-all">
+            <div className="relative h-44 w-full rounded-2xl bg-[#0F3329] border-2 border-[#0F3329] overflow-hidden flex items-center justify-center p-2">
+              <Image src={biryaniImg} alt="Special Artisanal Dum Biryani" fill className="object-contain p-2 group-hover:scale-105 transition-transform" />
+              <span className="absolute top-2 right-2 font-outfit text-[10px] font-black uppercase text-[#0F3329] bg-[#E5A00D] px-2 py-0.5 rounded-full">
+                ★ 4.9
+              </span>
+            </div>
+            <div>
+              <h3 className="font-outfit font-black text-base uppercase text-[#0F3329]">
+                Special Artisanal Biryani
+              </h3>
+              <p className="font-sans text-xs text-[#0F3329]/70 font-semibold mt-0.5">
+                710 kcal • 35g Protein
+              </p>
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-[#0F3329]/15">
+              <span className="font-outfit text-lg font-black text-[#0F3329]">₹329</span>
+              <button className="px-3 py-1.5 rounded-xl bg-[#0F3329] text-[#E5A00D] border border-[#0F3329] font-outfit text-xs font-black uppercase tracking-wider hover:bg-[#E5A00D] hover:text-[#0F3329] transition-all flex items-center gap-1">
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
     </div>
   );
 }

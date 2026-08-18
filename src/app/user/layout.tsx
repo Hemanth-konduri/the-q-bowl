@@ -1,46 +1,17 @@
-import type { LayoutProps } from "next";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import type { ReactNode } from "react";
+import UserNav from "@/components/user/user-nav";
 
-export default function UserLayout({ children }: LayoutProps<"/user">) {
+export default function UserLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen flex flex-col font-sans">
-      {/* Navbar */}
-      <nav className="w-full px-6 py-4 flex justify-between items-center bg-white/80 backdrop-blur-sm border-b" style={{ borderColor: "#DDD9CC" }}>
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#496A5A" }}>
-            <span className="text-white font-bold text-lg">Q</span>
-          </div>
-          <span className="font-bold text-xl tracking-tight" style={{ color: "#24332B" }}>Q1 Bowl</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <Link href="/user/landing" className="text-sm font-medium transition hover:opacity-80" style={{ color: "#24332B" }}>
-            Home
-          </Link>
-          <Link href="/user/dashboard" className="text-sm font-medium transition hover:opacity-80" style={{ color: "#24332B" }}>
-            Dashboard
-          </Link>
-          <Link href="/user/orders" className="text-sm font-medium transition hover:opacity-80" style={{ color: "#24332B" }}>
-            Orders
-          </Link>
-          <Link href="/user/profile" className="text-sm font-medium transition hover:opacity-80" style={{ color: "#24332B" }}>
-            Profile
-          </Link>
-          <Button variant="outline" asChild className="rounded-xl px-4 py-2 text-sm border-2" style={{ borderColor: "#496A5A", color: "#496A5A" }}>
-            <Link href="/api/auth/logout">Sign Out</Link>
-          </Button>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-[#f5e3cd] text-[#0F3329] flex flex-col justify-between relative selection:bg-[#0F3329] selection:text-white">
+      <UserNav />
       
-      <main className="flex-1">{children}</main>
-      
-      {/* Footer */}
-      <footer className="py-8 px-6 border-t" style={{ borderColor: "#DDD9CC" }}>
-        <div className="max-w-6xl mx-auto text-center">
-          <p className="text-sm" style={{ color: "#7C817A" }}>
-            © {new Date().getFullYear()} Q1 Bowl. All rights reserved.
-          </p>
-        </div>
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-8 py-8 relative z-10">
+        {children}
+      </main>
+
+      <footer className="w-full py-6 border-t-2 border-[#0F3329]/15 text-center text-xs font-sans font-semibold text-[#0F3329]/60">
+        <p>© {new Date().getFullYear()} Q1 BOWL • ARTISAN CLOUD KITCHEN &amp; MEAL SUBSCRIPTIONS</p>
       </footer>
     </div>
   );
