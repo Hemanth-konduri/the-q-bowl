@@ -119,30 +119,7 @@ cd the-q-bowl
 npm install
 ```
 
-### 4. Environment Configuration
-Create a `.env` file in the root directory:
-
-```env
-# Database (Supabase PostgreSQL Connection)
-DATABASE_URL="postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres"
-DIRECT_URL="postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres"
-
-# Auth & JWT Secret
-JWT_SECRET="your-artisan-super-secret-jwt-key"
-NEXTAUTH_URL="http://localhost:3000"
-
-# Supabase Storage
-NEXT_PUBLIC_SUPABASE_URL="https://[project-ref].supabase.co"
-SUPABASE_URL="https://[project-ref].supabase.co"
-SUPABASE_SERVICE_ROLE_KEY="your-supabase-service-role-key"
-
-# Email OTP (Nodemailer / Resend)
-RESEND_API_KEY="your-resend-api-key"
-GMAIL_USER="your-email@gmail.com"
-GMAIL_APP_PASSWORD="your-app-password"
-```
-
-### 5. Run Database Migration & Seed
+### 4. Run Database Migration & Seed
 ```bash
 # Push schema to PostgreSQL database
 npx drizzle-kit push
@@ -151,7 +128,7 @@ npx drizzle-kit push
 npx tsx src/db/seed.ts
 ```
 
-### 6. Start Local Development Server
+### 5. Start Local Development Server
 ```bash
 npm run dev
 ```
