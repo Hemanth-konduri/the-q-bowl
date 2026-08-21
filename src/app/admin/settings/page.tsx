@@ -7,6 +7,7 @@ import { Settings, Shield, Bell, Eye, Truck, CreditCard } from "lucide-react";
 import PageHeader from "@/components/admin/page-header";
 import PageCard from "@/components/admin/page-card";
 import StatCard from "@/components/admin/stat-card";
+import ImageUploader from "@/components/shared/image-uploader";
 
 export default async function SettingsPage() {
   const admin = await requireAdmin();
@@ -169,6 +170,24 @@ export default async function SettingsPage() {
               <div className="w-4 h-4 rounded-full bg-white" />
             </button>
           </div>
+        </div>
+      </PageCard>
+
+      <PageCard>
+        <div className="flex items-center gap-3 mb-6">
+          <div className="rounded-lg p-3" style={{ background: "#EDF2EE", color: "#496A5A" }}>
+            <Settings size={20} />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold" style={{ color: "#24332B" }}>Branding Assets &amp; Media</h2>
+            <p className="text-xs" style={{ color: "#7C817A" }}>Upload brand assets to Supabase Storage (<code className="font-mono">qbowl-assets/branding/</code>)</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <ImageUploader folder="branding" name="logoUrl" label="Upload Brand Logo" />
+          <ImageUploader folder="branding" name="faviconUrl" label="Upload Favicon" />
+          <ImageUploader folder="branding" name="heroImageUrl" label="Upload Hero Banner Image" />
         </div>
       </PageCard>
     </div>

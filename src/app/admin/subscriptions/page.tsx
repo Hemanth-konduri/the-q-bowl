@@ -12,6 +12,7 @@ import PageCard from "@/components/admin/page-card";
 import DataTable from "@/components/admin/data-table";
 import StatCard from "@/components/admin/stat-card";
 import StatusBadge from "@/components/admin/status-badge";
+import ImageUploader from "@/components/shared/image-uploader";
 
 const MEAL_TYPE_OPTIONS = ["BREAKFAST", "LUNCH", "DINNER", "SNACK", "OTHER"] as const;
 type MealType = (typeof MEAL_TYPE_OPTIONS)[number];
@@ -23,28 +24,56 @@ async function createSubscriptionPlan(formData: FormData) {
 
   await requireAdmin();
 
+  const id = String(formData.get("id") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
-  const totalMeals = Number(formData.get("totalMeals") ?? 0);
+  const totalMeals = Number(formData.get("totalMeals") ?? 30);
+  const mealsPerDay = Number(formData.get("mealsPerDay") ?? 1);
   const price = Number(formData.get("price") ?? 0);
+  const weeklyPrice = Number(formData.get("weeklyPrice") ?? price);
+  const monthlyPrice = Number(formData.get("monthlyPrice") ?? price);
+  const caloriesRange = String(formData.get("caloriesRange") ?? "450 - 600 kcal").trim();
+  const deliveryFrequency = String(formData.get("deliveryFrequency") ?? "Daily Dispatch").trim();
+  const rawFeatures = String(formData.get("features") ?? "").trim();
+  const features = rawFeatures
+    ? rawFeatures.split("\n").map((f) => f.trim()).filter(Boolean)
+    : [];
+  const isPopular = formData.get("isPopular") === "true" || formData.get("isPopular") === "on";
+
   const selectedMealTypes = formData.getAll("mealTypes").map(String);
   const normalizedMealTypes = selectedMealTypes.filter((value): value is MealType =>
     MEAL_TYPE_OPTIONS.includes(value as MealType)
   );
 
-  if (!name || !Number.isFinite(totalMeals) || totalMeals <= 0 || !Number.isFinite(price) || price <= 0 || normalizedMealTypes.length === 0) {
+  if (!name || price <= 0) {
     redirect("/admin/subscriptions");
   }
 
-  await db.insert(subscriptionPlans).values({
-    id: crypto.randomUUID(),
+  const payload = {
     name,
     description: description || null,
     totalMeals,
+    mealsPerDay,
     price,
-    mealTypes: normalizedMealTypes,
+    weeklyPrice,
+    monthlyPrice,
+    caloriesRange,
+    deliveryFrequency,
+    features,
+    isPopular,
+    mealTypes: (normalizedMealTypes.length > 0 ? normalizedMealTypes : ["LUNCH"]) as MealType[],
     isActive: true,
-  });
+    updatedAt: new Date(),
+  };
+
+  if (id) {
+    await db.update(subscriptionPlans).set(payload).where(eq(subscriptionPlans.id, id));
+  } else {
+    await db.insert(subscriptionPlans).values({
+      id: crypto.randomUUID(),
+      ...payload,
+    });
+  }
 
   revalidatePath("/admin/subscriptions");
   redirect("/admin/subscriptions");
@@ -186,12 +215,12 @@ export default async function SubscriptionsPage({
             <form action={createSubscriptionPlan} className="space-y-4">
               <div>
                 <label htmlFor="name" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>
-                  Plan name
+                  Plan title *
                 </label>
                 <input
                   id="name"
                   name="name"
-                  placeholder="e.g. 20 Meal Combo"
+                  placeholder="e.g. Starter Plan"
                   className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2"
                   style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }}
                   required
@@ -200,30 +229,31 @@ export default async function SubscriptionsPage({
 
               <div>
                 <label htmlFor="description" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>
-                  Description
+                  Subtitle / Description *
                 </label>
                 <textarea
                   id="description"
                   name="description"
-                  rows={3}
-                  placeholder="Describe what this plan includes"
+                  rows={2}
+                  placeholder="e.g. Ideal for individuals starting clean daily eating"
                   className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2"
                   style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }}
+                  required
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="totalMeals" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>
-                    Total meals
+                  <label htmlFor="weeklyPrice" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>
+                    Weekly price (₹) *
                   </label>
                   <input
-                    id="totalMeals"
-                    name="totalMeals"
+                    id="weeklyPrice"
+                    name="weeklyPrice"
                     type="number"
                     min="1"
                     step="1"
-                    placeholder="20"
+                    placeholder="1499"
                     className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2"
                     style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }}
                     required
@@ -231,8 +261,43 @@ export default async function SubscriptionsPage({
                 </div>
 
                 <div>
+                  <label htmlFor="monthlyPrice" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>
+                    Monthly price (₹) *
+                  </label>
+                  <input
+                    id="monthlyPrice"
+                    name="monthlyPrice"
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="5499"
+                    className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2"
+                    style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="mealsPerDay" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>
+                    Meals / Day
+                  </label>
+                  <input
+                    id="mealsPerDay"
+                    name="mealsPerDay"
+                    type="number"
+                    min="1"
+                    max="5"
+                    defaultValue={1}
+                    className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2"
+                    style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }}
+                  />
+                </div>
+
+                <div>
                   <label htmlFor="price" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>
-                    Price (₹)
+                    Base price (₹)
                   </label>
                   <input
                     id="price"
@@ -240,12 +305,63 @@ export default async function SubscriptionsPage({
                     type="number"
                     min="1"
                     step="1"
-                    placeholder="3000"
+                    placeholder="1499"
                     className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2"
                     style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }}
                     required
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="caloriesRange" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>
+                    Calories range
+                  </label>
+                  <input
+                    id="caloriesRange"
+                    name="caloriesRange"
+                    placeholder="e.g. 450 – 600 kcal"
+                    defaultValue="450 – 600 kcal"
+                    className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2"
+                    style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="deliveryFrequency" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>
+                    Delivery frequency
+                  </label>
+                  <input
+                    id="deliveryFrequency"
+                    name="deliveryFrequency"
+                    placeholder="e.g. 5 or 6 Days / Week"
+                    defaultValue="5 or 6 Days / Week"
+                    className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2"
+                    style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="features" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>
+                  Plan features (1 bullet per line)
+                </label>
+                <textarea
+                  id="features"
+                  name="features"
+                  rows={4}
+                  placeholder={"1 Freshly Prepared Chef Bowl / Day\nLunch or Dinner Delivery Slot\nFree Doorstep Insulated Delivery\nPause or Skip Days Anytime"}
+                  className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2"
+                  style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }}
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input type="checkbox" id="isPopular" name="isPopular" value="true" className="h-4 w-4 accent-[#496A5A]" />
+                <label htmlFor="isPopular" className="text-xs font-medium" style={{ color: "#24332B" }}>
+                  Mark as &quot;Most Popular Choice&quot; Badge
+                </label>
               </div>
 
               <div>
@@ -255,11 +371,15 @@ export default async function SubscriptionsPage({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {MEAL_TYPE_OPTIONS.map((mealType) => (
                     <label key={mealType} className="flex items-center gap-2 rounded-lg border px-2 py-2 text-sm" style={{ borderColor: "#E8E4D9" }}>
-                      <input type="checkbox" name="mealTypes" value={mealType} className="h-4 w-4 accent-[#496A5A]" />
+                      <input type="checkbox" name="mealTypes" value={mealType} className="h-4 w-4 accent-[#496A5A]" defaultChecked />
                       {mealType}
                     </label>
                   ))}
                 </div>
+              </div>
+
+              <div>
+                <ImageUploader folder="subscriptions" name="imageUrl" label="Upload Subscription Plan Graphic" />
               </div>
 
               <button
@@ -403,23 +523,80 @@ export default async function SubscriptionsPage({
             </div>
 
             {addModal || editId ? (
-              <form action={createSubscriptionPlan} className="space-y-4">
+              <form action={createSubscriptionPlan} className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
+                {editId && <input type="hidden" name="id" value={editId} />}
+
                 <div>
-                  <label htmlFor="name" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>Plan name</label>
-                  <input id="name" name="name" defaultValue={selectedPlan?.name ?? ""} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }} required />
+                  <label htmlFor="modal-name" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>Plan title *</label>
+                  <input id="modal-name" name="name" defaultValue={selectedPlan?.name ?? ""} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }} required />
                 </div>
+
                 <div>
-                  <label htmlFor="description" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>Description</label>
-                  <textarea id="description" name="description" rows={3} defaultValue={selectedPlan?.description ?? ""} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }} />
+                  <label htmlFor="modal-description" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>Subtitle / Description *</label>
+                  <textarea id="modal-description" name="description" rows={2} defaultValue={selectedPlan?.description ?? ""} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }} required />
                 </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div><label htmlFor="totalMeals" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>Total meals</label><input id="totalMeals" name="totalMeals" type="number" min="1" step="1" defaultValue={selectedPlan?.totalMeals ?? 0} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }} required /></div>
-                  <div><label htmlFor="price" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>Price (₹)</label><input id="price" name="price" type="number" min="1" step="1" defaultValue={selectedPlan ? Number(selectedPlan.price) : 0} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }} required /></div>
+                  <div>
+                    <label htmlFor="modal-weeklyPrice" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>Weekly price (₹) *</label>
+                    <input id="modal-weeklyPrice" name="weeklyPrice" type="number" min="1" step="1" defaultValue={selectedPlan?.weeklyPrice ? Number(selectedPlan.weeklyPrice) : 1499} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }} required />
+                  </div>
+                  <div>
+                    <label htmlFor="modal-monthlyPrice" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>Monthly price (₹) *</label>
+                    <input id="modal-monthlyPrice" name="monthlyPrice" type="number" min="1" step="1" defaultValue={selectedPlan?.monthlyPrice ? Number(selectedPlan.monthlyPrice) : 5499} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }} required />
+                  </div>
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="modal-mealsPerDay" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>Meals / Day</label>
+                    <input id="modal-mealsPerDay" name="mealsPerDay" type="number" min="1" max="5" defaultValue={selectedPlan?.mealsPerDay ?? 1} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }} />
+                  </div>
+                  <div>
+                    <label htmlFor="modal-price" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>Base price (₹)</label>
+                    <input id="modal-price" name="price" type="number" min="1" step="1" defaultValue={selectedPlan ? Number(selectedPlan.price) : 1499} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }} required />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="modal-caloriesRange" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>Calories range</label>
+                    <input id="modal-caloriesRange" name="caloriesRange" defaultValue={selectedPlan?.caloriesRange ?? "450 – 600 kcal"} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }} />
+                  </div>
+                  <div>
+                    <label htmlFor="modal-deliveryFrequency" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>Delivery frequency</label>
+                    <input id="modal-deliveryFrequency" name="deliveryFrequency" defaultValue={selectedPlan?.deliveryFrequency ?? "5 or 6 Days / Week"} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }} />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="modal-features" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>Plan features (1 bullet per line)</label>
+                  <textarea id="modal-features" name="features" rows={4} defaultValue={(selectedPlan?.features ?? []).join("\n")} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }} />
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input type="checkbox" id="modal-isPopular" name="isPopular" value="true" defaultChecked={selectedPlan?.isPopular ?? false} className="h-4 w-4 accent-[#496A5A]" />
+                  <label htmlFor="modal-isPopular" className="text-xs font-medium" style={{ color: "#24332B" }}>
+                    Mark as &quot;Most Popular Choice&quot; Badge
+                  </label>
+                </div>
+
                 <div>
                   <label className="block text-xs font-medium mb-2" style={{ color: "#7C817A" }}>Meal types included</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{MEAL_TYPE_OPTIONS.map((mealType) => <label key={mealType} className="flex items-center gap-2 rounded-lg border px-2 py-2 text-sm" style={{ borderColor: "#E8E4D9" }}><input type="checkbox" name="mealTypes" value={mealType} className="h-4 w-4 accent-[#496A5A]" defaultChecked={selectedPlan?.mealTypes?.includes(mealType) ?? false} />{mealType}</label>)}</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {MEAL_TYPE_OPTIONS.map((mealType) => (
+                      <label key={mealType} className="flex items-center gap-2 rounded-lg border px-2 py-2 text-sm" style={{ borderColor: "#E8E4D9" }}>
+                        <input type="checkbox" name="mealTypes" value={mealType} className="h-4 w-4 accent-[#496A5A]" defaultChecked={selectedPlan?.mealTypes?.includes(mealType) ?? true} />
+                        {mealType}
+                      </label>
+                    ))}
+                  </div>
                 </div>
+
+                <div>
+                  <ImageUploader folder="subscriptions" name="imageUrl" label="Upload Subscription Plan Graphic" />
+                </div>
+
                 <div className="flex justify-end gap-2 pt-2"><a href="/admin/subscriptions" className="rounded-lg border px-3 py-2 text-sm font-medium" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }}>Cancel</a><button type="submit" className="rounded-lg px-3 py-2 text-sm font-medium" style={{ background: "#496A5A", color: "#fff" }}>{addModal ? "Save plan" : "Update plan"}</button></div>
               </form>
             ) : (

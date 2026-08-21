@@ -19,11 +19,9 @@ export default function UserLandingPage() {
           <Link href="/login" className="text-sm font-medium transition hover:opacity-80" style={{ color: "#24332B" }}>
             Sign In
           </Link>
-          <Button asChild className="rounded-xl px-6 py-2.5 text-sm font-semibold shadow-sm">
-            <Link href="/login" style={{ background: "#496A5A" }}>
-              Get Started
-            </Link>
-          </Button>
+          <Link href="/user/menu" className="rounded-xl px-6 py-2.5 text-sm font-semibold shadow-sm text-white transition hover:opacity-90 inline-block" style={{ background: "#496A5A" }}>
+            Get Started
+          </Link>
         </div>
       </nav>
 
@@ -47,16 +45,12 @@ export default function UserLandingPage() {
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-            <Button asChild className="h-12 px-8 text-base font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5">
-              <Link href="/login" style={{ background: "#496A5A" }}>
-                Order Now
-              </Link>
-            </Button>
-            <Button asChild variant="outline" className="h-12 px-8 text-base font-semibold rounded-xl border-2 hover:bg-white/50 transition-all">
-              <Link href="/login" style={{ borderColor: "#496A5A", color: "#496A5A" }}>
-                View Menu
-              </Link>
-            </Button>
+            <Link href="/user/menu" className="h-12 px-8 py-3 text-base font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 text-white inline-block" style={{ background: "#496A5A" }}>
+              Order Now
+            </Link>
+            <Link href="/user/menu" className="h-12 px-8 py-3 text-base font-semibold rounded-xl border-2 hover:bg-white/50 transition-all inline-block" style={{ borderColor: "#496A5A", color: "#496A5A" }}>
+              View Menu
+            </Link>
           </div>
 
           {/* Hero Image/Visual */}
@@ -174,11 +168,9 @@ export default function UserLandingPage() {
             <p className="text-lg mb-8 text-white/90 max-w-2xl mx-auto">
               Join thousands of happy customers who trust Q1 Bowl for their daily nutrition needs.
             </p>
-            <Button asChild className="h-14 px-10 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 bg-white text-[#496A5A] hover:bg-gray-50">
-              <Link href="/login">
-                Start Your Journey
-              </Link>
-            </Button>
+            <Link href="/user/menu" className="h-14 px-10 py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5 bg-white text-[#496A5A] hover:bg-gray-50 inline-block">
+              Start Your Journey
+            </Link>
           </div>
         </div>
       </section>

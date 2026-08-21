@@ -8,8 +8,8 @@ export default function CTA() {
     <section className="py-20 bg-[#f5e3cd] relative overflow-hidden text-center">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
-        {/* Main CTA Container Card in Dark Obsidian Green (#0F3329) */}
-        <div className="p-10 sm:p-16 bg-[#0F3329] border-4 border-[#071914] rounded-[2.5rem] shadow-[8px_8px_0px_#071914] max-w-4xl mx-auto text-[#f5e3cd] relative overflow-hidden">
+        {/* Main CTA Container Card in Black */}
+        <div className="p-10 sm:p-16 bg-black border-4 border-black rounded-[2.5rem] shadow-[8px_8px_0px_#000000] max-w-4xl mx-auto text-[#f5e3cd] relative overflow-hidden">
           
           {/* Subtle Accent Glow */}
           <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-[#E5A00D]/10 blur-3xl pointer-events-none" />
@@ -36,14 +36,14 @@ export default function CTA() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-6">
               <Link
                 href="/register"
-                className="px-8 py-4 rounded-full font-outfit text-lg font-bold text-[#0F3329] bg-[#E5A00D] border-2 border-[#E5A00D] hover:bg-white hover:border-white transition-all transform hover:scale-105 shadow-[4px_4px_0px_#000] flex items-center justify-center gap-2 uppercase tracking-wider"
+                className="px-8 py-4 rounded-full font-outfit text-lg font-bold text-black bg-[#E5A00D] border-2 border-[#E5A00D] hover:bg-white hover:border-white transition-all transform hover:scale-105 shadow-[4px_4px_0px_#000] flex items-center justify-center gap-2 uppercase tracking-wider"
               >
                 <span>Create Free Account</span>
-                <ArrowRight className="w-5 h-5 text-[#0F3329]" />
+                <ArrowRight className="w-5 h-5 text-black" />
               </Link>
               <Link
                 href="/login"
-                className="px-8 py-4 rounded-full font-outfit text-lg font-bold text-[#0F3329] bg-[#FFF8EE] border-2 border-[#FFF8EE] hover:bg-[#E5A00D] hover:border-[#E5A00D] hover:text-[#0F3329] transition-all transform hover:scale-105 shadow-[4px_4px_0px_#000] uppercase tracking-wider"
+                className="px-8 py-4 rounded-full font-outfit text-lg font-bold text-black bg-[#FFF8EE] border-2 border-[#FFF8EE] hover:bg-[#E5A00D] hover:border-[#E5A00D] hover:text-black transition-all transform hover:scale-105 shadow-[4px_4px_0px_#000] uppercase tracking-wider"
               >
                 Sign In
               </Link>

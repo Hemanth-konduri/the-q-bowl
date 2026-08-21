@@ -23,8 +23,6 @@ export default async function DeliveryRoutesPage({
       id: deliveryAssignments.id,
       orderId: deliveryAssignments.orderId,
       status: deliveryAssignments.status,
-      kitchenLat: addresses.kitchenLat,
-      kitchenLng: addresses.kitchenLng,
       kitchenAddress: addresses.address,
       customerLat: addresses.latitude,
       customerLng: addresses.longitude,
@@ -39,7 +37,7 @@ export default async function DeliveryRoutesPage({
     .leftJoin(orders, eq(deliveryAssignments.orderId, orders.id))
     .leftJoin(addresses, eq(orders.addressId, addresses.id))
     .leftJoin(users, eq(orders.userId, users.id))
-    .where(eq(deliveryAssignments.id, assignmentId))
+    .where(eq(deliveryAssignments.id, assignmentId || ""))
     .limit(1);
 
   if (!assignment || !assignment[0]) {
@@ -82,11 +80,11 @@ export default async function DeliveryRoutesPage({
 
         <div className="p-6">
           <DeliveryRoute
-            kitchenLat={data.kitchenLat || 28.6139}
-            kitchenLng={data.kitchenLng || 77.2090}
-            customerLat={data.customerLat || 28.6139}
-            customerLng={data.customerLng || 77.2090}
-            kitchenAddress="Kitchen Location"
+            kitchenLat={17.4399}
+            kitchenLng={78.3847}
+            customerLat={data.customerLat || 17.4399}
+            customerLng={data.customerLng || 78.3847}
+            kitchenAddress="Artisan Kitchen Hub"
             customerAddress={fullCustomerAddress}
           />
         </div>

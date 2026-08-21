@@ -12,6 +12,7 @@ import PageCard from "@/components/admin/page-card";
 import PageHeader from "@/components/admin/page-header";
 import StatCard from "@/components/admin/stat-card";
 import StatusBadge from "@/components/admin/status-badge";
+import ImageUploader from "@/components/shared/image-uploader";
 
 const MEAL_TYPES = ["BREAKFAST", "LUNCH", "DINNER", "SNACK", "OTHER"] as const;
 type MealType = (typeof MEAL_TYPES)[number];
@@ -257,7 +258,9 @@ export default async function FoodItemsPage({
                   <div><label className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>Meal type</label><select name="mealType" defaultValue={selected?.mealType ?? "LUNCH"} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }}>{MEAL_TYPES.map((mealType) => <option key={mealType} value={mealType}>{mealType}</option>)}</select></div>
                   <div><label className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>Veg / Non-veg</label><select name="isVeg" defaultValue={selected ? String(selected.isVeg) : "true"} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }}><option value="true">Veg</option><option value="false">Non-Veg</option></select></div>
                   <div><label className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>Availability</label><select name="isAvailable" defaultValue={selected ? String(selected.isAvailable) : "true"} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }}><option value="true">Available</option><option value="false">Unavailable</option></select></div>
-                  <div className="sm:col-span-2"><label className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>Image URL</label><input name="imageUrl" defaultValue={selected?.imageUrl ?? ""} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }} /></div>
+                  <div className="sm:col-span-2">
+                    <ImageUploader folder="meals" name="imageUrl" value={selected?.imageUrl ?? ""} label="Upload Meal Image" />
+                  </div>
                 </div>
                 <div className="flex justify-end gap-2 pt-2"><a href="/admin/food-items" className="rounded-lg border px-3 py-2 text-sm font-medium" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }}>Cancel</a><button type="submit" className="rounded-lg px-3 py-2 text-sm font-medium" style={{ background: "#496A5A", color: "#fff" }}>{addModal ? "Save food item" : "Update food item"}</button></div>
               </form>

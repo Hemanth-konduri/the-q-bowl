@@ -12,7 +12,7 @@ interface StickerPeelProps {
 export default function StickerPeel({ src, alt, className = "", rotation = "rotate-6" }: StickerPeelProps) {
   return (
     <div className={`relative group sticker-container inline-block ${rotation} ${className}`}>
-      <div className="relative rounded-2xl overflow-hidden p-2 bg-white border-2 border-[#1B4D3E] shadow-[4px_4px_0px_#1B4D3E] transition-all duration-300">
+      <div className="relative rounded-2xl overflow-hidden p-2 bg-white border-2 border-black shadow-[4px_4px_0px_#000000] transition-all duration-300">
         <div className="relative w-full h-full rounded-xl overflow-hidden">
           <Image
             src={src}

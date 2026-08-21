@@ -269,7 +269,7 @@ export default function DailyMenuPreview() {
       data-nav-dark="true"
       className="
         relative
-        bg-[#0F3329]
+        bg-black
         text-[#f5e3cd]
         overflow-hidden
         pt-32
@@ -287,7 +287,7 @@ export default function DailyMenuPreview() {
           w-[850px]
           h-[650px]
           rounded-full
-          bg-[#1B4D3E]
+          bg-black
           blur-[110px]
           opacity-70
         "
@@ -389,7 +389,7 @@ export default function DailyMenuPreview() {
               items-center
               p-1
               rounded-full
-              bg-[#1B4D3E]
+              bg-black
               border
               border-[#E5A00D]/30
               shadow-[0_10px_30px_rgba(0,0,0,0.15)]
@@ -436,7 +436,7 @@ export default function DailyMenuPreview() {
                 duration-300
                 ${
                   selectedDay === "today"
-                    ? "text-[#0F3329]"
+                    ? "text-black"
                     : "text-[#f5e3cd]"
                 }
               `}
@@ -463,7 +463,7 @@ export default function DailyMenuPreview() {
                 duration-300
                 ${
                   selectedDay === "tomorrow"
-                    ? "text-[#0F3329]"
+                    ? "text-black"
                     : "text-[#f5e3cd]"
                 }
               `}
@@ -520,7 +520,7 @@ export default function DailyMenuPreview() {
                   w-full
                   overflow-hidden
                   rounded-[2rem]
-                  bg-[#1B4D3E]
+                  bg-black
                   border-2
                   border-[#E5A00D]/30
                   shadow-[0_20px_50px_rgba(0,0,0,0.3)]
@@ -555,7 +555,7 @@ export default function DailyMenuPreview() {
                     px-3
                     py-1
                     rounded-full
-                    bg-[#0F3329]/90
+                    bg-black/90
                     backdrop-blur-md
                     border
                     border-[#E5A00D]/40
@@ -580,7 +580,7 @@ export default function DailyMenuPreview() {
                     px-2.5
                     py-1
                     rounded-full
-                    bg-[#0F3329]/90
+                    bg-black/90
                     backdrop-blur-md
                     border
                     border-[#E5A00D]/40
@@ -595,7 +595,7 @@ export default function DailyMenuPreview() {
                       w-2
                       h-2
                       rounded-full
-                      ${dish.isVeg ? "bg-emerald-400" : "bg-red-400"}
+                      ${dish.isVeg ? "bg-black border border-white/60" : "bg-red-400"}
                     `}
                   />
                   <span

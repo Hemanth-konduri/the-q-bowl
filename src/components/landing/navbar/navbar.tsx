@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Menu, X, ArrowRight, Utensils } from "lucide-react";
 
 export default function Navbar() {
@@ -54,14 +55,32 @@ export default function Navbar() {
       <header className="fixed top-0 left-0 w-full z-[990] py-4 bg-transparent transition-colors duration-500 pointer-events-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 flex items-center justify-between">
           
-          {/* Brand Logo with Smooth Theme Transition */}
+          {/* Brand Logo & Icon with Smooth Theme Transition */}
           <Link
             href="/"
-            className={`font-modak text-3xl sm:text-5xl uppercase tracking-tight shrink-0 transition-colors duration-500 hover:scale-105 ${
-              isDarkSection ? "text-[#E5A00D] text-stroke-white" : "text-[#1B4D3E] text-stroke-small"
-            }`}
+            className="flex items-center gap-2.5 sm:gap-3 shrink-0 group transition-transform duration-300 hover:scale-105"
           >
-            Q1 BOWL
+            <div className={`p-1 rounded-xl border-2 transition-all duration-500 ${
+              isDarkSection
+                ? "bg-[#E5A00D] border-[#E5A00D] shadow-[2px_2px_0px_#FFF8EE]"
+                : "bg-[#FFF8EE] border-black shadow-[2px_2px_0px_#000000]"
+            }`}>
+              <Image
+                src="/the_q_bowl_logo.png"
+                alt="The Q Bowl Logo"
+                width={48}
+                height={48}
+                priority
+                className="w-7 h-7 sm:w-9 sm:h-9 object-contain rounded-lg"
+              />
+            </div>
+            <span
+              className={`font-outfit text-2xl sm:text-4xl font-black uppercase tracking-wider transition-colors duration-500 ${
+                isDarkSection ? "text-[#E5A00D] text-stroke-white" : "text-black text-stroke-small"
+              }`}
+            >
+              The Q BOWL
+            </span>
           </Link>
 
           {/* Action Buttons Container */}
@@ -72,11 +91,11 @@ export default function Navbar() {
               href="#menu"
               className={`font-outfit text-xs sm:text-sm font-extrabold uppercase tracking-wider px-4 py-2 sm:px-6 sm:py-2.5 rounded-full border-2 transition-all duration-500 flex items-center gap-1.5 shrink-0 ${
                 isDarkSection
-                  ? "bg-[#E5A00D] text-[#0F3329] border-[#E5A00D] shadow-[2px_2px_0px_#FFF8EE] sm:shadow-[3px_3px_0px_#FFF8EE] hover:bg-white"
-                  : "bg-[#1B4D3E] text-[#f5e3cd] border-[#1B4D3E] shadow-[2px_2px_0px_#000] sm:shadow-[3px_3px_0px_#000] hover:bg-[#071914]"
+                  ? "bg-[#E5A00D] text-black border-[#E5A00D] shadow-[2px_2px_0px_#FFF8EE] sm:shadow-[3px_3px_0px_#FFF8EE] hover:bg-white"
+                  : "bg-black text-[#f5e3cd] border-black shadow-[2px_2px_0px_#000] sm:shadow-[3px_3px_0px_#000] hover:bg-zinc-900"
               }`}
             >
-              <Utensils className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-colors duration-500 ${isDarkSection ? "text-[#0F3329]" : "text-[#E5A00D]"}`} />
+              <Utensils className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-colors duration-500 ${isDarkSection ? "text-black" : "text-[#E5A00D]"}`} />
               <span>Burgers &amp; Bowls</span>
             </Link>
 
@@ -85,16 +104,16 @@ export default function Navbar() {
               onClick={() => setMenuOpen(!menuOpen)}
               className={`flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2 rounded-full border-2 font-outfit text-xs sm:text-sm font-extrabold transition-all duration-500 shrink-0 ${
                 isDarkSection
-                  ? "bg-[#FFF8EE] text-[#0F3329] border-[#E5A00D] shadow-[2px_2px_0px_#E5A00D] sm:shadow-[3px_3px_0px_#E5A00D] hover:bg-[#E5A00D]"
-                  : "bg-[#FFF8EE] text-[#1B4D3E] border-[#1B4D3E] shadow-[2px_2px_0px_#1B4D3E] sm:shadow-[3px_3px_0px_#1B4D3E] hover:bg-[#1B4D3E] hover:text-white"
+                  ? "bg-[#FFF8EE] text-black border-[#E5A00D] shadow-[2px_2px_0px_#E5A00D] sm:shadow-[3px_3px_0px_#E5A00D] hover:bg-[#E5A00D]"
+                  : "bg-[#FFF8EE] text-black border-black shadow-[2px_2px_0px_#000000] sm:shadow-[3px_3px_0px_#000000] hover:bg-black hover:text-white"
               }`}
               aria-label="Toggle Navigation Menu"
             >
               <span className="uppercase font-bold">Menu</span>
               {menuOpen ? (
-                <X className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-500 ${isDarkSection ? "text-[#0F3329]" : "text-[#E5A00D]"}`} />
+                <X className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-500 ${isDarkSection ? "text-black" : "text-[#E5A00D]"}`} />
               ) : (
-                <Menu className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-500 ${isDarkSection ? "text-[#0F3329]" : "text-[#1B4D3E]"}`} />
+                <Menu className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-500 ${isDarkSection ? "text-black" : "text-black"}`} />
               )}
             </button>
 
@@ -104,20 +123,29 @@ export default function Navbar() {
 
       {/* Fullscreen Mobile & Desktop Navigation Overlay Drawer */}
       {menuOpen && (
-        <div className="fixed inset-0 z-[9999] bg-[#0F3329] text-[#f5e3cd] flex flex-col justify-between p-6 sm:p-12 animate-in fade-in slide-in-from-top duration-300 overflow-y-auto">
+        <div className="fixed inset-0 z-[9999] bg-black text-[#f5e3cd] flex flex-col justify-between p-6 sm:p-12 animate-in fade-in slide-in-from-top duration-300 overflow-y-auto">
           
           {/* Drawer Header */}
           <div className="flex items-center justify-between border-b-2 border-[#E5A00D]/30 pb-6">
             <Link
               href="/"
               onClick={() => setMenuOpen(false)}
-              className="font-modak text-4xl sm:text-5xl text-[#E5A00D] uppercase tracking-tight"
+              className="flex items-center gap-3 font-outfit text-3xl sm:text-4xl font-black text-[#E5A00D] uppercase tracking-wider"
             >
-              Q1 BOWL
+              <div className="p-1 rounded-xl bg-[#E5A00D] border-2 border-[#E5A00D] shadow-[2px_2px_0px_#000000]">
+                <Image
+                  src="/the_q_bowl_logo.png"
+                  alt="The Q Bowl Logo"
+                  width={40}
+                  height={40}
+                  className="w-8 h-8 sm:w-10 sm:h-10 object-contain rounded-lg"
+                />
+              </div>
+              <span>The Q BOWL</span>
             </Link>
             <button
               onClick={() => setMenuOpen(false)}
-              className="p-3 rounded-full bg-[#1B4D3E] text-[#E5A00D] border-2 border-[#E5A00D] hover:bg-[#E5A00D] hover:text-[#0F3329] transition-all shadow-[3px_3px_0px_#000]"
+              className="p-3 rounded-full bg-black text-[#E5A00D] border-2 border-[#E5A00D] hover:bg-[#E5A00D] hover:text-black transition-all shadow-[3px_3px_0px_#000]"
               aria-label="Close Menu"
             >
               <X className="w-6 h-6" />
@@ -154,7 +182,7 @@ export default function Navbar() {
           {/* Drawer Footer Actions */}
           <div className="border-t-2 border-[#E5A00D]/30 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
               <span className="font-sans text-xs font-bold text-[#E5A00D] uppercase tracking-wider">
                 Kitchen Live &amp; Dispatching • Hyderabad
               </span>
@@ -164,14 +192,14 @@ export default function Navbar() {
               <Link
                 href="/login"
                 onClick={() => setMenuOpen(false)}
-                className="flex-1 sm:flex-initial px-6 py-3 rounded-full bg-[#E5A00D] text-[#0F3329] font-outfit text-sm font-extrabold uppercase tracking-wider text-center hover:bg-white transition-all shadow-[3px_3px_0px_#000]"
+                className="flex-1 sm:flex-initial px-6 py-3 rounded-full bg-[#E5A00D] text-black font-outfit text-sm font-extrabold uppercase tracking-wider text-center hover:bg-white transition-all shadow-[3px_3px_0px_#000]"
               >
                 Sign In
               </Link>
               <Link
                 href="/register"
                 onClick={() => setMenuOpen(false)}
-                className="flex-1 sm:flex-initial px-6 py-3 rounded-full bg-[#FFF8EE] text-[#0F3329] font-outfit text-sm font-extrabold uppercase tracking-wider text-center hover:bg-[#E5A00D] transition-all shadow-[3px_3px_0px_#000]"
+                className="flex-1 sm:flex-initial px-6 py-3 rounded-full bg-[#FFF8EE] text-black font-outfit text-sm font-extrabold uppercase tracking-wider text-center hover:bg-[#E5A00D] transition-all shadow-[3px_3px_0px_#000]"
               >
                 Register
               </Link>

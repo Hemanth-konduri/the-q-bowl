@@ -50,31 +50,31 @@ export default function FAQSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <section data-nav-dark="false" className="py-24 bg-[#E5A00D] text-[#0F3329] relative">
+    <section data-nav-dark="false" className="py-24 bg-[#E5A00D] text-black relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Customer Proof Reviews Grid */}
         <div className="mb-16">
           <div className="gsap-reveal text-center max-w-2xl mx-auto mb-10">
-            <span className="font-mouse-memoirs text-2xl text-[#0F3329] uppercase font-bold tracking-widest block mb-2">
+            <span className="font-mouse-memoirs text-2xl text-black uppercase font-bold tracking-widest block mb-2">
               REAL CUSTOMER REVIEWS
             </span>
-            <h3 className="font-outfit text-4xl sm:text-6xl font-extrabold text-[#0F3329] uppercase tracking-tight leading-none">
+            <h3 className="font-outfit text-4xl sm:text-6xl font-extrabold text-black uppercase tracking-tight leading-none">
               LOVED BY BUSY PROFESSIONALS
             </h3>
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
             {REVIEWS.map((r, i) => (
-              <div key={i} className="gsap-reveal p-8 rounded-[2rem] bg-[#FFF8EE] border-4 border-[#0F3329] text-[#0F3329] relative shadow-[6px_6px_0px_#0F3329]">
+              <div key={i} className="gsap-reveal p-8 rounded-[2rem] bg-[#FFF8EE] border-4 border-black text-black relative shadow-[6px_6px_0px_#000000]">
                 <Quote className="w-8 h-8 text-[#E5A00D] mb-4" />
-                <p className="font-sans text-base sm:text-lg text-[#0F3329] font-medium leading-relaxed mb-6">
+                <p className="font-sans text-base sm:text-lg text-black font-medium leading-relaxed mb-6">
                   &ldquo;{r.comment}&rdquo;
                 </p>
-                <div className="flex items-center justify-between border-t border-[#0F3329]/20 pt-4">
+                <div className="flex items-center justify-between border-t border-black/20 pt-4">
                   <div>
-                    <h4 className="font-outfit text-xl font-extrabold text-[#0F3329]">{r.name}</h4>
-                    <span className="font-sans text-xs text-[#1B4D3E]/70 font-semibold">{r.role}</span>
+                    <h4 className="font-outfit text-xl font-extrabold text-black">{r.name}</h4>
+                    <span className="font-sans text-xs text-black/70 font-semibold">{r.role}</span>
                   </div>
                   <div className="flex text-[#E5A00D] gap-1">
                     {[...Array(r.rating)].map((_, idx) => (
@@ -90,10 +90,10 @@ export default function FAQSection() {
         {/* FAQ Accordion Section */}
         <div className="max-w-4xl mx-auto">
           <div className="gsap-reveal text-center mb-10">
-            <span className="font-mouse-memoirs text-2xl text-[#0F3329] uppercase font-bold tracking-widest block mb-1">
+            <span className="font-mouse-memoirs text-2xl text-black uppercase font-bold tracking-widest block mb-1">
               KNOW BEFORE YOU ORDER
             </span>
-            <h2 className="font-outfit text-4xl sm:text-6xl font-extrabold text-[#0F3329] uppercase tracking-tight leading-none">
+            <h2 className="font-outfit text-4xl sm:text-6xl font-extrabold text-black uppercase tracking-tight leading-none">
               FREQUENTLY ASKED QUESTIONS
             </h2>
           </div>
@@ -104,7 +104,7 @@ export default function FAQSection() {
               return (
                 <div
                   key={index}
-                  className="gsap-reveal overflow-hidden rounded-2xl bg-[#0F3329] border-2 border-[#071914] shadow-[4px_4px_0px_#071914] transition-all"
+                  className="gsap-reveal overflow-hidden rounded-2xl bg-black border-2 border-black shadow-[4px_4px_0px_#000000] transition-all"
                 >
                   <button
                     onClick={() => setOpenIndex(isOpen ? null : index)}

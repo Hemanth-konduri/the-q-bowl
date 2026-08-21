@@ -63,8 +63,8 @@ export default function Hero() {
             w-full
             h-full
             object-contain
-            drop-shadow-[0_20px_35px_rgba(15,51,41,0.4)]
-            md:drop-shadow-[0_35px_55px_rgba(15,51,41,0.5)]
+            drop-shadow-[0_20px_35px_rgba(0,0,0,0.4)]
+            md:drop-shadow-[0_35px_55px_rgba(0,0,0,0.5)]
           "
         />
       </div>
@@ -176,7 +176,7 @@ export default function Hero() {
 
             leading-[0.72]
 
-            text-[#1B4D3E]
+            text-black
             text-stroke-small sm:text-stroke-180
 
             uppercase
@@ -312,7 +312,7 @@ export default function Hero() {
               text-xl
               sm:text-2xl
               leading-snug
-              text-[#1B4D3E]
+              text-black
               uppercase
             "
           >
@@ -347,13 +347,13 @@ export default function Hero() {
               tracking-wide
 
               text-[#f5e3cd]
-              bg-[#1B4D3E]
+              bg-black
 
               border-2
-              border-[#1B4D3E]
+              border-black
 
               hover:bg-[#E5A00D]
-              hover:text-[#0F3329]
+              hover:text-black
 
               transition-all
               transform
@@ -386,20 +386,20 @@ export default function Hero() {
               uppercase
               tracking-wide
 
-              text-[#1B4D3E]
+              text-black
               bg-[#FFF8EE]
 
               border-2
-              border-[#1B4D3E]
+              border-black
 
-              hover:bg-[#1B4D3E]
+              hover:bg-black
               hover:text-white
 
               transition-all
               transform
               hover:scale-105
 
-              shadow-[3px_3px_0px_#1B4D3E]
+              shadow-[3px_3px_0px_#000000]
 
               text-center
               whitespace-nowrap
@@ -425,7 +425,7 @@ export default function Hero() {
               text-xl
               sm:text-2xl
               leading-snug
-              text-[#1B4D3E]
+              text-black
               uppercase
             "
           >

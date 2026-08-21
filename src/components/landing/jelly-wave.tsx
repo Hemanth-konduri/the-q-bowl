@@ -12,7 +12,7 @@ interface JellyWaveProps {
 }
 
 export default function JellyWave({
-  fillColor = "#0F3329",
+  fillColor = "#000000",
   bgColor = "#f5e3cd",
   flip = false,
   className = "",

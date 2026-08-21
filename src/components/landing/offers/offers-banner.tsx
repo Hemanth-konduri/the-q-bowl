@@ -5,9 +5,9 @@ import { Tag, Sparkles, Gift, ArrowRight } from "lucide-react";
 
 export default function OffersBanner() {
   return (
-    <section className="py-16 bg-[#0B1511]">
+    <section className="py-16 bg-black">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="gsap-reveal relative rounded-3xl p-8 sm:p-12 overflow-hidden border border-[#E07A5F]/30 bg-gradient-to-r from-[#182B23] via-[#12211C] to-[#1F1410] glow-accent">
+        <div className="gsap-reveal relative rounded-3xl p-8 sm:p-12 overflow-hidden border border-[#E07A5F]/30 bg-gradient-to-r from-black via-black to-[#1F1410] glow-accent">
           
           {/* Ambient Glow */}
           <div className="absolute -top-12 -right-12 w-64 h-64 bg-[#E07A5F]/20 rounded-full blur-3xl pointer-events-none" />
@@ -22,7 +22,7 @@ export default function OffersBanner() {
                 GET <span className="text-gradient-accent">20% OFF</span> ON YOUR FIRST NORMAL ORDER
               </h3>
               <p className="text-xs sm:text-sm text-[#94A39B] max-w-xl font-light">
-                Try our chef-crafted à la carte bowls today. Use coupon code <strong className="text-white bg-[#0B1511] px-2 py-0.5 rounded border border-white/10">WELCOME20</strong> at checkout on orders above ₹299.
+                Try our chef-crafted à la carte bowls today. Use coupon code <strong className="text-white bg-black px-2 py-0.5 rounded border border-white/10">WELCOME20</strong> at checkout on orders above ₹299.
               </p>
             </div>
 

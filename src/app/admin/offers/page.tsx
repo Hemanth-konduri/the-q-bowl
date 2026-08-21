@@ -12,6 +12,7 @@ import PageCard from "@/components/admin/page-card";
 import DataTable from "@/components/admin/data-table";
 import StatCard from "@/components/admin/stat-card";
 import StatusBadge from "@/components/admin/status-badge";
+import ImageUploader from "@/components/shared/image-uploader";
 
 const DISCOUNT_TYPE_OPTIONS = ["PERCENTAGE", "FIXED"] as const;
 type DiscountType = (typeof DISCOUNT_TYPE_OPTIONS)[number];
@@ -41,8 +42,8 @@ async function createOffer(formData: FormData) {
   const payload = {
     name,
     description: description || null,
-    type,
-    value,
+    discountType: type,
+    discountValue: value,
     minOrderAmount: minOrderAmount || null,
     maxDiscount: maxDiscount || null,
     startDate: new Date(startDate),
@@ -119,12 +120,12 @@ export default async function OffersPage({
   const selectedOffer = offerRows.find((o) => o.id === (viewId ?? editId)) ?? undefined;
   const activeCount = offerRows.filter((o) => o.isActive).length;
   const inactiveCount = offerRows.length - activeCount;
-  const percentageOffers = offerRows.filter((o) => o.type === "PERCENTAGE").length;
-  const fixedOffers = offerRows.filter((o) => o.type === "FIXED").length;
+  const percentageOffers = offerRows.filter((o) => o.discountType === "PERCENTAGE").length;
+  const fixedOffers = offerRows.filter((o) => o.discountType === "FIXED").length;
 
   const formatValue = (offer: typeof offerRows[0]) => {
-    if (offer.type === "PERCENTAGE") return fmtPercent(offer.value);
-    return fmtCurrency(offer.value);
+    if (offer.discountType === "PERCENTAGE") return fmtPercent(offer.discountValue);
+    return fmtCurrency(offer.discountValue);
   };
 
   return (
@@ -165,7 +166,7 @@ export default async function OffersPage({
           rows={offerRows.map((offer) => [
             <div key="name" className="font-medium" style={{ color: "#24332B" }}>{offer.name}</div>,
             <span key="type" className="text-xs px-2 py-1 rounded-full" style={{ background: "#F3F4F6", color: "#374151" }}>
-              {offer.type.replace(/_/g, " ")}
+              {offer.discountType.replace(/_/g, " ")}
             </span>,
             <span key="value" className="font-medium" style={{ color: "#496A5A" }}>{formatValue(offer)}</span>,
             <span key="min" className="text-sm" style={{ color: "#4B5563" }}>
@@ -212,7 +213,7 @@ export default async function OffersPage({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>Discount type</label>
-                    <select name="type" defaultValue={selectedOffer?.type ?? "PERCENTAGE"} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }}>
+                    <select name="type" defaultValue={selectedOffer?.discountType ?? "PERCENTAGE"} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }}>
                       {DISCOUNT_TYPE_OPTIONS.map((type) => (
                         <option key={type} value={type}>{type.replace(/_/g, " ")}</option>
                       ))}
@@ -220,7 +221,7 @@ export default async function OffersPage({
                   </div>
                   <div>
                     <label className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>Discount value</label>
-                    <input name="value" type="number" min="0.01" step="0.01" defaultValue={selectedOffer ? (selectedOffer.type === "PERCENTAGE" ? selectedOffer.value : selectedOffer.value / 100) : 0} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }} required />
+                    <input name="value" type="number" min="0.01" step="0.01" defaultValue={selectedOffer ? (selectedOffer.discountType === "PERCENTAGE" ? selectedOffer.discountValue : selectedOffer.discountValue / 100) : 0} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }} required />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -243,6 +244,9 @@ export default async function OffersPage({
                     <input name="endDate" type="date" defaultValue={selectedOffer ? new Date(selectedOffer.endDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0]} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }} required />
                   </div>
                 </div>
+                <div>
+                  <ImageUploader folder="offers" name="imageUrl" label="Upload Promotional Banner Image" />
+                </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <a href="/admin/offers" className="rounded-lg border px-3 py-2 text-sm font-medium" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }}>Cancel</a>
                   <button type="submit" className="rounded-lg px-3 py-2 text-sm font-medium" style={{ background: "#496A5A", color: "#fff" }}>{addModal ? "Save offer" : "Update offer"}</button>
@@ -261,7 +265,7 @@ export default async function OffersPage({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="rounded-lg border p-3" style={{ borderColor: "#E8E4D9" }}>
                     <div className="text-xs uppercase tracking-wide" style={{ color: "#7C817A" }}>Discount type</div>
-                    <div className="mt-1" style={{ color: "#24332B" }}>{selectedOffer?.type.replace(/_/g, " ") ?? "—"}</div>
+                    <div className="mt-1" style={{ color: "#24332B" }}>{selectedOffer?.discountType.replace(/_/g, " ") ?? "—"}</div>
                   </div>
                   <div className="rounded-lg border p-3" style={{ borderColor: "#E8E4D9" }}>
                     <div className="text-xs uppercase tracking-wide" style={{ color: "#7C817A" }}>Value</div>

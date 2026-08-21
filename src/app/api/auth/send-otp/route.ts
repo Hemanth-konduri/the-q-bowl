@@ -2,11 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { emailOtps } from "@/db/schema";
 import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import { randomInt } from "crypto";
 import { eq } from "drizzle-orm";
 
 const resendKey = process.env.RESEND_API_KEY;
 const resend = resendKey ? new Resend(resendKey) : null;
+
+const gmailUser = process.env.GMAIL_USER;
+const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
+
+// Configure Nodemailer transporter if Gmail App Password is provided
+const transporter = (gmailUser && gmailAppPassword)
+  ? nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: gmailUser,
+        pass: gmailAppPassword,
+      },
+    })
+  : null;
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,14 +54,7 @@ export async function POST(req: NextRequest) {
     console.log(`🔑 [Q1 BOWL AUTH OTP] Code for ${cleanEmail}: ${otp}`);
     console.log("=================================================\n");
 
-    // Try sending email via Resend if key is available
-    if (resend) {
-      try {
-        await resend.emails.send({
-          from: "Q1 Bowl <onboarding@resend.dev>",
-          to: cleanEmail,
-          subject: `${otp} is your Q1 Bowl login code`,
-          html: `
+    const emailHtml = `
 <!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head>
@@ -75,10 +83,39 @@ export async function POST(req: NextRequest) {
     </td></tr>
   </table>
 </body>
-</html>`,
+</html>`;
+
+    // 1. Try sending via Nodemailer (Gmail SMTP with App Password - works for ALL recipients!)
+    if (transporter) {
+      try {
+        const info = await transporter.sendMail({
+          from: `"Q1 Bowl" <${gmailUser}>`,
+          to: cleanEmail,
+          subject: `${otp} is your Q1 Bowl login code`,
+          html: emailHtml,
         });
+        console.log("✉️ [Nodemailer Gmail] OTP email sent successfully:", info.messageId);
+      } catch (nodemailerError) {
+        console.error("⚠️ [Nodemailer Error]:", nodemailerError);
+      }
+    } 
+    // 2. Fallback to Resend if configured
+    else if (resend) {
+      try {
+        const { data, error: resendApiError } = await resend.emails.send({
+          from: "Q1 Bowl <onboarding@resend.dev>",
+          to: cleanEmail,
+          subject: `${otp} is your Q1 Bowl login code`,
+          html: emailHtml,
+        });
+
+        if (resendApiError) {
+          console.error("⚠️ [Resend Error]:", resendApiError.message);
+        } else {
+          console.log("✉️ [Resend] Email sent successfully, ID:", data?.id);
+        }
       } catch (resendError) {
-        console.error("⚠️ Resend email notice:", resendError);
+        console.error("⚠️ [Resend Unexpected Error]:", resendError);
       }
     }
 

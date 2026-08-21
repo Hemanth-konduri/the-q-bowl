@@ -23,6 +23,15 @@ type UserData = {
   role: string;
 };
 
+const NAV_ITEMS = [
+  { label: "Dashboard", href: "/user/dashboard", icon: LayoutDashboard },
+  { label: "Menu", href: "/user/menu", icon: Utensils },
+  { label: "Subscriptions", href: "/user/subscriptions", icon: CalendarCheck },
+  { label: "My Orders", href: "/user/orders", icon: ShoppingBag },
+  { label: "Addresses", href: "/user/addresses", icon: MapPin },
+  { label: "Profile", href: "/user/profile", icon: UserIcon },
+];
+
 export default function UserNav() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -50,13 +59,7 @@ export default function UserNav() {
     fetchUser();
   }, []);
 
-  const navItems = [
-    { label: "Dashboard", href: "/user/dashboard", icon: LayoutDashboard },
-    { label: "Subscriptions", href: "/user/subscriptions", icon: CalendarCheck },
-    { label: "My Orders", href: "/user/orders", icon: ShoppingBag },
-    { label: "Addresses", href: "/user/addresses", icon: MapPin },
-    { label: "Profile", href: "/user/profile", icon: UserIcon },
-  ];
+  const navItems = NAV_ITEMS;
 
   // Get user display name or fallback initials
   const displayName = user?.name || user?.email?.split("@")[0] || "User";
@@ -69,13 +72,13 @@ export default function UserNav() {
         {/* Brand Logo (No Shadows) */}
         <Link
           href="/user/dashboard"
-          className="font-modak text-3xl sm:text-4xl text-[#1B4D3E] hover:scale-105 transition-transform uppercase tracking-tight shrink-0 flex items-center gap-2"
+          className="font-outfit font-black text-2xl sm:text-3xl text-[#1B4D3E] hover:scale-105 transition-transform uppercase tracking-tight shrink-0 flex items-center gap-2"
         >
           <span>Q1 BOWL</span>
         </Link>
 
-        {/* Desktop Navigation Links (No Background Fills, No Shadows, Clean Normal Text Links) */}
-        <nav className="hidden md:flex items-center gap-6 lg:gap-8">
+        {/* Desktop Navigation Links */}
+        <nav className="hidden md:flex items-center gap-5 lg:gap-7">
           {navItems.map((item) => {
             const isActive = pathname === item.href;
             return (
@@ -97,15 +100,24 @@ export default function UserNav() {
           })}
         </nav>
 
-        {/* Right Action Controls (No Shadows) */}
+        {/* Right Action Controls */}
         <div className="flex items-center gap-3 sm:gap-4">
           
+          {/* Cart Icon Link */}
+          <Link
+            href="/user/cart"
+            className="p-2 rounded-full border-2 border-[#0F3329] bg-[#FFF8EE] text-[#0F3329] hover:bg-[#0F3329] hover:text-[#f5e3cd] transition-all relative"
+            title="View Cart"
+          >
+            <ShoppingBag className="w-4 h-4" />
+          </Link>
+
           {/* Order Bowl Action Link */}
           <Link
-            href="/#menu"
-            className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-full border-2 border-[#0F3329] text-[#0F3329] font-outfit text-xs font-black uppercase tracking-wider hover:bg-[#0F3329] hover:text-[#f5e3cd] transition-all"
+            href="/user/menu"
+            className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-full border-2 border-[#0F3329] bg-[#0F3329] text-[#f5e3cd] font-outfit text-xs font-black uppercase tracking-wider hover:bg-[#1B4D3E] transition-all"
           >
-            <Utensils className="w-3.5 h-3.5" />
+            <Utensils className="w-3.5 h-3.5 text-[#E5A00D]" />
             <span>Order Bowl</span>
           </Link>
 

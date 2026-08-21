@@ -26,7 +26,7 @@ export default function LandingPage() {
 
   return (
     <LenisProvider>
-      <div className="min-h-screen bg-[#f5e3cd] text-[#1B4D3E] font-sans selection:bg-[#1B4D3E] selection:text-white">
+      <div className="min-h-screen bg-[#f5e3cd] text-black font-sans selection:bg-black selection:text-white">
 
         {/* Liquid Preloader Curtain */}
         <Preloader />
@@ -40,9 +40,9 @@ export default function LandingPage() {
           <CraftStory />
 
           {/* Jelly Wave Transition into Dark Menu Section */}
-          <JellyWave bgColor="#f5e3cd" fillColor="#0F3329" />
+          <JellyWave bgColor="#f5e3cd" fillColor="#000000" />
           <DailyMenuPreview />
-          <JellyWave bgColor="#0F3329" fillColor="#f5e3cd" flip />
+          <JellyWave bgColor="#000000" fillColor="#f5e3cd" flip />
 
           <Pricing />
           <DeliveryChecker />

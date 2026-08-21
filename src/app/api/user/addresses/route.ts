@@ -31,7 +31,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { action, addressId, label, address: street, area, pincode } = await req.json();
+    const body = await req.json();
+    const { action, addressId, label, address: street, area, city, state, pincode, latitude, longitude, isDefault } = body;
 
     // Action 1: Set Default Address
     if (action === "SET_DEFAULT" && addressId) {
@@ -63,13 +64,57 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Street address, area, and pincode are required" }, { status: 400 });
     }
 
+    if (latitude === null || latitude === undefined || longitude === null || longitude === undefined) {
+      return NextResponse.json(
+        { error: "Pinned map location (latitude and longitude) is mandatory for delivery." },
+        { status: 400 }
+      );
+    }
+
+    const latNum = parseFloat(latitude);
+    const lngNum = parseFloat(longitude);
+
+    // Calculate distance from Kitchen Hub (17.4399, 78.3847)
+    const kitchenLat = 17.4399;
+    const kitchenLng = 78.3847;
+    const maxRadius = 15; // km
+
+    const R = 6371; // km
+    const dLat = ((latNum - kitchenLat) * Math.PI) / 180;
+    const dLng = ((lngNum - kitchenLng) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((kitchenLat * Math.PI) / 180) *
+        Math.cos((latNum * Math.PI) / 180) *
+        Math.sin(dLng / 2) *
+        Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distanceKm = R * c;
+
+    if (distanceKm > maxRadius) {
+      return NextResponse.json(
+        {
+          error: `Selected location is ${distanceKm.toFixed(1)} km away, which exceeds our maximum delivery radius of ${maxRadius} km.`,
+        },
+        { status: 400 }
+      );
+    }
+
     // Check existing addresses
     const existing = await db
       .select()
       .from(addresses)
       .where(eq(addresses.userId, session.userId));
 
-    const isFirst = existing.length === 0;
+    const shouldBeDefault = Boolean(isDefault || existing.length === 0);
+
+    if (shouldBeDefault) {
+      // Unset previous defaults
+      await db
+        .update(addresses)
+        .set({ isDefault: false, updatedAt: new Date() })
+        .where(eq(addresses.userId, session.userId));
+    }
 
     const newAddress = await db
       .insert(addresses)
@@ -77,12 +122,17 @@ export async function POST(req: NextRequest) {
         id: crypto.randomUUID(),
         userId: session.userId,
         label: label || "Home",
+        recipientName: body.recipientName || "Customer",
+        recipientPhone: body.recipientPhone || "9876543210",
         address: street,
-        area,
-        city: "Hyderabad",
-        state: "Telangana",
+        landmark: body.landmark || null,
+        area: area || "Hyderabad Locality",
+        city: city || "Hyderabad",
+        state: state || "Telangana",
         pincode,
-        isDefault: isFirst,
+        latitude: latNum,
+        longitude: lngNum,
+        isDefault: shouldBeDefault,
       })
       .returning();
 

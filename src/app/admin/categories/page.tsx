@@ -12,6 +12,7 @@ import DataTable from "@/components/admin/data-table";
 import StatusBadge from "@/components/admin/status-badge";
 import ActionButton from "@/components/admin/action-button";
 import StatCard from "@/components/admin/stat-card";
+import ImageUploader from "@/components/shared/image-uploader";
 
 async function createCategory(formData: FormData) {
   "use server";
@@ -138,6 +139,9 @@ export default async function CategoriesPage({ searchParams }: { searchParams?: 
                 <div>
                   <label className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>Category name</label>
                   <input name="name" defaultValue={selected?.name ?? ""} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }} required />
+                </div>
+                <div>
+                  <ImageUploader folder="categories" name="imageUrl" label="Upload Category Image" />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <a href="/admin/categories" className="rounded-lg border px-3 py-2 text-sm font-medium" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }}>Cancel</a>

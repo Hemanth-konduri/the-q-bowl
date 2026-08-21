@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -15,7 +15,18 @@ import {
   CheckCircle2,
   AlertCircle,
   Package,
+  Bell,
+  User,
+  Truck,
+  RotateCcw,
+  Star,
+  Flame,
+  PauseCircle,
+  ChevronRight,
+  Tag,
+  Gift,
 } from "lucide-react";
+import gsap from "gsap";
 
 type DashboardData = {
   user: {
@@ -70,12 +81,76 @@ type DashboardData = {
   }[];
 };
 
+const MOTIVATIONAL_QUOTES = [
+  "Nourishing chef-crafted meals, prepared fresh for your daily flow.",
+  "Fuel your day with clean, high-protein cloud kitchen artisan bowls.",
+  "Balanced nutrition delivered fresh to your doorstep without hassle.",
+  "Eat well, feel great — slow-cooked flavor with zero preservatives.",
+];
+
+const RECOMMENDED_ITEMS = [
+  {
+    id: "rec-1",
+    name: "Mediterranean Protein Power Bowl",
+    calories: 520,
+    price: 279,
+    rating: 4.9,
+    isVeg: false,
+    image: "/hero_dish.png",
+    protein: "38g",
+  },
+  {
+    id: "rec-2",
+    name: "Royal Paneer Tikka Deluxe Thali",
+    calories: 590,
+    price: 239,
+    rating: 4.8,
+    isVeg: true,
+    image: "/paneer.png",
+    protein: "26g",
+  },
+  {
+    id: "rec-3",
+    name: "Hyderabadi Artisanal Dum Biryani",
+    calories: 680,
+    price: 299,
+    rating: 4.9,
+    isVeg: false,
+    image: "/dum_biryani_hero.png",
+    protein: "34g",
+  },
+  {
+    id: "rec-4",
+    name: "Keto Broccoli & Roasted Cottage Cheese",
+    calories: 410,
+    price: 259,
+    rating: 4.7,
+    isVeg: true,
+    image: "/biryani.png",
+    protein: "29g",
+  },
+];
+
 export default function UserDashboardPage() {
+  const containerRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [greeting, setGreeting] = useState("Good Morning");
+  const [quote, setQuote] = useState(MOTIVATIONAL_QUOTES[0]);
+  const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
+    // Time-based greeting
+    const hour = new Date().getHours();
+    if (hour < 12) setGreeting("Good Morning");
+    else if (hour < 17) setGreeting("Good Afternoon");
+    else setGreeting("Good Evening");
+
+    // Random quote
+    const randomIdx = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
+    setQuote(MOTIVATIONAL_QUOTES[randomIdx]);
+
     async function loadDashboard() {
       try {
         const res = await fetch("/api/user/dashboard");
@@ -94,12 +169,34 @@ export default function UserDashboardPage() {
     loadDashboard();
   }, []);
 
+  // GSAP Entrance Micro-Interactions
+  useEffect(() => {
+    if (!loading && data && containerRef.current) {
+      const ctx = gsap.context(() => {
+        gsap.fromTo(
+          ".gsap-dash-fade",
+          { opacity: 0, y: 16 },
+          { opacity: 1, y: 0, duration: 0.5, stagger: 0.08, ease: "power2.out" }
+        );
+
+        // Progress bar fill animation
+        gsap.fromTo(
+          ".gsap-progress-bar",
+          { width: "0%" },
+          { duration: 0.9, ease: "power3.out", delay: 0.2 }
+        );
+      }, containerRef);
+
+      return () => ctx.revert();
+    }
+  }, [loading, data]);
+
   if (loading) {
     return (
-      <div className="py-20 text-center space-y-4">
-        <div className="w-10 h-10 border-4 border-[#0F3329] border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="font-outfit text-sm font-bold uppercase tracking-wider text-[#0F3329]">
-          Fetching dashboard data from database...
+      <div className="py-24 text-center space-y-4 max-w-md mx-auto">
+        <div className="w-8 h-8 border-3 border-black border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="font-outfit text-xs font-bold uppercase tracking-wider text-black">
+          Loading your personalized dashboard...
         </p>
       </div>
     );
@@ -107,13 +204,13 @@ export default function UserDashboardPage() {
 
   if (error || !data) {
     return (
-      <div className="p-8 rounded-3xl bg-red-50 border-2 border-red-400 text-red-800 space-y-4 max-w-xl mx-auto my-12 text-center">
-        <AlertCircle className="w-10 h-10 text-red-600 mx-auto" />
-        <h2 className="font-outfit text-xl font-bold uppercase">Dashboard Error</h2>
-        <p className="font-sans text-sm">{error || "Unable to load dashboard profile."}</p>
+      <div className="p-6 rounded-[12px] bg-red-50 border-2 border-red-400 text-red-800 space-y-4 max-w-xl mx-auto my-12 text-center">
+        <AlertCircle className="w-8 h-8 text-red-600 mx-auto" />
+        <h2 className="font-outfit text-lg font-bold uppercase">Unable to Load Portal</h2>
+        <p className="font-sans text-xs">{error || "Unable to retrieve dashboard profile."}</p>
         <Link
           href="/login"
-          className="inline-block px-6 py-2.5 rounded-full bg-[#0F3329] text-[#f5e3cd] font-outfit text-xs font-bold uppercase"
+          className="inline-block px-5 py-2 rounded-[10px] bg-black text-[#f5e3cd] font-outfit text-xs font-bold uppercase"
         >
           Sign In Again
         </Link>
@@ -124,366 +221,262 @@ export default function UserDashboardPage() {
   const displayName = data.user.name || data.user.email?.split("@")[0] || "Customer";
   const sub = data.activeSubscription;
 
+  // Calculate days remaining in subscription
+  let daysRemaining = 0;
+  if (sub) {
+    const end = new Date(sub.expectedEndDate).getTime();
+    const now = new Date().getTime();
+    daysRemaining = Math.max(0, Math.ceil((end - now) / (1000 * 60 * 60 * 24)));
+  }
+
   return (
-    <div className="space-y-8 pb-12 animate-in fade-in duration-500">
+    <div ref={containerRef} className="space-y-6 pb-16">
       
       {/* =========================================================
-          WELCOME HERO BANNER (NO SHADOWS)
+          1. GREETING HEADER
           ========================================================= */}
-      
-      <div className="p-8 sm:p-10 bg-[#FFF8EE] border-2 border-[#0F3329]/20 rounded-[2rem] flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div className="space-y-3 max-w-2xl">
+      <div className="gsap-dash-fade p-6 sm:p-7 bg-[#FFF8EE] border-2 border-black/15 rounded-[12px] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="px-3.5 py-1 rounded-full bg-[#0F3329] text-[#E5A00D] font-outfit text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>MEMBER PORTAL</span>
-            </span>
-            <span className="inline-flex items-center gap-1.5 text-xs font-sans font-semibold text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full border border-emerald-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span>Kitchen Active</span>
+            <span className="font-outfit text-2xl sm:text-3xl font-black text-black uppercase tracking-tight">
+              {greeting}, {displayName} 👋
             </span>
           </div>
-
-          <h1 className="font-outfit font-black text-3xl sm:text-5xl text-[#0F3329] uppercase tracking-tight leading-none">
-            WELCOME BACK, <span className="text-[#1B4D3E]">{displayName}</span>
-          </h1>
-          <p className="font-sans text-sm sm:text-base text-[#0F3329]/70 font-medium">
-            Manage your daily meal dispatches, active subscriptions, and recent orders.
+          <p className="font-sans text-xs sm:text-sm text-black/70 font-medium leading-relaxed">
+            {quote}
           </p>
         </div>
 
-        <div className="shrink-0 flex flex-wrap sm:flex-nowrap gap-3 w-full md:w-auto">
-          <Link
-            href="/user/subscriptions"
-            className="flex-1 md:flex-none px-6 py-3.5 rounded-2xl bg-[#0F3329] text-[#f5e3cd] border border-[#0F3329] font-outfit text-xs sm:text-sm font-extrabold uppercase tracking-wider hover:bg-[#E5A00D] hover:text-[#0F3329] transition-colors text-center"
+        {/* Right Header Icons */}
+        <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+          <button
+            className="p-2.5 rounded-[10px] bg-[#f5e3cd] border-2 border-black/15 text-black hover:bg-black hover:text-white transition-all relative"
+            aria-label="Notifications"
           >
-            Subscriptions
-          </Link>
+            <Bell className="w-4 h-4" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#E5A00D]" />
+          </button>
           <Link
-            href="/#menu"
-            className="flex-1 md:flex-none px-6 py-3.5 rounded-2xl bg-[#E5A00D] text-[#0F3329] border border-[#0F3329] font-outfit text-xs sm:text-sm font-extrabold uppercase tracking-wider hover:bg-white transition-colors text-center"
+            href="/user/profile"
+            className="p-2.5 rounded-[10px] bg-[#f5e3cd] border-2 border-black/15 text-black hover:bg-black hover:text-white transition-all flex items-center gap-2 font-outfit text-xs font-bold uppercase"
           >
-            Order Meal Bowl
+            <User className="w-4 h-4" />
+            <span className="hidden md:inline">Account</span>
           </Link>
         </div>
       </div>
 
 
       {/* =========================================================
-          MAIN GRID: SUBSCRIPTION & ADDRESS (NO SHADOWS)
+          2. SUBSCRIPTION STATUS (TOP PRIORITY - FIRST CARD)
           ========================================================= */}
+      <div className="gsap-dash-fade p-6 sm:p-7 bg-[#FFF8EE] border-2 border-black rounded-[12px] space-y-5 relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b-2 border-black/15 pb-4">
+          <div>
+            <span className="font-outfit text-[11px] font-black uppercase text-black bg-[#E5A00D] px-2.5 py-0.5 rounded-[6px] tracking-wider inline-block mb-1">
+              CURRENT PLAN STATUS
+            </span>
+            <h2 className="font-outfit font-black text-2xl sm:text-3xl text-black uppercase tracking-tight">
+              {sub ? (sub.planName || "Active Premium Plan") : "Start Your Healthy Meal Journey"}
+            </h2>
+          </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        
-        {/* Left 7 Cols: Real Active Subscription Status */}
-        <div className="lg:col-span-7 space-y-8">
-          
-          <div className="p-7 bg-[#FFF8EE] border-2 border-[#0F3329]/20 rounded-[2rem] space-y-6">
-            <div className="flex items-center justify-between border-b border-[#0F3329]/15 pb-4">
-              <div>
-                <span className="font-outfit text-xs font-black text-[#E5A00D] bg-[#0F3329] px-3 py-1 rounded-full uppercase tracking-wider block w-fit mb-1">
-                  REAL-TIME SUBSCRIPTION
-                </span>
-                <h2 className="font-outfit font-black text-2xl sm:text-3xl text-[#0F3329] uppercase tracking-tight">
-                  {sub ? (sub.planName || "Active Subscription Plan") : "No Active Subscription"}
-                </h2>
-              </div>
-              {sub ? (
-                <span className="px-3.5 py-1.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-400 font-outfit text-xs font-bold uppercase tracking-wider">
-                  ACTIVE
-                </span>
-              ) : (
-                <span className="px-3.5 py-1.5 rounded-full bg-gray-100 text-gray-700 border border-gray-300 font-outfit text-xs font-bold uppercase tracking-wider">
-                  INACTIVE
-                </span>
-              )}
-            </div>
-
+          <div>
             {sub ? (
-              <div className="space-y-4">
-                {/* Progress bar */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center font-outfit text-xs font-black uppercase tracking-wider text-[#0F3329]">
-                    <span>MEALS REMAINING BALANCE</span>
-                    <span className="text-[#E5A00D] bg-[#0F3329] px-3 py-0.5 rounded-full">
-                      {sub.mealsRemaining} / {sub.totalMeals} MEALS
-                    </span>
-                  </div>
-                  <div className="w-full h-3 rounded-full bg-[#0F3329]/10 border border-[#0F3329]/30 overflow-hidden">
-                    <div
-                      className="h-full bg-[#E5A00D] transition-all duration-500"
-                      style={{
-                        width: `${Math.min(
-                          100,
-                          Math.max(0, (sub.mealsRemaining / (sub.totalMeals || 1)) * 100)
-                        )}%`,
-                      }}
-                    />
-                  </div>
-                  <p className="font-sans text-xs text-[#0F3329]/70 font-semibold">
-                    {sub.mealsUsed} meals used • Expected End Date: {new Date(sub.expectedEndDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                  </p>
-                </div>
-
-                <div className="pt-2 flex items-center justify-between">
-                  <Link
-                    href="/user/subscriptions"
-                    className="font-outfit text-xs font-bold uppercase text-[#1B4D3E] underline hover:text-[#E5A00D]"
-                  >
-                    View Schedule Calendar →
-                  </Link>
-                </div>
-              </div>
+              <span className="px-3 py-1 rounded-[8px] bg-black text-[#E5A00D] font-outfit text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Subscribed ({daysRemaining} Days Left)</span>
+              </span>
             ) : (
-              <div className="p-6 rounded-2xl bg-[#f5e3cd]/60 border border-[#0F3329]/15 text-center space-y-3">
-                <Utensils className="w-8 h-8 text-[#0F3329]/50 mx-auto" />
-                <div>
-                  <h3 className="font-outfit font-bold text-base text-[#0F3329] uppercase">
-                    Start Your Meal Subscription
-                  </h3>
-                  <p className="font-sans text-xs text-[#0F3329]/70 font-medium mt-1 max-w-md mx-auto">
-                    Subscribe to daily cloud kitchen meal dispatches with zero delivery fees and flexible skip options.
-                  </p>
-                </div>
-                <Link
-                  href="/user/subscriptions"
-                  className="inline-block px-5 py-2.5 rounded-xl bg-[#0F3329] text-[#f5e3cd] font-outfit text-xs font-black uppercase tracking-wider hover:bg-[#E5A00D] hover:text-[#0F3329] transition-colors"
-                >
-                  Explore Plans
-                </Link>
-              </div>
+              <span className="px-3 py-1 rounded-[8px] bg-black/10 text-black border border-black/20 font-outfit text-xs font-bold uppercase tracking-wider">
+                No Active Plan
+              </span>
             )}
           </div>
-
-          {/* REAL RECENT ORDERS FROM DATABASE */}
-          <div className="p-7 bg-[#FFF8EE] border-2 border-[#0F3329]/20 rounded-[2rem] space-y-6">
-            <div className="flex items-center justify-between border-b border-[#0F3329]/15 pb-4">
-              <div>
-                <span className="font-outfit text-xs font-bold uppercase text-[#0F3329]/60 tracking-wider block">
-                  ORDER HISTORY
-                </span>
-                <h2 className="font-outfit font-black text-2xl text-[#0F3329] uppercase">
-                  RECENT ORDERS
-                </h2>
-              </div>
-              <Link
-                href="/user/orders"
-                className="font-outfit text-xs font-extrabold uppercase text-[#1B4D3E] underline hover:text-[#E5A00D]"
-              >
-                View All
-              </Link>
-            </div>
-
-            {data.recentOrders.length > 0 ? (
-              <div className="space-y-4">
-                {data.recentOrders.map((ord) => (
-                  <div
-                    key={ord.id}
-                    className="p-4 rounded-2xl bg-[#f5e3cd]/70 border border-[#0F3329]/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-outfit font-black text-sm text-[#0F3329]">
-                          ORDER #{ord.id.slice(0, 8).toUpperCase()}
-                        </span>
-                        <span className="font-outfit text-[10px] font-bold uppercase bg-[#0F3329] text-[#E5A00D] px-2 py-0.5 rounded-full">
-                          {ord.status}
-                        </span>
-                      </div>
-                      <span className="font-sans text-xs text-[#0F3329]/60 block mt-1">
-                        {new Date(ord.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                      </span>
-
-                      {/* Items list */}
-                      {ord.items.length > 0 && (
-                        <div className="mt-2 font-sans text-xs font-semibold text-[#0F3329]/80">
-                          {ord.items.map((item) => (
-                            <span key={item.id} className="inline-block mr-3">
-                              • {item.name} (x{item.quantity})
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      <span className="font-outfit text-base font-black text-[#0F3329] block">
-                        ₹{ord.total}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-6 rounded-2xl bg-[#f5e3cd]/60 border border-[#0F3329]/15 text-center space-y-2">
-                <Package className="w-8 h-8 text-[#0F3329]/40 mx-auto" />
-                <p className="font-outfit text-xs font-bold uppercase text-[#0F3329]">
-                  No past orders recorded yet
-                </p>
-                <p className="font-sans text-xs text-[#0F3329]/60 font-medium">
-                  When you place meal orders, they will appear here in real-time.
-                </p>
-              </div>
-            )}
-          </div>
-
         </div>
 
-        {/* Right 5 Cols: Real Default Address & Account Info */}
-        <div className="lg:col-span-5 space-y-8">
-          
-          {/* REAL DEFAULT ADDRESS */}
-          <div className="p-7 bg-[#FFF8EE] border-2 border-[#0F3329]/20 rounded-[2rem] space-y-4">
-            <div className="flex items-center justify-between border-b border-[#0F3329]/15 pb-3">
-              <span className="font-outfit text-xs font-black uppercase text-[#0F3329]">
-                PRIMARY DISPATCH LOCATION
+        {sub ? (
+          /* SUBSCRIBED STATE CARD DETAILS */
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="p-3.5 rounded-[10px] bg-[#f5e3cd]/70 border border-black/15 space-y-1">
+                <span className="font-sans text-[11px] font-semibold text-black/60 block uppercase">Plan Duration</span>
+                <p className="font-outfit font-black text-base text-black">{sub.totalMeals} Meal Entitlements</p>
+              </div>
+              <div className="p-3.5 rounded-[10px] bg-[#f5e3cd]/70 border border-black/15 space-y-1">
+                <span className="font-sans text-[11px] font-semibold text-black/60 block uppercase">Meals Remaining</span>
+                <p className="font-outfit font-black text-base text-black">{sub.mealsRemaining} Meals Balance</p>
+              </div>
+              <div className="p-3.5 rounded-[10px] bg-[#f5e3cd]/70 border border-black/15 space-y-1">
+                <span className="font-sans text-[11px] font-semibold text-black/60 block uppercase">Days Remaining</span>
+                <p className="font-outfit font-black text-base text-black">{daysRemaining} Days Active</p>
+              </div>
+              <div className="p-3.5 rounded-[10px] bg-[#f5e3cd]/70 border border-black/15 space-y-1">
+                <span className="font-sans text-[11px] font-semibold text-black/60 block uppercase">Next Delivery Slot</span>
+                <p className="font-outfit font-bold text-xs text-black">Today • 12:30 PM – 1:30 PM</p>
+              </div>
+            </div>
+
+            {/* Usage Progress Bar */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center font-outfit text-xs font-bold uppercase tracking-wider text-black">
+                <span>Plan Meal Consumption ({sub.mealsUsed} / {sub.totalMeals} Meals Used)</span>
+                <span>{Math.round(((sub.totalMeals - sub.mealsRemaining) / (sub.totalMeals || 1)) * 100)}% Used</span>
+              </div>
+              <div className="w-full h-3 rounded-[6px] bg-black/10 border border-black/20 overflow-hidden">
+                <div
+                  className="gsap-progress-bar h-full bg-black rounded-[5px]"
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      Math.max(0, ((sub.totalMeals - sub.mealsRemaining) / (sub.totalMeals || 1)) * 100)
+                    )}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <span className="font-sans text-xs text-black/70 font-medium">
+                Auto-renews or extends when you pause. Zero wasted meals.
               </span>
               <Link
-                href="/user/addresses"
-                className="font-outfit text-xs font-extrabold uppercase text-[#1B4D3E] underline hover:text-[#E5A00D]"
+                href="/user/subscriptions"
+                className="px-5 py-2.5 rounded-[10px] bg-black text-[#f5e3cd] font-outfit text-xs font-bold uppercase tracking-wider hover:bg-[#E5A00D] hover:text-black transition-all inline-flex items-center gap-1.5"
               >
-                Manage
+                <span>Manage Subscription</span>
+                <ChevronRight className="w-4 h-4" />
               </Link>
             </div>
-
-            {data.defaultAddress ? (
-              <div className="p-4 rounded-2xl bg-[#f5e3cd]/80 border border-[#0F3329]/20 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-outfit text-xs font-black uppercase text-[#0F3329] bg-[#E5A00D] px-2.5 py-0.5 rounded-full">
-                    {data.defaultAddress.label}
-                  </span>
-                  <span className="font-sans text-xs font-bold text-emerald-800">
-                    ✓ Verified Zone
-                  </span>
-                </div>
-                <p className="font-sans text-xs font-bold text-[#0F3329] leading-relaxed">
-                  {data.defaultAddress.address}
-                </p>
-                <p className="font-sans text-xs text-[#0F3329]/70 font-semibold">
-                  {data.defaultAddress.area}, {data.defaultAddress.city} - {data.defaultAddress.pincode}
-                </p>
-              </div>
-            ) : (
-              <div className="p-5 rounded-2xl bg-[#f5e3cd]/60 border border-[#0F3329]/15 text-center space-y-2">
-                <MapPin className="w-6 h-6 text-[#0F3329]/40 mx-auto" />
-                <p className="font-outfit text-xs font-bold uppercase text-[#0F3329]">
-                  No Default Address Set
-                </p>
-                <Link
-                  href="/user/addresses"
-                  className="inline-block font-outfit text-xs font-extrabold uppercase text-[#1B4D3E] underline"
-                >
-                  + Add Delivery Address
-                </Link>
-              </div>
-            )}
           </div>
+        ) : (
+          /* NOT SUBSCRIBED STATE CARD */
+          <div className="space-y-4">
+            <p className="font-sans text-xs sm:text-sm text-black/80 font-normal leading-relaxed max-w-2xl">
+              Enjoy chef-crafted gourmet meals delivered hot to your doorstep daily. Zero delivery fees, full pause flexibility, and changing kitchen menus.
+            </p>
 
-          {/* REAL USER ACCOUNT INFO */}
-          <div className="p-7 bg-[#FFF8EE] border-2 border-[#0F3329]/20 rounded-[2rem] space-y-4">
-            <div className="flex items-center justify-between border-b border-[#0F3329]/15 pb-3">
-              <span className="font-outfit text-xs font-black uppercase text-[#0F3329]">
-                ACCOUNT DETAILS
+            <div className="flex flex-wrap gap-2 pt-1">
+              <span className="px-3 py-1 rounded-[8px] bg-[#f5e3cd] border border-black/15 font-outfit text-xs font-bold text-black uppercase">
+                ✓ Fresh Daily Cooked Meals
               </span>
+              <span className="px-3 py-1 rounded-[8px] bg-[#f5e3cd] border border-black/15 font-outfit text-xs font-bold text-black uppercase">
+                ✓ 100% Pause Flexibility
+              </span>
+              <span className="px-3 py-1 rounded-[8px] bg-[#f5e3cd] border border-black/15 font-outfit text-xs font-bold text-black uppercase">
+                ✓ Doorstep Office &amp; Home Delivery
+              </span>
+            </div>
+
+            <div className="pt-2">
               <Link
-                href="/user/profile"
-                className="font-outfit text-xs font-extrabold uppercase text-[#1B4D3E] underline hover:text-[#E5A00D]"
+                href="/user/subscriptions"
+                className="px-6 py-3 rounded-[10px] bg-black text-[#f5e3cd] font-outfit text-xs font-bold uppercase tracking-wider hover:bg-[#E5A00D] hover:text-black transition-all inline-flex items-center gap-2"
               >
-                Edit
+                <span>View Subscription Plans</span>
+                <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
-
-            <div className="space-y-2 font-sans text-xs font-semibold text-[#0F3329]">
-              <div className="flex justify-between p-2.5 rounded-xl bg-[#f5e3cd]/50">
-                <span className="opacity-70">Name:</span>
-                <span className="font-bold">{displayName}</span>
-              </div>
-              <div className="flex justify-between p-2.5 rounded-xl bg-[#f5e3cd]/50">
-                <span className="opacity-70">Email:</span>
-                <span className="font-bold truncate max-w-[180px]">{data.user.email}</span>
-              </div>
-              <div className="flex justify-between p-2.5 rounded-xl bg-[#f5e3cd]/50">
-                <span className="opacity-70">Phone:</span>
-                <span className="font-bold">{data.user.phone || "Not set"}</span>
-              </div>
-              <div className="flex justify-between p-2.5 rounded-xl bg-[#f5e3cd]/50">
-                <span className="opacity-70">Account Role:</span>
-                <span className="font-bold uppercase text-[#E5A00D] bg-[#0F3329] px-2 py-0.5 rounded-md">
-                  {data.user.role}
-                </span>
-              </div>
-            </div>
           </div>
-
-        </div>
-
+        )}
       </div>
 
 
       {/* =========================================================
-          REAL FOOD CATALOG FROM DATABASE (NO SHADOWS)
+          3. QUICK ACTIONS GRID
           ========================================================= */}
+      <div className="gsap-dash-fade grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: "Order Meal", href: "/#menu", icon: ShoppingBag, desc: "Explore daily à la carte menu" },
+          { label: "Today's Menu", href: "/#menu", icon: Utensils, desc: "Check active kitchen slots" },
+          { label: "Track Delivery", href: "/user/orders", icon: Truck, desc: "Live dispatch status" },
+          { label: "Subscription", href: "/user/subscriptions", icon: CalendarCheck, desc: "Plan & meal schedule" },
+        ].map((act, idx) => {
+          const Icon = act.icon;
+          return (
+            <Link
+              key={idx}
+              href={act.href}
+              className="p-5 bg-[#FFF8EE] border-2 border-black/15 rounded-[12px] hover:border-black hover:scale-[1.02] transition-all group flex flex-col justify-between space-y-3"
+            >
+              <div className="p-2.5 rounded-[8px] bg-black text-[#E5A00D] w-fit group-hover:bg-[#E5A00D] group-hover:text-black transition-colors">
+                <Icon className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-outfit font-bold text-base text-black uppercase tracking-tight group-hover:text-black">
+                  {act.label}
+                </h3>
+                <p className="font-sans text-[11px] text-black/60 font-medium mt-0.5">{act.desc}</p>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
 
+
+      {/* =========================================================
+          4. TODAY'S MEALS (NORMAL À LA CARTE CATALOG)
+          ========================================================= */}
       {data.foodItems.length > 0 && (
-        <div className="p-8 sm:p-10 bg-[#FFF8EE] border-2 border-[#0F3329]/20 rounded-[2rem] space-y-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-[#0F3329]/15 pb-4">
+        <div className="gsap-dash-fade p-6 sm:p-7 bg-[#FFF8EE] border-2 border-black/15 rounded-[12px] space-y-5">
+          <div className="flex items-center justify-between border-b-2 border-black/15 pb-4">
             <div>
-              <span className="font-outfit text-xs font-bold uppercase text-[#E5A00D] bg-[#0F3329] px-3 py-1 rounded-full block w-fit mb-1">
-                KITCHEN CATALOG
+              <span className="font-outfit text-[11px] font-black uppercase text-black bg-[#E5A00D] px-2.5 py-0.5 rounded-[6px] tracking-wider inline-block mb-1">
+                KITCHEN FRESH
               </span>
-              <h2 className="font-outfit font-black text-3xl text-[#0F3329] uppercase">
-                FEATURED FOOD DISHES
+              <h2 className="font-outfit font-black text-2xl text-black uppercase tracking-tight">
+                Today&apos;s Featured Meals
               </h2>
             </div>
             <Link
               href="/#menu"
-              className="inline-flex items-center gap-1.5 font-outfit text-xs font-extrabold uppercase text-[#0F3329] hover:text-[#E5A00D]"
+              className="font-outfit text-xs font-bold uppercase text-black underline hover:text-[#E5A00D]"
             >
-              <span>View Full Menu</span>
-              <ArrowRight className="w-4 h-4" />
+              View Full Menu →
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {data.foodItems.map((item) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {data.foodItems.slice(0, 4).map((dish) => (
               <div
-                key={item.id}
-                className="p-4 rounded-2xl bg-[#f5e3cd]/70 border border-[#0F3329]/20 space-y-3 flex flex-col justify-between"
+                key={dish.id}
+                className="p-4 bg-[#f5e3cd]/60 border border-black/15 rounded-[10px] flex flex-col justify-between space-y-3 hover:scale-[1.02] transition-transform duration-300"
               >
-                <div className="relative h-40 w-full rounded-xl bg-[#0F3329] overflow-hidden flex items-center justify-center p-2">
+                <div className="relative h-40 w-full rounded-[8px] bg-black overflow-hidden flex items-center justify-center p-2">
                   <Image
-                    src={item.imageUrl || "/dum_biryani_hero.png"}
-                    alt={item.name}
+                    src={dish.imageUrl || "/dum_biryani_hero.png"}
+                    alt={dish.name}
                     fill
                     sizes="(max-width: 640px) 100vw, 25vw"
-                    unoptimized={Boolean(item.imageUrl?.startsWith("http"))}
-                    className="object-contain p-2"
+                    unoptimized={Boolean(dish.imageUrl?.startsWith("http"))}
+                    className="object-contain p-2 hover:scale-105 transition-transform duration-500"
                   />
-                  <span className="absolute top-2 right-2 font-outfit text-[10px] font-black uppercase text-[#0F3329] bg-[#E5A00D] px-2 py-0.5 rounded-full">
-                    {item.isVeg ? "Veg" : "Non-Veg"}
+                  <span className="absolute top-2 left-2 px-2 py-0.5 rounded-[4px] bg-black text-[#f5e3cd] font-outfit text-[10px] font-bold uppercase">
+                    {dish.isVeg ? "Veg" : "Non-Veg"}
+                  </span>
+                  <span className="absolute top-2 right-2 px-2 py-0.5 rounded-[4px] bg-[#E5A00D] text-black font-outfit text-[10px] font-black flex items-center gap-1">
+                    <Star className="w-3 h-3 fill-black" /> 4.9
                   </span>
                 </div>
 
-                <div>
-                  <h3 className="font-outfit font-black text-base uppercase text-[#0F3329] line-clamp-1">
-                    {item.name}
+                <div className="space-y-1">
+                  <h3 className="font-outfit font-extrabold text-sm uppercase text-black line-clamp-1">
+                    {dish.name}
                   </h3>
-                  {item.description && (
-                    <p className="font-sans text-xs text-[#0F3329]/70 line-clamp-2 mt-0.5">
-                      {item.description}
-                    </p>
-                  )}
+                  <div className="flex items-center gap-2 font-sans text-[11px] text-black/60">
+                    <span className="flex items-center gap-1"><Flame className="w-3 h-3 text-[#E5A00D]" /> 540 kcal</span>
+                    <span>•</span>
+                    <span className="uppercase font-semibold">{dish.mealType}</span>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-[#0F3329]/15">
-                  <span className="font-outfit text-lg font-black text-[#0F3329]">
-                    ₹{item.price}
-                  </span>
+                <div className="flex items-center justify-between pt-2 border-t border-black/10">
+                  <span className="font-outfit font-black text-base text-black">₹{dish.price}</span>
                   <Link
                     href="/#menu"
-                    className="px-3 py-1.5 rounded-xl bg-[#0F3329] text-[#E5A00D] font-outfit text-xs font-black uppercase hover:bg-[#E5A00D] hover:text-[#0F3329] transition-colors"
+                    className="px-3.5 py-1.5 rounded-[8px] bg-black text-white font-outfit text-xs font-bold uppercase hover:bg-[#E5A00D] hover:text-black transition-colors"
                   >
-                    Order
+                    Add to Cart
                   </Link>
                 </div>
               </div>
@@ -491,6 +484,202 @@ export default function UserDashboardPage() {
           </div>
         </div>
       )}
+
+
+      {/* =========================================================
+          5. RECENT DELIVERIES
+          ========================================================= */}
+      <div className="gsap-dash-fade p-6 sm:p-7 bg-[#FFF8EE] border-2 border-black/15 rounded-[12px] space-y-4">
+        <div className="flex items-center justify-between border-b-2 border-black/15 pb-3">
+          <h2 className="font-outfit font-black text-xl text-black uppercase tracking-tight">
+            Recent Deliveries
+          </h2>
+          <Link
+            href="/user/orders"
+            className="font-outfit text-xs font-bold uppercase text-black underline hover:text-[#E5A00D]"
+          >
+            View All Orders
+          </Link>
+        </div>
+
+        {data.recentOrders.length > 0 ? (
+          <div className="space-y-3">
+            {data.recentOrders.slice(0, 3).map((ord) => (
+              <div
+                key={ord.id}
+                className="p-4 rounded-[10px] bg-[#f5e3cd]/60 border border-black/15 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-[8px] bg-black shrink-0 relative overflow-hidden flex items-center justify-center p-1">
+                    <Image
+                      src="/dum_biryani_hero.png"
+                      alt="Order item"
+                      fill
+                      className="object-contain p-1"
+                    />
+                  </div>
+                  <div>
+                    <h4 className="font-outfit font-black text-sm text-black">
+                      ORDER #{ord.id.slice(0, 8).toUpperCase()}
+                    </h4>
+                    <p className="font-sans text-xs text-black/70">
+                      {new Date(ord.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between sm:justify-end gap-4">
+                  <span className="px-2.5 py-1 rounded-[6px] bg-black text-white font-outfit text-[10px] font-bold uppercase">
+                    {ord.status || "Delivered"}
+                  </span>
+                  <span className="font-outfit font-black text-sm text-black">₹{ord.total}</span>
+                  <Link
+                    href="/#menu"
+                    className="px-3 py-1.5 rounded-[8px] bg-[#f5e3cd] border border-black text-black font-outfit text-xs font-bold uppercase hover:bg-black hover:text-white transition-all flex items-center gap-1"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Reorder</span>
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-6 rounded-[10px] bg-[#f5e3cd]/40 border border-black/15 text-center space-y-2">
+            <Package className="w-7 h-7 text-black/40 mx-auto" />
+            <p className="font-outfit text-xs font-bold uppercase text-black">No recent deliveries recorded</p>
+          </div>
+        )}
+      </div>
+
+
+      {/* =========================================================
+          6. ACTIVE SUBSCRIPTION DETAILS (SECONDARY CARD IF SUBSCRIBED)
+          ========================================================= */}
+      {sub && (
+        <div className="gsap-dash-fade p-6 sm:p-7 bg-[#FFF8EE] border-2 border-black/15 rounded-[12px] space-y-4">
+          <div className="flex items-center justify-between border-b-2 border-black/15 pb-3">
+            <h2 className="font-outfit font-black text-xl text-black uppercase tracking-tight">
+              Active Subscription Details
+            </h2>
+            <button
+              onClick={() => setIsPaused(!isPaused)}
+              className={`px-3 py-1.5 rounded-[8px] border font-outfit text-xs font-bold uppercase transition-colors flex items-center gap-1.5 ${
+                isPaused
+                  ? "bg-amber-100 border-amber-500 text-amber-900"
+                  : "bg-[#f5e3cd] border-black text-black hover:bg-black hover:text-white"
+              }`}
+            >
+              <PauseCircle className="w-4 h-4" />
+              <span>{isPaused ? "Subscription Paused" : "Pause Subscription"}</span>
+            </button>
+          </div>
+
+          <div className="grid sm:grid-cols-3 gap-3 font-sans text-xs">
+            <div className="p-3.5 rounded-[10px] bg-[#f5e3cd]/60 border border-black/15 space-y-1">
+              <span className="font-bold text-black uppercase block">Available Meal Slots</span>
+              <p className="text-black/80 font-medium">Lunch (12-1:30 PM) &amp; Dinner (7:30-9 PM)</p>
+            </div>
+
+            <div className="p-3.5 rounded-[10px] bg-[#f5e3cd]/60 border border-black/15 space-y-1">
+              <span className="font-bold text-black uppercase block">Remaining Credits</span>
+              <p className="text-black/80 font-medium">{sub.mealsRemaining} Full Meal Days Credit</p>
+            </div>
+
+            <div className="p-3.5 rounded-[10px] bg-[#f5e3cd]/60 border border-black/15 space-y-1">
+              <span className="font-bold text-black uppercase block">Verified Address</span>
+              <p className="text-black/80 font-medium truncate">
+                {data.defaultAddress ? `${data.defaultAddress.label} • ${data.defaultAddress.area}` : "Primary Address Set"}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {/* =========================================================
+          7. RECOMMENDED FOR YOU
+          ========================================================= */}
+      <div className="gsap-dash-fade p-6 sm:p-7 bg-[#FFF8EE] border-2 border-black/15 rounded-[12px] space-y-4">
+        <div className="flex items-center justify-between border-b-2 border-black/15 pb-3">
+          <div>
+            <span className="font-outfit text-[10px] font-bold uppercase text-black bg-[#E5A00D] px-2 py-0.5 rounded-[4px] inline-block mb-1">
+              CURATED FOR YOUR PALATE
+            </span>
+            <h2 className="font-outfit font-black text-xl text-black uppercase tracking-tight">
+              Recommended For You
+            </h2>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {RECOMMENDED_ITEMS.map((item) => (
+            <div
+              key={item.id}
+              className="p-4 bg-[#f5e3cd]/60 border border-black/15 rounded-[10px] space-y-3 flex flex-col justify-between hover:scale-[1.03] transition-transform duration-300"
+            >
+              <div className="relative h-36 w-full rounded-[8px] bg-black overflow-hidden flex items-center justify-center p-2">
+                <Image
+                  src={item.image}
+                  alt={item.name}
+                  fill
+                  className="object-contain p-2 hover:scale-105 transition-transform duration-500"
+                />
+                <span className="absolute top-2 right-2 px-2 py-0.5 rounded-[4px] bg-[#E5A00D] text-black font-outfit text-[10px] font-black">
+                  ★ {item.rating}
+                </span>
+              </div>
+
+              <div>
+                <h4 className="font-outfit font-extrabold text-sm uppercase text-black line-clamp-1">
+                  {item.name}
+                </h4>
+                <p className="font-sans text-[11px] text-black/60 mt-0.5">
+                  {item.calories} kcal • {item.protein} protein
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-black/10">
+                <span className="font-outfit font-black text-base text-black">₹{item.price}</span>
+                <Link
+                  href="/#menu"
+                  className="px-3 py-1.5 rounded-[8px] bg-black text-white font-outfit text-xs font-bold uppercase hover:bg-[#E5A00D] hover:text-black transition-colors"
+                >
+                  Order
+                </Link>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+
+      {/* =========================================================
+          8. SPECIAL OFFERS & PROMOTIONAL BANNER
+          ========================================================= */}
+      <div className="gsap-dash-fade p-6 sm:p-8 bg-black text-[#f5e3cd] border-2 border-black rounded-[12px] flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+        <div className="space-y-2 max-w-xl relative z-10">
+          <span className="px-3 py-1 rounded-[6px] bg-[#E5A00D] text-black font-outfit text-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5">
+            <Gift className="w-3.5 h-3.5" />
+            <span>MEMBER EXCLUSIVE PROMO</span>
+          </span>
+          <h2 className="font-outfit font-black text-2xl sm:text-4xl text-white uppercase tracking-tight leading-tight">
+            GET 20% OFF ON YOUR NEXT MEAL BOWL
+          </h2>
+          <p className="font-sans text-xs sm:text-sm text-[#f5e3cd]/80 font-normal">
+            Use code <strong className="text-white bg-[#f5e3cd]/20 px-2 py-0.5 rounded border border-white/20">WELCOME20</strong> at checkout on orders above ₹299.
+          </p>
+        </div>
+
+        <div className="shrink-0 relative z-10 w-full md:w-auto text-center">
+          <Link
+            href="/#menu"
+            className="w-full sm:w-auto px-7 py-3.5 rounded-[10px] bg-[#E5A00D] text-black font-outfit text-xs sm:text-sm font-extrabold uppercase tracking-wider hover:bg-white transition-all inline-block shadow-[3px_3px_0px_#000]"
+          >
+            Claim Offer Now
+          </Link>
+        </div>
+      </div>
 
     </div>
   );

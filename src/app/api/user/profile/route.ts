@@ -17,6 +17,7 @@ export async function GET() {
         name: users.name,
         email: users.email,
         phone: users.phone,
+        avatarUrl: users.avatarUrl,
         role: users.role,
         googleId: users.googleId,
         createdAt: users.createdAt,
@@ -43,21 +44,23 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { name, phone } = await req.json();
+    const { name, phone, avatarUrl } = await req.json();
+
+    const updatePayload: Record<string, any> = { updatedAt: new Date() };
+    if (name !== undefined) updatePayload.name = name ?? null;
+    if (phone !== undefined) updatePayload.phone = phone ?? null;
+    if (avatarUrl !== undefined) updatePayload.avatarUrl = avatarUrl ?? null;
 
     const updated = await db
       .update(users)
-      .set({
-        name: name ?? null,
-        phone: phone ?? null,
-        updatedAt: new Date(),
-      })
+      .set(updatePayload)
       .where(eq(users.id, session.userId))
       .returning({
         id: users.id,
         name: users.name,
         email: users.email,
         phone: users.phone,
+        avatarUrl: users.avatarUrl,
         role: users.role,
       });
 

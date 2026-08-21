@@ -23,9 +23,7 @@ export default async function DeliveryRoutesPage({
       id: deliveryAssignments.id,
       orderId: deliveryAssignments.orderId,
       status: deliveryAssignments.status,
-      kitchenLat: deliveryAreas.kitchenLat,
-      kitchenLng: deliveryAreas.kitchenLng,
-      kitchenAddress: "Kitchen Location",
+      kitchenAddress: addresses.address,
       customerLat: addresses.latitude,
       customerLng: addresses.longitude,
       customerAddress: addresses.address,
@@ -39,14 +37,13 @@ export default async function DeliveryRoutesPage({
     .leftJoin(orders, eq(deliveryAssignments.orderId, orders.id))
     .leftJoin(addresses, eq(orders.addressId, addresses.id))
     .leftJoin(users, eq(orders.userId, users.id))
-    .leftJoin(deliveryAreas, eq(deliveryAreas.id, "1"))
-    .where(eq(deliveryAssignments.id, assignmentId))
+    .where(eq(deliveryAssignments.id, assignmentId || ""))
     .limit(1);
 
   if (!assignment || !assignment[0]) {
     return (
       <div className="max-w-4xl mx-auto">
-        <PageHeader title="Delivery Routes" subtitle="View delivery routes to customer locations." />
+        <PageHeader title="Delivery Routes" subtitle="View delivery routes to customer locations." actions={null} />
         <PageCard>
           <div className="text-center py-12">
             <Truck size={64} className="mx-auto text-gray-300 mb-4" />
@@ -60,14 +57,14 @@ export default async function DeliveryRoutesPage({
 
   const data = assignment[0];
 
-  // Combine address parts for full address
   const fullCustomerAddress = `${data.customerAddress}, ${data.customerArea}, ${data.customerCity} - ${data.customerPincode}, ${data.customerState}`;
+  const orderShortId = (data.orderId || "").slice(-6).toUpperCase();
 
   return (
     <div className="max-w-4xl mx-auto">
       <PageHeader
         title="Delivery Route"
-        subtitle={`Route to ${data.customerName}'s location`}
+        subtitle={`Route to ${data.customerName || "Customer"}'s location`}
         actions={null}
       />
 
@@ -76,18 +73,18 @@ export default async function DeliveryRoutesPage({
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold" style={{ color: "#24332B" }}>Delivery route details</h2>
             <span className="text-xs px-2 py-1 rounded-full font-medium" style={{ background: "#EDF2EE", color: "#496A5A" }}>
-              Order #{data.orderId?.slice(-6).toUpperCase()}
+              Order #{orderShortId}
             </span>
           </div>
         </div>
 
         <div className="p-6">
           <DeliveryRoute
-            kitchenLat={data.kitchenLat || 28.6139}
-            kitchenLng={data.kitchenLng || 77.2090}
-            customerLat={data.customerLat || 28.6139}
-            customerLng={data.customerLng || 77.2090}
-            kitchenAddress="Kitchen Location"
+            kitchenLat={17.4399}
+            kitchenLng={78.3847}
+            customerLat={Number(data.customerLat) || 17.4399}
+            customerLng={Number(data.customerLng) || 78.3847}
+            kitchenAddress="Artisan Kitchen Hub"
             customerAddress={fullCustomerAddress}
           />
         </div>

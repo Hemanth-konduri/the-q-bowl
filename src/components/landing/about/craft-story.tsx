@@ -236,15 +236,15 @@ export default function CraftStory() {
 
         <div className="text-center">
 
-          <p className="gsap-reveal inline-block rounded-full border border-[#1B4D3E]/20 bg-[#E5A00D]/20 px-4 py-1 font-mouse-memoirs text-2xl uppercase tracking-widest text-[#1B4D3E] sm:text-3xl">
+          <p className="gsap-reveal inline-block rounded-full border border-black/20 bg-[#E5A00D]/20 px-4 py-1 font-mouse-memoirs text-2xl uppercase tracking-widest text-black sm:text-3xl">
             Artisan Cloud Kitchen
           </p>
 
-          <h2 className="gsap-reveal mx-auto mt-6 max-w-5xl font-outfit text-4xl font-extrabold uppercase leading-none tracking-tight text-[#1B4D3E] sm:text-6xl lg:text-7xl">
+          <h2 className="gsap-reveal mx-auto mt-6 max-w-5xl font-outfit text-4xl font-extrabold uppercase leading-none tracking-tight text-black sm:text-6xl lg:text-7xl">
             Juicy, Cheesy &amp; Fully Loaded Bowls
           </h2>
 
-          <p className="gsap-reveal mx-auto mt-6 max-w-3xl font-sans text-base font-normal leading-relaxed text-[#1B4D3E]/80 sm:text-xl">
+          <p className="gsap-reveal mx-auto mt-6 max-w-3xl font-sans text-base font-normal leading-relaxed text-black/80 sm:text-xl">
             Q1 Bowl delivers gourmet chef-marinated meals cooked fresh daily
             with zero preservatives. Choose single orders or build a flexible
             subscription plan on your schedule.
@@ -253,7 +253,7 @@ export default function CraftStory() {
           <div className="gsap-reveal pt-7 pb-16">
             <Link
               href="/login"
-              className="inline-flex items-center gap-3 rounded-full border-2 border-[#0F3329] bg-[#1B4D3E] px-8 py-4 font-outfit text-xl font-bold uppercase tracking-wider text-white shadow-[4px_4px_0px_#0F3329] transition-all hover:scale-105 hover:bg-[#E5A00D] hover:text-[#0F3329]"
+              className="inline-flex items-center gap-3 rounded-full border-2 border-black bg-black px-8 py-4 font-outfit text-xl font-bold uppercase tracking-wider text-white shadow-[4px_4px_0px_#000000] transition-all hover:scale-105 hover:bg-[#E5A00D] hover:text-black"
             >
               <span>Order Now</span>
               <ArrowRight className="h-5 w-5" />
@@ -295,7 +295,7 @@ export default function CraftStory() {
               will-change-transform
             "
           >
-            <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] border-4 border-[#1B4D3E]/10 bg-white shadow-[0_25px_60px_rgba(27,77,62,0.18)]">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] border-4 border-black/10 bg-white shadow-[0_25px_60px_rgba(0,0,0,0.18)]">
 
               <Image
                 src={heroDish}
@@ -307,7 +307,7 @@ export default function CraftStory() {
 
             </div>
 
-            <p className="mt-5 text-center font-outfit text-xl font-bold text-[#1B4D3E] sm:text-2xl">
+            <p className="mt-5 text-center font-outfit text-xl font-bold text-black sm:text-2xl">
               Signature Protein Bowl
             </p>
           </div>
@@ -329,7 +329,7 @@ export default function CraftStory() {
               will-change-transform
             "
           >
-            <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] border-4 border-[#E5A00D] bg-white shadow-[0_30px_70px_rgba(27,77,62,0.22)]">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] border-4 border-[#E5A00D] bg-white shadow-[0_30px_70px_rgba(0,0,0,0.22)]">
 
               <Image
                 src={biryaniImg}
@@ -341,7 +341,7 @@ export default function CraftStory() {
 
             </div>
 
-            <p className="mt-5 text-center font-outfit text-xl font-bold text-[#1B4D3E] sm:text-2xl">
+            <p className="mt-5 text-center font-outfit text-xl font-bold text-black sm:text-2xl">
               Hyderabadi Dum Biryani
             </p>
           </div>
@@ -362,7 +362,7 @@ export default function CraftStory() {
               will-change-transform
             "
           >
-            <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] border-4  bg-white shadow-[0_25px_60px_rgba(27,77,62,0.18)]">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] border-4  bg-white shadow-[0_25px_60px_rgba(0,0,0,0.18)]">
 
               <Image
                 src={paneerImg}
@@ -374,7 +374,7 @@ export default function CraftStory() {
 
             </div>
 
-            <p className="mt-5 text-center font-outfit text-xl font-bold text-[#1B4D3E] sm:text-2xl">
+            <p className="mt-5 text-center font-outfit text-xl font-bold text-black sm:text-2xl">
               Royal Paneer Tikka Thali
             </p>
           </div>

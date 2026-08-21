@@ -60,7 +60,7 @@ export default function DeliveryRoute({ kitchenLat, kitchenLng, customerLat, cus
         .bindPopup(`<b>Customer</b><br>${customerAddress}`);
 
       // Draw line between points
-      const latLngs = [[kitchenLat, kitchenLng], [customerLat, customerLng]];
+      const latLngs: L.LatLngTuple[] = [[kitchenLat, kitchenLng], [customerLat, customerLng]];
       L.polyline(latLngs, { color: "#496A5A", weight: 4 }).addTo(mapRef.current);
 
       // Get route info from OpenRouteService

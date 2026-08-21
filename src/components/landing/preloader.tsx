@@ -25,13 +25,13 @@ export default function Preloader() {
 
   return (
     <div
-      className={`fixed inset-0 z-[99999] bg-[#0F3329] flex flex-col items-center justify-center transition-all duration-700 ${
+      className={`fixed inset-0 z-[99999] bg-black flex flex-col items-center justify-center transition-all duration-700 ${
         progress >= 100 ? "opacity-0 pointer-events-none" : "opacity-100"
       }`}
     >
       {/* Central Animated Badge */}
       <div className="relative text-center space-y-4 max-w-md px-6">
-        <h2 className="font-modak text-6xl text-[#E5A00D] tracking-wider uppercase text-stroke-small text-[#0F3329] animate-bounce">
+        <h2 className="font-modak text-6xl text-[#E5A00D] tracking-wider uppercase text-stroke-small text-black animate-bounce">
           Q1 BOWL
         </h2>
         <p className="font-mouse-memoirs text-2xl text-[#f5e3cd] tracking-widest uppercase">

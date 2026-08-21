@@ -27,6 +27,27 @@ export async function requireAdmin() {
 }
 
 /**
+ * Use in Server Components for authenticated user portal pages.
+ * Verifies session and confirms active user in database.
+ */
+export async function requireAuth(redirectTo = "/login") {
+  const session = await getSession();
+  if (!session) redirect(redirectTo);
+
+  const user = await db
+    .select({ id: users.id, role: users.role, name: users.name, email: users.email, isActive: users.isActive })
+    .from(users)
+    .where(eq(users.id, session.userId))
+    .limit(1);
+
+  if (!user.length || !user[0].isActive) {
+    redirect(redirectTo);
+  }
+
+  return user[0];
+}
+
+/**
  * Use in API Route Handlers.
  * Returns 401/403 response instead of redirecting.
  */
