@@ -8,25 +8,31 @@ import { createSession } from "@/lib/session";
 export async function POST(req: NextRequest) {
   const { email, password } = await req.json();
 
-  if (!email || !password) {
-    return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
+  const cleanEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+  if (!cleanEmail || typeof password !== "string") {
+    return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
   }
 
-  const admin = await db
+  const [admin] = await db
     .select()
     .from(users)
-    .where(and(eq(users.email, email), eq(users.role, "ADMIN")))
+    .where(and(eq(users.email, cleanEmail), eq(users.role, "ADMIN")))
     .limit(1);
 
-  if (admin.length === 0 || !admin[0].passwordHash) {
-    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+  if (!admin || !admin.passwordHash) {
+    return NextResponse.json({ error: "Invalid admin credentials." }, { status: 401 });
   }
 
-  const valid = await bcrypt.compare(password, admin[0].passwordHash);
+  const valid = await bcrypt.compare(password, admin.passwordHash);
   if (!valid) {
-    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    return NextResponse.json({ error: "Invalid admin credentials." }, { status: 401 });
   }
 
-  await createSession({ userId: admin[0].id, role: admin[0].role });
-  return NextResponse.json({ success: true });
+  if (!admin.isActive) {
+    return NextResponse.json({ error: "This admin account is inactive." }, { status: 403 });
+  }
+
+  // Create Admin session and redirect directly to Admin Dashboard
+  await createSession({ userId: admin.id, role: admin.role });
+  return NextResponse.json({ success: true, redirect: "/admin/dashboard" });
 }

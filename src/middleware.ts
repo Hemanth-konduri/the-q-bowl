@@ -31,8 +31,7 @@ export async function middleware(req: NextRequest) {
   if (pathname.startsWith(ADMIN_PREFIX)) {
     if (!session) return NextResponse.redirect(new URL(ADMIN_LOGIN_ROUTE, req.url));
     if (session.role !== "ADMIN") {
-      const res = NextResponse.redirect(new URL("/user/dashboard", req.url));
-      return res;
+      return NextResponse.redirect(new URL("/dashboard", req.url));
     }
     return NextResponse.next();
   }
@@ -40,14 +39,36 @@ export async function middleware(req: NextRequest) {
   // ── Admin login page (/admin) ──
   if (pathname === ADMIN_LOGIN_ROUTE) {
     if (session?.role === "ADMIN") return NextResponse.redirect(new URL("/admin/dashboard", req.url));
-    if (session && session.role !== "ADMIN") return NextResponse.redirect(new URL("/user/dashboard", req.url));
+    if (session && session.role !== "ADMIN") return NextResponse.redirect(new URL("/dashboard", req.url));
     return NextResponse.next();
   }
 
-  // ── Auth pages (/login & /register) ──
-  if (pathname === "/login" || pathname === "/register") {
-    if (session?.role === "CUSTOMER") return NextResponse.redirect(new URL("/user/dashboard", req.url));
-    if (session?.role === "ADMIN") return NextResponse.redirect(new URL("/admin/dashboard", req.url));
+  // ── Redirect active Admin session away from user verification routes ──
+  if (session?.role === "ADMIN") {
+    if (
+      pathname === "/identity-verification" ||
+      pathname === "/verification-pending" ||
+      pathname === "/verify-email" ||
+      pathname === "/login" ||
+      pathname === "/register"
+    ) {
+      return NextResponse.redirect(new URL("/admin/dashboard", req.url));
+    }
+  }
+
+  // ── Registration and email verification pages ──
+  if (pathname === "/register" || pathname === "/login" || pathname === "/verify-email") {
+    return NextResponse.next();
+  }
+
+  // ── Identity verification requires an email-verified session ──
+  if (pathname === "/identity-verification") {
+    if (!session) return NextResponse.redirect(new URL("/register", req.url));
+    return NextResponse.next();
+  }
+
+  if (pathname === "/verification-pending") {
+    if (!session) return NextResponse.redirect(new URL("/register", req.url));
     return NextResponse.next();
   }
 
@@ -56,9 +77,9 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // ── User Portal protected routes (/user/*) ──
-  if (pathname.startsWith("/user")) {
-    if (!session) return NextResponse.redirect(new URL("/login", req.url));
+  // ── Approved application dashboard ──
+  if (pathname.startsWith("/dashboard")) {
+    if (!session) return NextResponse.redirect(new URL("/register", req.url));
     return NextResponse.next();
   }
 

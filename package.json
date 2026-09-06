@@ -25,6 +25,7 @@
     "next": "16.3.1",
     "nodemailer": "^9.0.5",
     "postgres": "^3.4.9",
+    "razorpay": "^2.9.8",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "resend": "^6.20.0",

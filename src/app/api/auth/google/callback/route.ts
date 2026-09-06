@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const redirectUri = `${origin}/api/auth/google/callback`;
 
   if (!code) {
-    return NextResponse.redirect(new URL("/login?error=google_failed", req.url));
+    return NextResponse.redirect(new URL("/register?error=google_failed", req.url));
   }
 
   try {
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     const tokens = await tokenRes.json();
     if (!tokens.access_token) {
       console.error("Google Token Exchange failed:", tokens);
-      return NextResponse.redirect(new URL("/login?error=google_failed", req.url));
+      return NextResponse.redirect(new URL("/register?error=google_failed", req.url));
     }
 
     // Fetch user profile from Google
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     const profile = await profileRes.json();
 
     if (!profile.email) {
-      return NextResponse.redirect(new URL("/login?error=google_failed", req.url));
+      return NextResponse.redirect(new URL("/register?error=google_failed", req.url));
     }
 
     const cleanEmail = profile.email.toLowerCase().trim();
@@ -63,6 +63,7 @@ export async function GET(req: NextRequest) {
           name: profile.name ?? null,
           googleId: profile.id,
           role: "CUSTOMER",
+          emailVerified: true,
         })
         .returning();
       existing = created;
@@ -77,11 +78,19 @@ export async function GET(req: NextRequest) {
     const user = existing[0];
     await createSession({ userId: user.id, role: user.role });
 
-    // Always redirect regular users to User Portal (/user/dashboard)
-    const destination = user.role === "ADMIN" ? "/admin/dashboard" : "/user/dashboard";
-    return NextResponse.redirect(new URL(destination, req.url));
+    if (user.role === "ADMIN") {
+      return NextResponse.redirect(new URL("/admin/dashboard", req.url));
+    }
+    if (user.verificationStatus === "APPROVED") {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
+    if (!user.aadhaarDocument || !user.idProofDocument || user.verificationStatus === "REJECTED") {
+      return NextResponse.redirect(new URL("/identity-verification", req.url));
+    }
+
+    return NextResponse.redirect(new URL("/verification-pending", req.url));
   } catch (error) {
     console.error("Error during Google OAuth callback:", error);
-    return NextResponse.redirect(new URL("/login?error=google_failed", req.url));
+    return NextResponse.redirect(new URL("/register?error=google_failed", req.url));
   }
 }

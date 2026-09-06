@@ -114,26 +114,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Kitchen Hub Coords: 17.4399, 78.3847
-    const KITCHEN_LAT = 17.4399;
-    const KITCHEN_LNG = 78.3847;
-    const R = 6371; // Earth's radius in km
-    const dLat = ((targetAddress.latitude - KITCHEN_LAT) * Math.PI) / 180;
-    const dLon = ((targetAddress.longitude - KITCHEN_LNG) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((KITCHEN_LAT * Math.PI) / 180) *
-        Math.cos((targetAddress.latitude * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const distanceKm = R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+    // Dynamic Database Delivery Zone Validation
+    const { DeliveryZoneService } = await import("@/lib/services/DeliveryZoneService");
+    const zoneVal = await DeliveryZoneService.validateLocation(
+      targetAddress.latitude,
+      targetAddress.longitude
+    );
 
-    if (distanceKm > 15) {
+    if (!zoneVal.isWithinRadius) {
       return NextResponse.json(
-        { error: `Selected address is ${distanceKm.toFixed(1)} km away, which exceeds our 15 km delivery zone.` },
+        { error: `Selected address is ${zoneVal.distanceKm} km away from ${zoneVal.zoneName}, which exceeds our ${zoneVal.allowedRadiusKm} km delivery zone.` },
         { status: 400 }
       );
     }
+
 
     // Fetch user's cart
     const userCartRows = await db

@@ -2,9 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import {
   subscriptions,
-  subscriptionPlans,
-  subscriptionDays,
+  subscriptionMealPricing,
+  subscriptionPackages,
+  subscriptionDeliveries,
+  payments,
+  foodItems,
+  categories,
   addresses,
+  users,
 } from "@/db/schema";
 import { eq, and, desc, asc } from "drizzle-orm";
 import { getSession } from "@/lib/session";
@@ -16,53 +21,125 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // 1. Fetch user's real active subscription
+    // 1. Fetch user's subscriptions
     const userSubs = await db
       .select({
         id: subscriptions.id,
         status: subscriptions.status,
+        mealId: subscriptions.mealId,
+        packageId: subscriptions.packageId,
+        mealCreditsPurchased: subscriptions.mealCreditsPurchased,
+        mealsRemaining: subscriptions.mealsRemaining,
         totalMeals: subscriptions.totalMeals,
         mealsUsed: subscriptions.mealsUsed,
-        mealsRemaining: subscriptions.mealsRemaining,
+        mealsPerDay: subscriptions.mealsPerDay,
+        mealTiming: subscriptions.mealTiming,
+        pricePerMeal: subscriptions.pricePerMeal,
+        discount: subscriptions.discount,
+        totalAmount: payments.amount,
+        pricePaid: payments.amount,
         startDate: subscriptions.startDate,
+        endDate: subscriptions.endDate,
         expectedEndDate: subscriptions.expectedEndDate,
-        pricePaid: subscriptions.pricePaid,
-        mealTypes: subscriptions.mealTypes,
-        planName: subscriptionPlans.name,
-        planDescription: subscriptionPlans.description,
+        nextDeliveryDate: subscriptions.nextDeliveryDate,
+        dietaryPreference: subscriptions.dietaryPreference,
+        spicePreference: subscriptions.spicePreference,
+        allergies: subscriptions.allergies,
+        excludeIngredients: subscriptions.excludeIngredients,
+        deliveryDays: subscriptions.deliveryDays,
+        preferredDeliveryTime: subscriptions.preferredDeliveryTime,
+        mealName: foodItems.name,
+        mealDescription: foodItems.description,
+        mealImageUrl: foodItems.imageUrl,
+        mealCalories: foodItems.calories,
+        mealIsVeg: foodItems.isVeg,
+        packageName: subscriptionPackages.name,
+        addressLabel: addresses.label,
+        addressString: addresses.address,
+        area: addresses.area,
+        city: addresses.city,
       })
       .from(subscriptions)
-      .leftJoin(subscriptionPlans, eq(subscriptions.planId, subscriptionPlans.id))
+      .leftJoin(foodItems, eq(subscriptions.mealId, foodItems.id))
+      .leftJoin(subscriptionPackages, eq(subscriptions.packageId, subscriptionPackages.id))
+      .leftJoin(payments, eq(subscriptions.paymentId, payments.id))
+      .leftJoin(addresses, eq(subscriptions.addressId, addresses.id))
       .where(eq(subscriptions.userId, session.userId))
       .orderBy(desc(subscriptions.createdAt));
 
-    const activeSubscription = userSubs.find((s) => s.status === "ACTIVE") || userSubs[0] || null;
+    const activeSubscription = userSubs.find((s) => s.status === "ACTIVE" || s.status === "PAUSED") || userSubs[0] || null;
 
-    // 2. Fetch real subscription days if subscription exists
-    let days: any[] = [];
+    // 2. Fetch deliveries for active subscription
+    let deliveries: any[] = [];
     if (activeSubscription) {
-      days = await db
-        .select()
-        .from(subscriptionDays)
-        .where(eq(subscriptionDays.subscriptionId, activeSubscription.id))
-        .orderBy(asc(subscriptionDays.date))
-        .limit(14);
+      deliveries = await db
+        .select({
+          id: subscriptionDeliveries.id,
+          subscriptionId: subscriptionDeliveries.subscriptionId,
+          deliveryDate: subscriptionDeliveries.deliveryDate,
+          mealType: subscriptionDeliveries.mealType,
+          status: subscriptionDeliveries.status,
+          mealId: subscriptionDeliveries.mealId,
+          mealName: foodItems.name,
+        })
+        .from(subscriptionDeliveries)
+        .leftJoin(foodItems, eq(subscriptionDeliveries.mealId, foodItems.id))
+        .where(eq(subscriptionDeliveries.subscriptionId, activeSubscription.id))
+        .orderBy(asc(subscriptionDeliveries.deliveryDate))
+        .limit(30);
     }
 
-    // 3. Fetch real available subscription plans catalog from database
-    const availablePlans = await db
+    // 3. Fetch available preloaded meals catalog with subscription price
+    const availableMeals = await db
+      .select({
+        id: foodItems.id,
+        name: foodItems.name,
+        description: foodItems.description,
+        imageUrl: foodItems.imageUrl,
+        calories: foodItems.calories,
+        protein: foodItems.protein,
+        isVeg: foodItems.isVeg,
+        rating: foodItems.rating,
+        standardPrice: foodItems.price,
+        pricingId: subscriptionMealPricing.id,
+        pricePerMeal: subscriptionMealPricing.pricePerMeal,
+        categoryName: categories.name,
+      })
+      .from(foodItems)
+      .leftJoin(subscriptionMealPricing, eq(foodItems.id, subscriptionMealPricing.mealId))
+      .leftJoin(categories, eq(foodItems.categoryId, categories.id))
+      .where(eq(foodItems.isAvailable, true));
+
+    const processedMeals = availableMeals.map((m) => ({
+      id: m.id,
+      name: m.name,
+      description: m.description,
+      imageUrl: m.imageUrl,
+      calories: m.calories,
+      protein: m.protein,
+      isVeg: m.isVeg,
+      rating: m.rating,
+      standardPrice: m.standardPrice,
+      pricePerMeal: m.pricePerMeal ? Number(m.pricePerMeal) : Math.round(Number(m.standardPrice) * 0.85),
+      categoryName: m.categoryName || "Artisan Bowls",
+    }));
+
+    // 4. Fetch available meal packages
+    const availablePackages = await db
       .select()
-      .from(subscriptionPlans)
-      .where(eq(subscriptionPlans.isActive, true));
+      .from(subscriptionPackages)
+      .where(eq(subscriptionPackages.isActive, true))
+      .orderBy(asc(subscriptionPackages.mealCredits));
 
     return NextResponse.json({
       activeSubscription,
       allSubscriptions: userSubs,
-      days,
-      availablePlans,
+      deliveries,
+      availableMeals: processedMeals,
+      availablePackages,
     });
   } catch (error) {
-    console.error("Subscriptions API error:", error);
+    console.error("User Subscriptions GET API error:", error);
     return NextResponse.json({ error: "Failed to fetch subscriptions" }, { status: 500 });
   }
 }
@@ -78,28 +155,26 @@ export async function POST(req: NextRequest) {
     const {
       action,
       subscriptionId,
-      dayId,
-      isSkipped,
-      planId,
-      duration = "MONTHLY",
-      mealTypes = ["LUNCH", "DINNER"],
+      mealId,
+      packageId,
+      customCredits,
+      mealTiming = "LUNCH", // 'LUNCH', 'DINNER', or 'BOTH'
       dietaryPreference = "VEG",
       spicePreference = "MEDIUM",
       allergies = [],
       excludeIngredients = [],
-      deliveryDays = ["MON", "TUE", "WED", "THU", "FRI", "SAT"],
+      deliveryDays = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
       preferredDeliveryTime = "12:00 PM - 1:00 PM",
       addressId,
-      pricePaid,
       startDate,
     } = body;
 
     if (action === "CREATE_SUBSCRIPTION") {
-      if (!planId || !addressId) {
-        return NextResponse.json({ error: "Plan ID and delivery address are required" }, { status: 400 });
+      if (!mealId || !addressId) {
+        return NextResponse.json({ error: "Meal selection and delivery address are required." }, { status: 400 });
       }
 
-      // Check address
+      // Check delivery address & distance
       const addrRows = await db.select().from(addresses).where(eq(addresses.id, addressId)).limit(1);
       if (addrRows.length === 0) {
         return NextResponse.json({ error: "Address not found" }, { status: 404 });
@@ -107,94 +182,105 @@ export async function POST(req: NextRequest) {
 
       const targetAddress = addrRows[0];
       if (targetAddress.userId !== session.userId) {
-        return NextResponse.json({ error: "Forbidden: Selected address does not belong to your account." }, { status: 403 });
+        return NextResponse.json({ error: "Forbidden: Address does not belong to your account." }, { status: 403 });
       }
 
       if (targetAddress.latitude === null || targetAddress.longitude === null) {
         return NextResponse.json(
-          { error: "Selected address missing map pin location. Please pin location on map before subscribing." },
+          { error: "Selected address is missing map pin location. Please pin your location on map." },
           { status: 400 }
         );
       }
 
-      // Kitchen Hub Coords: 17.4399, 78.3847
-      const KITCHEN_LAT = 17.4399;
-      const KITCHEN_LNG = 78.3847;
-      const R = 6371; // Earth's radius in km
-      const dLat = ((targetAddress.latitude - KITCHEN_LAT) * Math.PI) / 180;
-      const dLon = ((targetAddress.longitude - KITCHEN_LNG) * Math.PI) / 180;
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos((KITCHEN_LAT * Math.PI) / 180) *
-          Math.cos((targetAddress.latitude * Math.PI) / 180) *
-          Math.sin(dLon / 2) *
-          Math.sin(dLon / 2);
-      const distanceKm = R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+      // Dynamic Database Delivery Zone Validation
+      const { DeliveryZoneService } = await import("@/lib/services/DeliveryZoneService");
+      const zoneVal = await DeliveryZoneService.validateLocation(
+        targetAddress.latitude,
+        targetAddress.longitude
+      );
 
-      if (distanceKm > 15) {
+      if (!zoneVal.isWithinRadius) {
         return NextResponse.json(
-          { error: `Selected address is ${distanceKm.toFixed(1)} km away, which exceeds our 15 km delivery zone.` },
+          { error: `Selected address is ${zoneVal.distanceKm} km away from ${zoneVal.zoneName}, which exceeds our ${zoneVal.allowedRadiusKm} km delivery zone.` },
           { status: 400 }
         );
       }
 
-      const planRows = await db.select().from(subscriptionPlans).where(eq(subscriptionPlans.id, planId)).limit(1);
-      if (planRows.length === 0) {
-        return NextResponse.json({ error: "Subscription plan not found" }, { status: 404 });
-      }
 
-      const plan = planRows[0];
-      const isWeekly = duration === "WEEKLY";
-      const totalMealsCount = isWeekly ? (plan.mealsPerDay || 1) * 7 : plan.totalMeals;
-
-      // SERVER SOURCE OF TRUTH FOR PRICE: Ignore client-sent price
-      const finalPrice = isWeekly ? plan.weeklyPrice || plan.price : plan.monthlyPrice || plan.price;
-
-      const subId = `sub-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-      const sDate = startDate || new Date().toISOString().split("T")[0];
-      const eDate = new Date(Date.now() + (isWeekly ? 7 : 30) * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-
-      await db.insert(subscriptions).values({
-        id: subId,
+      const { SubscriptionService } = await import("@/lib/services/SubscriptionService");
+      const calc = await SubscriptionService.calculateSubscriptionCheckout({
         userId: session.userId,
-        planId,
+        packageId,
+        mealId,
         addressId,
-        mealTypes: mealTypes.length > 0 ? mealTypes : ["LUNCH"],
-        pricePaid: finalPrice,
-        totalMeals: totalMealsCount,
-        mealsUsed: 0,
-        mealsRemaining: totalMealsCount,
-        startDate: sDate,
-        expectedEndDate: eDate,
-        dietaryPreference,
-        spicePreference,
-        allergies,
-        excludeIngredients,
-        deliveryDays,
-        preferredDeliveryTime,
-        status: "ACTIVE",
+        mealCredits: customCredits ? Number(customCredits) : undefined,
       });
 
-      // Generate initial subscription days
-      for (let i = 0; i < Math.min(totalMealsCount, 14); i++) {
-        const d = new Date(Date.now() + i * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-        const dayIdVal = `subday-${subId}-${d}`;
-        await db.insert(subscriptionDays).values({
-          id: dayIdVal,
-          subscriptionId: subId,
-          date: d,
-          isSkipped: false,
-          isConsumed: false,
-        });
-      }
+      const pricePerMeal = calc.pricePerMeal;
+      const mealCredits = calc.mealCreditsPurchased;
+      const discount = calc.discount;
+      const grandTotal = calc.totalAmount;
+
+      // Determine timing & meals per day
+      const normalizedTiming = String(mealTiming).toUpperCase();
+      const mealsPerDay = normalizedTiming === "BOTH" || normalizedTiming === "LUNCH_DINNER" ? 2 : 1;
+      const durationDays = Math.ceil(mealCredits / mealsPerDay);
+
+      // Server calculated dates
+      const start = startDate ? new Date(startDate) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+      const end = new Date(start.getTime() + durationDays * 24 * 60 * 60 * 1000);
+
+      const startDateStr = start.toISOString().split("T")[0];
+      const endDateStr = end.toISOString().split("T")[0];
+
+      const { PaymentService } = await import("@/lib/services/PaymentService");
+      const directTxnId = `txn-direct-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const receiptMeta = JSON.stringify({
+        packageId: packageId || null,
+        mealId,
+        addressId,
+        mealCredits: calc.mealCreditsPurchased,
+        mealsPerDay,
+        mealTiming: normalizedTiming === "BOTH" ? "BOTH" : normalizedTiming,
+        deliveryDays,
+        startDate: startDateStr,
+      });
+
+      const pendingPay = await PaymentService.createPendingPayment({
+        userId: session.userId,
+        razorpayOrderId: directTxnId,
+        amount: grandTotal,
+        currency: "INR",
+        purpose: "SUBSCRIPTION",
+        receipt: receiptMeta,
+      });
+
+      const successPay = await PaymentService.updatePaymentSuccess({
+        razorpayOrderId: directTxnId,
+        razorpayPaymentId: `pay-${directTxnId}`,
+      });
+
+      const createdSub = await SubscriptionService.createSubscriptionFromPayment({
+        id: successPay?.id || pendingPay.id,
+        userId: session.userId,
+        amount: grandTotal,
+        status: "SUCCESS",
+        receipt: receiptMeta,
+      });
+
+      const mealInfo = await db.select({ name: foodItems.name }).from(foodItems).where(eq(foodItems.id, mealId)).limit(1);
+      const mealName = mealInfo.length > 0 ? mealInfo[0].name : "Subscription Meal";
 
       return NextResponse.json({
         success: true,
-        subscriptionId: subId,
-        planName: plan.name,
-        startDate: sDate,
-        totalMeals: totalMealsCount,
-        pricePaid: finalPrice,
+        subscriptionId: createdSub.id,
+        mealName,
+        mealCreditsPurchased: createdSub.mealCreditsPurchased,
+        mealsRemaining: createdSub.mealsRemaining,
+        mealsPerDay: createdSub.mealsPerDay,
+        startDate: createdSub.startDate,
+        endDate: createdSub.endDate,
+        totalAmount: createdSub.totalAmount,
       });
     }
 
@@ -206,26 +292,22 @@ export async function POST(req: NextRequest) {
         .limit(1);
 
       if (sub.length > 0) {
-        const newStatus = sub[0].status === "ACTIVE" ? "PAUSED" : "ACTIVE";
+        const currentStatus = sub[0].status;
+        const newStatus = currentStatus === "ACTIVE" ? "PAUSED" : "ACTIVE";
         await db
           .update(subscriptions)
           .set({ status: newStatus, updatedAt: new Date() })
           .where(eq(subscriptions.id, subscriptionId));
+
         return NextResponse.json({ success: true, status: newStatus });
+      } else {
+        return NextResponse.json({ error: "Subscription not found" }, { status: 404 });
       }
     }
 
-    if (action === "TOGGLE_SKIP" && dayId) {
-      await db
-        .update(subscriptionDays)
-        .set({ isSkipped, updatedAt: new Date() })
-        .where(eq(subscriptionDays.id, dayId));
-      return NextResponse.json({ success: true });
-    }
-
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
-  } catch (error) {
-    console.error("Subscription update error:", error);
-    return NextResponse.json({ error: "Failed to update subscription" }, { status: 500 });
+  } catch (error: any) {
+    console.error("User Subscriptions POST error:", error);
+    return NextResponse.json({ error: error.message || "Failed to process subscription action" }, { status: 500 });
   }
 }
