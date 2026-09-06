@@ -6,7 +6,7 @@ import { createSession } from "@/lib/session";
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, otp, name, phone } = await req.json();
+    const { email, otp, name, phone, username } = await req.json();
 
     if (!email || !otp) {
       return NextResponse.json({ error: "Email and passcode are required" }, { status: 400 });
@@ -46,17 +46,21 @@ export async function POST(req: NextRequest) {
           email: cleanEmail,
           name: name ?? null,
           phone: phone ?? null,
+          username: username ?? null,
           role: "CUSTOMER",
+          emailVerified: true,
         })
         .returning();
       user = created;
+    } else {
+      await db.update(users).set({ emailVerified: true }).where(eq(users.id, user[0].id));
+      user[0] = { ...user[0], emailVerified: true };
     }
 
     const authenticatedUser = user[0];
     await createSession({ userId: authenticatedUser.id, role: authenticatedUser.role });
     
-    // Always redirect regular customers to User Portal (/user/dashboard)
-    const destination = authenticatedUser.role === "ADMIN" ? "/admin/dashboard" : "/user/dashboard";
+    const destination = authenticatedUser.role === "ADMIN" ? "/admin/dashboard" : "/identity-verification";
 
     return NextResponse.json({
       success: true,

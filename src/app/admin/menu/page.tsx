@@ -1,220 +1,968 @@
-import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { requireAdmin } from "@/lib/auth-guard";
-import { db } from "@/db";
-import { foodItems, menuItems, menus } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
-import { CalendarDays, Eye, Plus, Power, Trash2 } from "lucide-react";
+"use client";
 
-import ActionButton from "@/components/admin/action-button";
-import DataTable from "@/components/admin/data-table";
-import PageCard from "@/components/admin/page-card";
-import PageHeader from "@/components/admin/page-header";
-import StatCard from "@/components/admin/stat-card";
-import StatusBadge from "@/components/admin/status-badge";
+import { useState, useEffect } from "react";
+import { AdminSidebar } from "../components/AdminSidebar";
+import { AdminNavbar } from "../components/AdminNavbar";
+import {
+  UtensilsCrossed,
+  Calendar,
+  Clock,
+  Plus,
+  Edit2,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  RefreshCw,
+  Search,
+  Sun,
+  Sunrise,
+  Moon,
+  Upload,
+  X,
+  Sparkles,
+  Tag,
+  Check,
+} from "lucide-react";
 
-async function saveMenu(formData: FormData) {
-  "use server";
+interface Category {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
 
-  await requireAdmin();
+interface FoodItem {
+  id: string;
+  categoryId: string;
+  categoryName?: string;
+  name: string;
+  description?: string;
+  imageUrl?: string;
+  price: number;
+  calories: number;
+  protein: string;
+  isVeg: boolean;
+  mealType: "BREAKFAST" | "LUNCH" | "DINNER" | "SNACK" | "OTHER";
+  isAvailable: boolean;
+}
 
-  const date = String(formData.get("date") ?? "").trim();
-  const selectedIds = formData.getAll("foodItemIds").map(String);
+interface DailyMenuItem {
+  id: string;
+  foodItemId: string;
+  name: string;
+  price: number;
+  imageUrl?: string;
+  isVeg: boolean;
+  mealType: string;
+}
 
-  if (!date) {
-    redirect("/admin/menu");
+export default function AdminMenuPage() {
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<"SCHEDULER" | "CATALOG" | "CATEGORIES">("SCHEDULER");
+
+  // Date & Meal Timing Slot Filter States for Scheduler
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [selectedSlot, setSelectedSlot] = useState<string>("ALL");
+
+  // Data States
+  const [foodItemsList, setFoodItemsList] = useState<FoodItem[]>([]);
+  const [categoriesList, setCategoriesList] = useState<Category[]>([]);
+  const [dailyMenuItems, setDailyMenuItems] = useState<DailyMenuItem[]>([]);
+  const [dailyMenuActive, setDailyMenuActive] = useState<boolean>(true);
+  const [selectedFoodIds, setSelectedFoodIds] = useState<string[]>([]);
+  const [savingMenu, setSavingMenu] = useState(false);
+
+  // Search & Filter
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("ALL");
+
+  // Create/Edit Food Item Modal
+  const [showItemModal, setShowItemModal] = useState(false);
+  const [itemForm, setItemForm] = useState({
+    id: "",
+    categoryId: "",
+    name: "",
+    description: "",
+    imageUrl: "",
+    price: "",
+    calories: "520",
+    protein: "32g",
+    isVeg: true,
+    mealType: "LUNCH",
+    isAvailable: true,
+  });
+
+  // Create Category Modal
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [categoryNameInput, setCategoryNameInput] = useState("");
+
+  // 1. Fetch Food Catalog & Categories
+  async function fetchCatalogAndCategories() {
+    try {
+      const [itemsRes, catRes] = await Promise.all([
+        fetch("/api/admin/food-items"),
+        fetch("/api/admin/categories"),
+      ]);
+
+      if (itemsRes.ok) {
+        const data = await itemsRes.json();
+        setFoodItemsList(Array.isArray(data) ? data : []);
+      }
+      if (catRes.ok) {
+        const catData = await catRes.json();
+        const cats = Array.isArray(catData) ? catData : [];
+        setCategoriesList(cats);
+        if (cats.length > 0 && !itemForm.categoryId) {
+          setItemForm((prev) => ({ ...prev, categoryId: cats[0].id }));
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching catalog:", err);
+    }
   }
 
-  const existing = await db
-    .select({ id: menus.id })
-    .from(menus)
-    .where(eq(menus.date, date))
-    .limit(1);
-
-  let menuId = existing[0]?.id;
-
-  if (!menuId) {
-    menuId = crypto.randomUUID();
-    await db.insert(menus).values({
-      id: menuId,
-      date,
-      isActive: true,
-    });
+  // 2. Fetch Daily Menu Availability for Selected Date
+  async function fetchDailyMenu(dateStr: string) {
+    try {
+      const res = await fetch(`/api/admin/menu?date=${dateStr}`);
+      if (res.ok) {
+        const data = await res.json();
+        const items: DailyMenuItem[] = data.items || [];
+        setDailyMenuItems(items);
+        setDailyMenuActive(data.isActive !== undefined ? data.isActive : true);
+        setSelectedFoodIds(items.map((i) => i.foodItemId));
+      }
+    } catch (err) {
+      console.error("Error fetching daily menu:", err);
+    }
   }
 
-  await db.delete(menuItems).where(eq(menuItems.menuId, menuId));
+  async function loadInitialData(isManual = false) {
+    if (isManual) setRefreshing(true);
+    await Promise.all([fetchCatalogAndCategories(), fetchDailyMenu(selectedDate)]);
+    setLoading(false);
+    setRefreshing(false);
+  }
 
-  if (selectedIds.length > 0) {
-    await db.insert(menuItems).values(
-      selectedIds.map((foodItemId) => ({
-        id: crypto.randomUUID(),
-        menuId,
-        foodItemId,
-      }))
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  useEffect(() => {
+    fetchDailyMenu(selectedDate);
+  }, [selectedDate]);
+
+  // Save Daily Scheduled Menu (Date & Slot Availability)
+  async function handleSaveDailyMenu() {
+    setSavingMenu(true);
+    try {
+      const res = await fetch("/api/admin/menu", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: selectedDate,
+          isActive: dailyMenuActive,
+          selectedFoodItemIds: selectedFoodIds,
+        }),
+      });
+      if (res.ok) {
+        await fetchDailyMenu(selectedDate);
+      }
+    } catch (err) {
+      console.error("Error saving daily menu:", err);
+    } font: {
+      setSavingMenu(false);
+    }
+  }
+
+  function toggleFoodSelection(foodId: string) {
+    setSelectedFoodIds((prev) =>
+      prev.includes(foodId) ? prev.filter((id) => id !== foodId) : [...prev, foodId]
     );
   }
 
-  revalidatePath("/admin/menu");
-  redirect("/admin/menu");
-}
+  // Save Food Item (Create or Edit)
+  async function handleSaveFoodItem(e: React.FormEvent) {
+    e.preventDefault();
+    if (!itemForm.name || !itemForm.categoryId || !itemForm.price) return;
 
-async function toggleMenuStatus(formData: FormData) {
-  "use server";
+    try {
+      const isEdit = Boolean(itemForm.id);
+      const url = "/api/admin/food-items";
+      const method = isEdit ? "PATCH" : "POST";
 
-  await requireAdmin();
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: itemForm.id || undefined,
+          categoryId: itemForm.categoryId,
+          name: itemForm.name,
+          description: itemForm.description,
+          imageUrl: itemForm.imageUrl,
+          price: Number(itemForm.price),
+          calories: Number(itemForm.calories) || 520,
+          protein: itemForm.protein || "30g",
+          isVeg: itemForm.isVeg,
+          mealType: itemForm.mealType,
+          isAvailable: itemForm.isAvailable,
+        }),
+      });
 
-  const id = String(formData.get("id") ?? "");
-  const isActive = String(formData.get("isActive") ?? "false") === "true";
-
-  if (!id) {
-    redirect("/admin/menu");
+      if (res.ok) {
+        setShowItemModal(false);
+        setItemForm({
+          id: "",
+          categoryId: categoriesList[0]?.id || "",
+          name: "",
+          description: "",
+          imageUrl: "",
+          price: "",
+          calories: "520",
+          protein: "32g",
+          isVeg: true,
+          mealType: "LUNCH",
+          isAvailable: true,
+        });
+        fetchCatalogAndCategories();
+      }
+    } catch (err) {
+      console.error("Error saving food item:", err);
+    }
   }
 
-  await db
-    .update(menus)
-    .set({ isActive: !isActive, updatedAt: new Date() })
-    .where(eq(menus.id, id));
+  // Save Category
+  async function handleSaveCategory(e: React.FormEvent) {
+    e.preventDefault();
+    if (!categoryNameInput.trim()) return;
 
-  revalidatePath("/admin/menu");
-  redirect("/admin/menu");
-}
-
-async function deleteMenu(formData: FormData) {
-  "use server";
-
-  await requireAdmin();
-
-  const id = String(formData.get("id") ?? "");
-  if (!id) {
-    redirect("/admin/menu");
+    try {
+      const res = await fetch("/api/admin/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: categoryNameInput.trim(), isActive: true }),
+      });
+      if (res.ok) {
+        setShowCategoryModal(false);
+        setCategoryNameInput("");
+        fetchCatalogAndCategories();
+      }
+    } catch (err) {
+      console.error("Error saving category:", err);
+    }
   }
 
-  await db.delete(menuItems).where(eq(menuItems.menuId, id));
-  await db.delete(menus).where(eq(menus.id, id));
-
-  revalidatePath("/admin/menu");
-  redirect("/admin/menu");
-}
-
-export default async function MenuPage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ [key: string]: string | string[] | undefined }> | { [key: string]: string | string[] | undefined };
-}) {
-  await requireAdmin();
-
-  const params = searchParams ? await searchParams : {};
-  const addModal = params.modal === "add";
-  const selectedMenuId = typeof params.view === "string" ? params.view : undefined;
-
-  const [menuRows, availableItems] = await Promise.all([
-    db
-      .select({
-        id: menus.id,
-        date: menus.date,
-        isActive: menus.isActive,
-        createdAt: menus.createdAt,
-      })
-      .from(menus)
-      .orderBy(desc(menus.date)),
-    db
-      .select({
-        id: foodItems.id,
-        name: foodItems.name,
-        price: foodItems.price,
-        mealType: foodItems.mealType,
-        isAvailable: foodItems.isAvailable,
-      })
-      .from(foodItems)
-      .where(eq(foodItems.isAvailable, true))
-      .orderBy(desc(foodItems.updatedAt)),
-  ]);
-
-  const menuItemCounts = new Map<string, number>();
-  for (const row of menuRows) {
-    const count = await db
-      .select({ count: menuItems.id })
-      .from(menuItems)
-      .where(eq(menuItems.menuId, row.id));
-    menuItemCounts.set(row.id, count.length);
+  // Toggle Food Item Availability
+  async function handleToggleItemAvailability(id: string, currentStatus: boolean) {
+    try {
+      const res = await fetch("/api/admin/food-items", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, isAvailable: !currentStatus }),
+      });
+      if (res.ok) {
+        fetchCatalogAndCategories();
+      }
+    } catch (err) {
+      console.error("Error toggling item availability:", err);
+    }
   }
 
-  const today = new Date().toISOString().split("T")[0];
-  const selectedMenu = menuRows.find((menu) => menu.id === selectedMenuId) ?? undefined;
-  const activeCount = menuRows.filter((menu) => menu.isActive).length;
-  const inactiveCount = menuRows.length - activeCount;
+  // Filter Catalog List
+  const filteredCatalog = foodItemsList.filter((item) => {
+    const q = searchQuery.toLowerCase();
+    const matchesSearch =
+      item.name.toLowerCase().includes(q) ||
+      (item.description && item.description.toLowerCase().includes(q));
+
+    const matchesCategory =
+      selectedCategoryFilter === "ALL" || item.categoryId === selectedCategoryFilter;
+
+    return matchesSearch && matchesCategory;
+  });
+
+  // Filter Scheduler Catalog List by selectedSlot
+  const filteredSchedulerCatalog = foodItemsList.filter((item) => {
+    if (selectedSlot === "ALL") return true;
+    return item.mealType === selectedSlot;
+  });
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <PageHeader
-        title="Menu"
-        subtitle="Build daily menu plans for breakfast, lunch, dinner, and special offerings."
-        actions={<ActionButton href="?modal=add" variant="primary">+ Add Menu</ActionButton>}
-      />
+    <div className="min-h-screen bg-white text-slate-900 font-sans relative">
+      {/* ── Fixed Left Sidebar ── */}
+      <AdminSidebar />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Total Menus" value={String(menuRows.length)} icon={CalendarDays} iconBg="#EDF2EE" iconColor="#496A5A" sub="Scheduled days" />
-        <StatCard label="Active" value={String(activeCount)} icon={Power} iconBg="#E8F9EE" iconColor="#1F7A4A" sub="Live menu" />
-        <StatCard label="Inactive" value={String(inactiveCount)} icon={Power} iconBg="#F5F3EE" iconColor="#675D4D" sub="Paused dates" />
-        <StatCard label="Food Items" value={String(availableItems.length)} icon={Eye} iconBg="#EEF2FF" iconColor="#4F46E5" sub="Ready for menu" />
-      </div>
+      {/* ── Main Content Area ── */}
+      <div className="pl-64 flex flex-col min-h-screen bg-white">
+        {/* ── Sticky Top Navbar ── */}
+        <AdminNavbar />
 
-      <PageCard noPadding>
-        <div className="px-5 py-4 border-b" style={{ borderColor: "#E8E4D9" }}>
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold" style={{ color: "#24332B" }}>Scheduled menus</h2>
-            <span className="text-xs px-2 py-1 rounded-full font-medium" style={{ background: "#EDF2EE", color: "#496A5A" }}>{menuRows.length} dates</span>
+        {/* ── Page Body ── */}
+        <main className="flex-1 p-8 space-y-8 bg-white">
+          {/* Top Page Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-black text-black tracking-tight uppercase">
+                Menu Management &amp; Daily Availability Scheduler
+              </h1>
+              <p className="text-sm font-bold text-slate-600 mt-1">
+                Schedule date-wise &amp; meal timing availability for breakfast, lunch, and dinner.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => loadInitialData(true)}
+                disabled={refreshing}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-black font-bold text-xs rounded-xl border border-slate-300 transition-colors shadow-sm disabled:opacity-50"
+              >
+                <RefreshCw size={14} className={refreshing ? "animate-spin text-[#E5A00D]" : ""} />
+                {refreshing ? "Syncing..." : "Sync Catalog"}
+              </button>
+            </div>
           </div>
-        </div>
 
-        <DataTable
-          columns={[{ label: "Date" }, { label: "Items" }, { label: "Status" }, { label: "Actions", className: "text-right" }]}
-          rows={menuRows.map((menu) => [
-            <div key="date" className="font-medium" style={{ color: "#24332B" }}>{new Date(`${menu.date}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</div>,
-            <span key="count" className="text-sm" style={{ color: "#4B5563" }}>{menuItemCounts.get(menu.id) ?? 0} items</span>,
-            <StatusBadge key="status" status={menu.isActive ? "ACTIVE" : "PAUSED"} />,
-            <div key="actions" className="flex justify-end gap-2">
-              <a href={`?view=${menu.id}`} className="inline-flex items-center gap-1 rounded-lg border px-2 py-1.5 text-xs font-medium transition hover:opacity-90" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }}><Eye size={12} />View</a>
-              <form action={toggleMenuStatus}><input type="hidden" name="id" value={menu.id} /><input type="hidden" name="isActive" value={String(menu.isActive)} /><button type="submit" className="inline-flex items-center gap-1 rounded-lg border px-2 py-1.5 text-xs font-medium transition hover:opacity-90" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }} title={menu.isActive ? "Deactivate menu" : "Activate menu"}><Power size={12} />{menu.isActive ? "Disable" : "Enable"}</button></form>
-              <form action={deleteMenu}><input type="hidden" name="id" value={menu.id} /><button type="submit" className="inline-flex items-center gap-1 rounded-lg border px-2 py-1.5 text-xs font-medium transition hover:opacity-90" style={{ borderColor: "#F5C5C5", background: "#FFF7F7", color: "#B42318" }} title="Delete menu"><Trash2 size={12} />Delete</button></form>
-            </div>,
-          ])}
-          emptyMessage="No daily menus scheduled yet. Set the first menu date and save menu items."
-        />
-      </PageCard>
-
-      {(addModal || selectedMenu) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl" style={{ border: "1px solid #E8E4D9" }}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold" style={{ color: "#24332B" }}>{addModal ? "Add menu" : "Menu details"}</h3>
-              <a href="/admin/menu" className="text-sm" style={{ color: "#7C817A" }}>Close</a>
+          {/* ════════════════════════════════════════════════════════════ */}
+          {/* SUMMARY KPI CARDS                                            */}
+          {/* ════════════════════════════════════════════════════════════ */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm hover:border-[#E5A00D] transition-colors">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Total Catalog Dishes
+                </span>
+                <div className="h-10 w-10 rounded-xl bg-[#E5A00D] text-black flex items-center justify-center font-bold">
+                  <UtensilsCrossed className="w-5 h-5" />
+                </div>
+              </div>
+              <div className="mt-4 flex items-baseline justify-between">
+                <span className="text-3xl font-black text-black">{foodItemsList.length}</span>
+                <span className="text-xs font-bold text-slate-500">Master Items</span>
+              </div>
             </div>
 
-            {addModal ? (
-              <form action={saveMenu} className="space-y-4">
-                <div>
-                  <label htmlFor="date" className="block text-xs font-medium mb-1.5" style={{ color: "#7C817A" }}>Menu date</label>
-                  <input id="date" name="date" type="date" defaultValue={today} className="w-full rounded-lg border px-3 py-2 text-sm outline-none focus:ring-2" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }} required />
+            <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm hover:border-[#E5A00D] transition-colors">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Scheduled Today
+                </span>
+                <div className="h-10 w-10 rounded-xl bg-black text-[#E5A00D] flex items-center justify-center font-bold">
+                  <Calendar className="w-5 h-5" />
+                </div>
+              </div>
+              <div className="mt-4 flex items-baseline justify-between">
+                <span className="text-3xl font-black text-black">{dailyMenuItems.length}</span>
+                <span className="text-xs font-bold text-[#E5A00D] bg-amber-50 px-2 py-0.5 rounded-full">
+                  {selectedDate}
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm hover:border-[#E5A00D] transition-colors">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Breakfast Items
+                </span>
+                <div className="h-10 w-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center justify-center font-bold">
+                  <Sunrise className="w-5 h-5 text-[#E5A00D]" />
+                </div>
+              </div>
+              <div className="mt-4 flex items-baseline justify-between">
+                <span className="text-3xl font-black text-black">
+                  {foodItemsList.filter((i) => i.mealType === "BREAKFAST").length}
+                </span>
+                <span className="text-xs font-bold text-slate-500">Morning Slot</span>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm hover:border-[#E5A00D] transition-colors">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Lunch &amp; Dinner Items
+                </span>
+                <div className="h-10 w-10 rounded-xl bg-black text-white flex items-center justify-center font-bold">
+                  <Moon className="w-5 h-5 text-[#E5A00D]" />
+                </div>
+              </div>
+              <div className="mt-4 flex items-baseline justify-between">
+                <span className="text-3xl font-black text-black">
+                  {foodItemsList.filter((i) => i.mealType === "LUNCH" || i.mealType === "DINNER").length}
+                </span>
+                <span className="text-xs font-bold text-slate-500">Peak Slots</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ════════════════════════════════════════════════════════════ */}
+          {/* MAIN TABS: DAILY SCHEDULER vs MASTER CATALOG vs CATEGORIES   */}
+          {/* ════════════════════════════════════════════════════════════ */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setActiveTab("SCHEDULER")}
+                  className={`px-4 py-2 text-xs font-black rounded-xl transition-colors ${
+                    activeTab === "SCHEDULER"
+                      ? "bg-[#E5A00D] text-black shadow-sm"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  Date &amp; Timing Availability Planner
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("CATALOG")}
+                  className={`px-4 py-2 text-xs font-black rounded-xl transition-colors ${
+                    activeTab === "CATALOG"
+                      ? "bg-[#E5A00D] text-black shadow-sm"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  Master Food Catalog ({foodItemsList.length})
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("CATEGORIES")}
+                  className={`px-4 py-2 text-xs font-black rounded-xl transition-colors ${
+                    activeTab === "CATEGORIES"
+                      ? "bg-[#E5A00D] text-black shadow-sm"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  Categories ({categoriesList.length})
+                </button>
+              </div>
+
+              {activeTab === "CATALOG" && (
+                <button
+                  onClick={() => {
+                    setItemForm({
+                      id: "",
+                      categoryId: categoriesList[0]?.id || "",
+                      name: "",
+                      description: "",
+                      imageUrl: "",
+                      price: "",
+                      calories: "520",
+                      protein: "32g",
+                      isVeg: true,
+                      mealType: "LUNCH",
+                      isAvailable: true,
+                    });
+                    setShowItemModal(true);
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-black hover:bg-neutral-800 text-[#E5A00D] font-black text-xs rounded-xl shadow-sm transition-colors"
+                >
+                  <Plus size={16} /> Add New Dish Item
+                </button>
+              )}
+
+              {activeTab === "CATEGORIES" && (
+                <button
+                  onClick={() => {
+                    setCategoryNameInput("");
+                    setShowCategoryModal(true);
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-black hover:bg-neutral-800 text-[#E5A00D] font-black text-xs rounded-xl shadow-sm transition-colors"
+                >
+                  <Plus size={16} /> Add Category
+                </button>
+              )}
+            </div>
+
+            {/* ════════════════════════════════════════════════════════════ */}
+            {/* TAB 1: DATE & MEAL TIMINGS AVAILABILITY SCHEDULER            */}
+            {/* ════════════════════════════════════════════════════════════ */}
+            {activeTab === "SCHEDULER" && (
+              <div className="space-y-6">
+                {/* Date Picker & Slot Filters Header Bar */}
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <Calendar size={18} className="text-[#E5A00D]" />
+                    <span className="font-black text-xs text-black uppercase">Select Menu Date:</span>
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      className="px-3 py-1.5 bg-white border border-slate-300 rounded-xl font-bold text-xs text-black outline-none focus:border-[#E5A00D]"
+                    />
+                  </div>
+
+                  {/* Meal Slot Timing Filters */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs font-bold text-slate-500 mr-1">Meal Timing Slot:</span>
+                    {[
+                      { id: "ALL", label: "All Slots" },
+                      { id: "BREAKFAST", label: "Sunrise Breakfast" },
+                      { id: "LUNCH", label: "Midday Lunch" },
+                      { id: "DINNER", label: "Night Dinner" },
+                      { id: "SNACK", label: "Snacks" },
+                    ].map((slot) => (
+                      <button
+                        key={slot.id}
+                        onClick={() => setSelectedSlot(slot.id)}
+                        className={`px-3 py-1 text-xs font-bold rounded-lg transition-colors ${
+                          selectedSlot === slot.id
+                            ? "bg-black text-[#E5A00D]"
+                            : "bg-white text-slate-700 hover:bg-slate-200 border border-slate-200"
+                        }`}
+                      >
+                        {slot.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Save Schedule Action Button */}
+                  <button
+                    onClick={handleSaveDailyMenu}
+                    disabled={savingMenu}
+                    className="flex items-center gap-1.5 px-5 py-2 bg-[#E5A00D] hover:bg-amber-500 text-black font-black text-xs rounded-xl shadow-md transition-colors disabled:opacity-50"
+                  >
+                    {savingMenu ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                    Save Schedule for {selectedDate}
+                  </button>
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-2"><label className="text-xs font-medium" style={{ color: "#7C817A" }}>Available food items</label><span className="text-[10px] uppercase tracking-wide" style={{ color: "#7C817A" }}>{availableItems.length} items</span></div>
-                  <div className="space-y-2 max-h-80 sm:max-h-90 overflow-y-auto pr-1">
-                    {availableItems.length === 0 ? <div className="rounded-lg border border-dashed p-3 text-sm" style={{ borderColor: "#DDD9CC", color: "#7C817A" }}>No available food items yet. Add items in the Food Items page first.</div> : availableItems.map((item) => <label key={item.id} className="flex items-center justify-between gap-3 rounded-lg border p-2.5 cursor-pointer transition hover:bg-gray-50" style={{ borderColor: "#E8E4D9" }}><div className="flex items-center gap-3"><input type="checkbox" name="foodItemIds" value={item.id} className="h-4 w-4 accent-[#496A5A]" /><div><div className="text-sm font-medium" style={{ color: "#24332B" }}>{item.name}</div><div className="text-[11px]" style={{ color: "#7C817A" }}>{item.mealType}</div></div></div><span className="text-sm font-medium" style={{ color: "#24332B" }}>₹{new Intl.NumberFormat("en-IN").format(Number(item.price))}</span></label>)}
+                {/* Available Dishes Checklist */}
+                {loading ? (
+                  <div className="flex justify-center py-12 text-[#E5A00D]">
+                    <Loader2 size={32} className="animate-spin" />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-black uppercase tracking-wider">
+                        Toggle Available Dishes for {selectedDate} ({selectedFoodIds.length} Selected)
+                      </span>
+                      <button
+                        onClick={() =>
+                          setSelectedFoodIds(
+                            selectedFoodIds.length === foodItemsList.length
+                              ? []
+                              : foodItemsList.map((i) => i.id)
+                          )
+                        }
+                        className="text-xs font-bold text-black hover:text-[#E5A00D]"
+                      >
+                        {selectedFoodIds.length === foodItemsList.length ? "Deselect All" : "Select All Dishes"}
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filteredSchedulerCatalog.map((dish) => {
+                        const isSelected = selectedFoodIds.includes(dish.id);
+
+                        return (
+                          <div
+                            key={dish.id}
+                            onClick={() => toggleFoodSelection(dish.id)}
+                            className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                              isSelected
+                                ? "border-[#E5A00D] bg-amber-50/40 shadow-sm"
+                                : "border-slate-200 bg-white hover:bg-slate-50"
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`h-6 w-6 rounded-md flex items-center justify-center font-bold text-xs border transition-colors ${
+                                  isSelected
+                                    ? "bg-[#E5A00D] text-black border-amber-400"
+                                    : "bg-white border-slate-300 text-transparent"
+                                }`}
+                              >
+                                ✓
+                              </div>
+                              <div>
+                                <p className="font-extrabold text-xs text-black">{dish.name}</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-[10px] font-bold text-slate-500">₹{dish.price}</span>
+                                  <span className="text-[9px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
+                                    {dish.mealType}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <span
+                              className={`text-[10px] font-extrabold px-2 py-0.5 rounded ${
+                                isSelected ? "bg-black text-[#E5A00D]" : "bg-slate-100 text-slate-500"
+                              }`}
+                            >
+                              {isSelected ? "Available" : "Off"}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ════════════════════════════════════════════════════════════ */}
+            {/* TAB 2: MASTER FOOD CATALOG DISH ITEMS                        */}
+            {/* ════════════════════════════════════════════════════════════ */}
+            {activeTab === "CATALOG" && (
+              <div className="space-y-4">
+                {/* Search & Category Filter Bar */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="relative w-full sm:w-72">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search dish name, description..."
+                      className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-[#E5A00D] focus:bg-white text-black font-medium"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 overflow-x-auto">
+                    <button
+                      onClick={() => setSelectedCategoryFilter("ALL")}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg ${
+                        selectedCategoryFilter === "ALL"
+                          ? "bg-black text-[#E5A00D]"
+                          : "bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      All Categories
+                    </button>
+                    {categoriesList.map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setSelectedCategoryFilter(cat.id)}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap ${
+                          selectedCategoryFilter === cat.id
+                            ? "bg-black text-[#E5A00D]"
+                            : "bg-slate-100 text-slate-700"
+                        }`}
+                      >
+                        {cat.name}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2"><a href="/admin/menu" className="rounded-lg border px-3 py-2 text-sm font-medium" style={{ borderColor: "#DDD9CC", background: "#fff", color: "#24332B" }}>Cancel</a><button type="submit" className="rounded-lg px-3 py-2 text-sm font-medium" style={{ background: "#496A5A", color: "#fff" }}>Save menu</button></div>
-              </form>
-            ) : (
-              <div className="space-y-4 text-sm">
-                <div className="rounded-lg border p-3" style={{ borderColor: "#E8E4D9" }}><div className="text-xs uppercase tracking-wide" style={{ color: "#7C817A" }}>Date</div><div className="mt-1 font-medium" style={{ color: "#24332B" }}>{selectedMenu ? new Date(`${selectedMenu.date}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</div></div>
-                <div className="rounded-lg border p-3" style={{ borderColor: "#E8E4D9" }}><div className="text-xs uppercase tracking-wide" style={{ color: "#7C817A" }}>Items</div><div className="mt-1" style={{ color: "#24332B" }}>{selectedMenu ? `${menuItemCounts.get(selectedMenu.id) ?? 0} selected items` : "—"}</div></div>
-                <div className="rounded-lg border p-3" style={{ borderColor: "#E8E4D9" }}><div className="text-xs uppercase tracking-wide" style={{ color: "#7C817A" }}>Status</div><div className="mt-1"><StatusBadge status={selectedMenu?.isActive ? "ACTIVE" : "PAUSED"} /></div></div>
-                <div className="flex justify-end gap-2"><a href="/admin/menu" className="rounded-lg px-3 py-2 text-sm font-medium" style={{ background: "#496A5A", color: "#fff" }}>Close</a></div>
+                {/* Catalog Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredCatalog.length > 0 ? (
+                    filteredCatalog.map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-4 rounded-2xl border border-slate-200 bg-white space-y-3 shadow-sm hover:border-[#E5A00D] transition-colors relative flex flex-col justify-between"
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <span className="text-[10px] font-black uppercase tracking-wider bg-amber-100 text-black px-2 py-0.5 rounded-full">
+                                {item.categoryName || "Dish"}
+                              </span>
+                              <h4 className="font-black text-base text-black mt-1">{item.name}</h4>
+                            </div>
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-black uppercase shrink-0 ${
+                                item.isVeg ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
+                              }`}
+                            >
+                              {item.isVeg ? "VEG" : "NON-VEG"}
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-slate-500 line-clamp-2">{item.description || "Fresh crafted recipe bowl."}</p>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-100 space-y-2">
+                          <div className="flex items-center justify-between text-xs font-bold">
+                            <span className="text-slate-500">{item.calories} kcal • {item.protein}</span>
+                            <span className="text-black font-black text-base">₹{item.price}</span>
+                          </div>
+
+                          <div className="flex items-center gap-2 pt-1">
+                            <button
+                              onClick={() => {
+                                setItemForm({
+                                  id: item.id,
+                                  categoryId: item.categoryId,
+                                  name: item.name,
+                                  description: item.description || "",
+                                  imageUrl: item.imageUrl || "",
+                                  price: String(item.price),
+                                  calories: String(item.calories || 520),
+                                  protein: item.protein || "32g",
+                                  isVeg: item.isVeg,
+                                  mealType: item.mealType,
+                                  isAvailable: item.isAvailable,
+                                });
+                                setShowItemModal(true);
+                              }}
+                              className="flex-1 py-1.5 bg-slate-100 hover:bg-slate-200 text-black font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1"
+                            >
+                              <Edit2 size={14} /> Edit
+                            </button>
+
+                            <button
+                              onClick={() => handleToggleItemAvailability(item.id, item.isAvailable)}
+                              className={`px-3 py-1.5 font-bold text-xs rounded-xl transition-colors ${
+                                item.isAvailable
+                                  ? "bg-black text-[#E5A00D]"
+                                  : "bg-slate-200 text-slate-600"
+                              }`}
+                            >
+                              {item.isAvailable ? "Available" : "Disabled"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="col-span-full text-center py-12 text-slate-500 font-medium">
+                      No food catalog items found. Click &quot;Add New Dish Item&quot; to create menu items.
+                    </div>
+                  )}
+                </div>
               </div>
             )}
+
+            {/* ════════════════════════════════════════════════════════════ */}
+            {/* TAB 3: CATEGORIES MANAGER                                    */}
+            {/* ════════════════════════════════════════════════════════════ */}
+            {activeTab === "CATEGORIES" && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {categoriesList.map((cat) => (
+                    <div
+                      key={cat.id}
+                      className="p-4 rounded-xl border border-slate-200 bg-white flex items-center justify-between shadow-sm"
+                    >
+                      <span className="font-black text-sm text-black">{cat.name}</span>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                          cat.isActive ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {cat.isActive ? "Active" : "Hidden"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+
+      {/* ════════════════════════════════════════════════════════════ */}
+      {/* MODAL: CREATE / EDIT FOOD ITEM                               */}
+      {/* ════════════════════════════════════════════════════════════ */}
+      {showItemModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white border border-slate-300 w-full max-w-lg rounded-2xl shadow-2xl p-6 space-y-4 relative text-slate-900 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="text-lg font-black text-black">
+                {itemForm.id ? "Edit Dish Item" : "Create New Dish Item"}
+              </h3>
+              <button onClick={() => setShowItemModal(false)} className="text-slate-400 hover:text-black">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveFoodItem} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-black uppercase tracking-wider mb-1">
+                    Dish Name
+                  </label>
+                  <input
+                    required
+                    type="text"
+                    placeholder="e.g. Paneer Tikka Bowl"
+                    value={itemForm.name}
+                    onChange={(e) => setItemForm({ ...itemForm, name: e.target.value })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-black outline-none focus:border-[#E5A00D]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-black uppercase tracking-wider mb-1">
+                    Category
+                  </label>
+                  <select
+                    required
+                    value={itemForm.categoryId}
+                    onChange={(e) => setItemForm({ ...itemForm, categoryId: e.target.value })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-black outline-none focus:border-[#E5A00D]"
+                  >
+                    {categoriesList.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-bold text-black uppercase tracking-wider mb-1">
+                    Price (₹)
+                  </label>
+                  <input
+                    required
+                    type="number"
+                    placeholder="180"
+                    value={itemForm.price}
+                    onChange={(e) => setItemForm({ ...itemForm, price: e.target.value })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-black outline-none focus:border-[#E5A00D]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-black uppercase tracking-wider mb-1">
+                    Calories (kcal)
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="520"
+                    value={itemForm.calories}
+                    onChange={(e) => setItemForm({ ...itemForm, calories: e.target.value })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-black outline-none focus:border-[#E5A00D]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-black uppercase tracking-wider mb-1">
+                    Meal Timing Slot
+                  </label>
+                  <select
+                    value={itemForm.mealType}
+                    onChange={(e) => setItemForm({ ...itemForm, mealType: e.target.value as any })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-black outline-none focus:border-[#E5A00D]"
+                  >
+                    <option value="BREAKFAST">BREAKFAST</option>
+                    <option value="LUNCH">LUNCH</option>
+                    <option value="DINNER">DINNER</option>
+                    <option value="SNACK">SNACK</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-black uppercase tracking-wider mb-1">
+                  Description
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Fresh ingredients, high protein bowl recipe..."
+                  value={itemForm.description}
+                  onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-black outline-none focus:border-[#E5A00D]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-black uppercase tracking-wider mb-1">
+                  Image URL
+                </label>
+                <input
+                  type="text"
+                  placeholder="/paneer_bowl_new.png or public URL"
+                  value={itemForm.imageUrl}
+                  onChange={(e) => setItemForm({ ...itemForm, imageUrl: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-black outline-none focus:border-[#E5A00D]"
+                />
+              </div>
+
+              <div className="flex items-center gap-4 pt-1">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isVegCheck"
+                    checked={itemForm.isVeg}
+                    onChange={(e) => setItemForm({ ...itemForm, isVeg: e.target.checked })}
+                    className="h-4 w-4 accent-[#E5A00D]"
+                  />
+                  <label htmlFor="isVegCheck" className="font-bold text-black">
+                    Vegetarian Dish
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isAvailableCheck"
+                    checked={itemForm.isAvailable}
+                    onChange={(e) => setItemForm({ ...itemForm, isAvailable: e.target.checked })}
+                    className="h-4 w-4 accent-[#E5A00D]"
+                  />
+                  <label htmlFor="isAvailableCheck" className="font-bold text-black">
+                    Available in Catalog
+                  </label>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowItemModal(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-black font-bold rounded-xl"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-black hover:bg-neutral-800 text-[#E5A00D] font-black rounded-xl shadow-sm"
+                >
+                  Save Dish Item
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════ */}
+      {/* MODAL: CREATE CATEGORY                                       */}
+      {/* ════════════════════════════════════════════════════════════ */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white border border-slate-300 w-full max-w-sm rounded-2xl shadow-2xl p-6 space-y-4 relative text-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="text-lg font-black text-black">Add Food Category</h3>
+              <button onClick={() => setShowCategoryModal(false)} className="text-slate-400 hover:text-black">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCategory} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-black uppercase tracking-wider mb-1">
+                  Category Name
+                </label>
+                <input
+                  required
+                  type="text"
+                  placeholder="e.g. Protein Bowls, Biryani, Salads"
+                  value={categoryNameInput}
+                  onChange={(e) => setCategoryNameInput(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-black outline-none focus:border-[#E5A00D]"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCategoryModal(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-black font-bold rounded-xl"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-black hover:bg-neutral-800 text-[#E5A00D] font-black rounded-xl shadow-sm"
+                >
+                  Save Category
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

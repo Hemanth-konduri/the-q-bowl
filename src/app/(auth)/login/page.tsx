@@ -1,283 +1,116 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import Image from "next/image";
+import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Sparkles, Mail, KeyRound, AlertCircle, Star } from "lucide-react";
-import biryaniImg from "../../../../public/dum_biryani_hero.png";
-
-function LoginForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const googleError = searchParams.get("error") === "google_failed";
-
-  const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
-  const [step, setStep] = useState<"email" | "otp">("email");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(googleError ? "Google sign-in failed. Please try again." : "");
-
-  async function sendOtp() {
-    setLoading(true);
-    setError("");
-    const res = await fetch("/api/auth/send-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
-    const data = await res.json();
-    setLoading(false);
-    if (!res.ok) return setError(data.error);
-    setStep("otp");
-  }
-
-  async function verifyOtp() {
-    setLoading(true);
-    setError("");
-    const res = await fetch("/api/auth/verify-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, otp }),
-    });
-    const data = await res.json();
-    setLoading(false);
-    if (!res.ok) return setError(data.error);
-    router.push(data.redirect ?? "/");
-  }
-
-  return (
-    <div className="min-h-screen bg-[#f5e3cd] text-[#0F3329] flex flex-col justify-between relative overflow-hidden selection:bg-[#0F3329] selection:text-white">
-      
-      {/* Soft Background Light Glow */}
-      <div className="absolute top-1/2 right-1/4 -translate-y-1/2 w-[550px] h-[550px] bg-[#E5A00D]/20 rounded-full blur-[140px] pointer-events-none" />
-
-      {/* =========================================================
-          TOP HEADER BAR
-          ========================================================= */}
-
-      <header className="w-full max-w-7xl mx-auto px-4 sm:px-8 py-6 flex items-center justify-between relative z-30 shrink-0">
-        <Link
-          href="/"
-          className="font-modak text-3xl sm:text-5xl text-[#1B4D3E] text-stroke-small hover:scale-105 transition-transform uppercase tracking-tight"
-        >
-          Q1 BOWL
-        </Link>
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#FFF8EE] text-[#0F3329] border-2 border-[#0F3329] font-outfit text-xs sm:text-sm font-bold uppercase tracking-wider hover:bg-[#0F3329] hover:text-[#f5e3cd] transition-all shadow-[3px_3px_0px_#0F3329]"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Back to Home</span>
-        </Link>
-      </header>
-
-
-      {/* =========================================================
-          MAIN 2-COLUMN LAYOUT: PERFECT DEAD-CENTER ALIGNMENT
-          ========================================================= */}
-
-      <main className="w-full max-w-7xl mx-auto px-4 sm:px-8 py-6 relative z-20 flex-1 flex items-center justify-center my-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center justify-center w-full">
-          
-          {/* LEFT COLUMN: FORM CARD */}
-          <div className="lg:col-span-6 xl:col-span-5 w-full max-w-md mx-auto lg:mx-0">
-            <div className="p-8 sm:p-10 bg-[#FFF8EE] border-4 border-[#0F3329] rounded-[2.5rem] shadow-[8px_8px_0px_#0F3329] relative overflow-hidden">
-              
-              {step === "email" ? (
-                <div className="space-y-6 relative z-10">
-                  <div className="text-left">
-                    <span className="font-mouse-memoirs text-2xl text-[#E5A00D] uppercase font-bold tracking-widest inline-flex items-center gap-1.5">
-                      <Sparkles className="w-4 h-4 text-[#E5A00D]" />
-                      <span>WELCOME BACK</span>
-                    </span>
-                    <h1 className="font-outfit font-black text-3xl sm:text-4xl text-[#0F3329] uppercase tracking-tight leading-none mt-1">
-                      SIGN IN TO Q1 BOWL
-                    </h1>
-                    <p className="font-sans text-xs sm:text-sm text-[#0F3329]/70 mt-2 font-medium">
-                      New here?{" "}
-                      <Link href="/register" className="font-bold text-[#1B4D3E] underline hover:text-[#E5A00D] transition-colors">
-                        Create an account
-                      </Link>
-                    </p>
-                  </div>
-
-                  {error && (
-                    <div className="flex items-center gap-2 text-xs font-sans font-bold rounded-2xl px-4 py-3 bg-red-50 border-2 border-red-500 text-red-700 shadow-[2px_2px_0px_#b91c1c]">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
-                      <span>{error}</span>
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <label className="block font-outfit text-xs font-extrabold uppercase tracking-wider text-[#0F3329]">
-                      Email Address
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="email"
-                        placeholder="you@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && email && sendOtp()}
-                        className="w-full rounded-2xl px-4 py-3.5 pl-11 text-sm font-sans font-semibold outline-none border-3 border-[#0F3329] bg-white text-[#0F3329] placeholder-[#0F3329]/40 focus:border-[#E5A00D] transition-all shadow-[3px_3px_0px_#0F3329]"
-                      />
-                      <Mail className="w-5 h-5 text-[#0F3329]/50 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={sendOtp}
-                    disabled={loading || !email}
-                    className="w-full py-4 rounded-2xl font-outfit text-base font-black uppercase tracking-wider text-[#f5e3cd] bg-[#0F3329] border-2 border-[#0F3329] hover:bg-[#E5A00D] hover:text-[#0F3329] transition-all transform hover:scale-[1.02] active:scale-95 shadow-[4px_4px_0px_#071914] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    <span>{loading ? "Sending code..." : "Continue with Email"}</span>
-                    <ArrowRight className="w-5 h-5" />
-                  </button>
-
-                  <div className="flex items-center gap-3 my-2">
-                    <div className="flex-1 h-0.5 bg-[#0F3329]/20" />
-                    <span className="font-outfit text-xs font-bold text-[#0F3329]/60 uppercase tracking-widest">OR</span>
-                    <div className="flex-1 h-0.5 bg-[#0F3329]/20" />
-                  </div>
-
-                  <a
-                    href="/api/auth/google"
-                    className="w-full flex items-center justify-center gap-3 rounded-2xl py-3.5 text-sm font-outfit font-extrabold uppercase tracking-wider text-[#0F3329] bg-white border-3 border-[#0F3329] hover:bg-[#f5e3cd] transition-all shadow-[3px_3px_0px_#0F3329]"
-                  >
-                    <svg width="20" height="20" viewBox="0 0 48 48">
-                      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                    </svg>
-                    <span>Continue with Google</span>
-                  </a>
-                </div>
-              ) : (
-                <div className="space-y-6 relative z-10">
-                  <div className="text-left">
-                    <span className="font-mouse-memoirs text-2xl text-[#E5A00D] uppercase font-bold tracking-widest inline-flex items-center gap-1.5">
-                      <KeyRound className="w-4 h-4 text-[#E5A00D]" />
-                      <span>SECURITY CODE SENT</span>
-                    </span>
-                    <h1 className="font-outfit font-black text-3xl sm:text-4xl text-[#0F3329] uppercase tracking-tight leading-none mt-1">
-                      CHECK YOUR EMAIL
-                    </h1>
-                    <p className="font-sans text-xs sm:text-sm text-[#0F3329]/80 mt-2 font-medium">
-                      We sent a 6-digit code to <span className="font-bold text-[#0F3329]">{email}</span>
-                    </p>
-                  </div>
-
-                  {error && (
-                    <div className="flex items-center gap-2 text-xs font-sans font-bold rounded-2xl px-4 py-3 bg-red-50 border-2 border-red-500 text-red-700 shadow-[2px_2px_0px_#b91c1c]">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
-                      <span>{error}</span>
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <label className="block font-outfit text-xs font-extrabold uppercase tracking-wider text-[#0F3329] text-center">
-                      One-Time Passcode
-                    </label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="000000"
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                      onKeyDown={(e) => e.key === "Enter" && otp.length === 6 && verifyOtp()}
-                      maxLength={6}
-                      className="w-full rounded-2xl px-4 py-3.5 text-2xl font-mono font-bold outline-none border-3 border-[#0F3329] bg-white text-[#0F3329] text-center tracking-[0.4em] placeholder-[#0F3329]/30 focus:border-[#E5A00D] transition-all shadow-[3px_3px_0px_#0F3329]"
-                    />
-                  </div>
-
-                  <button
-                    onClick={verifyOtp}
-                    disabled={loading || otp.length !== 6}
-                    className="w-full py-4 rounded-2xl font-outfit text-base font-black uppercase tracking-wider text-[#f5e3cd] bg-[#0F3329] border-2 border-[#0F3329] hover:bg-[#E5A00D] hover:text-[#0F3329] transition-all transform hover:scale-[1.02] active:scale-95 shadow-[4px_4px_0px_#071914] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    <span>{loading ? "Verifying..." : "Verify & Sign In"}</span>
-                    <ArrowRight className="w-5 h-5" />
-                  </button>
-
-                  <button
-                    onClick={() => { setStep("email"); setOtp(""); setError(""); }}
-                    className="w-full text-left font-outfit text-xs font-extrabold uppercase tracking-wider text-[#0F3329]/70 hover:text-[#0F3329] transition-colors"
-                  >
-                    ← Use a different email
-                  </button>
-                </div>
-              )}
-
-            </div>
-          </div>
-
-          {/* RIGHT COLUMN: PERFECT DEAD-CENTER BIRYANI DISH & FLOATING STICKERS */}
-          <div className="lg:col-span-6 xl:col-span-7 flex flex-col items-center justify-center relative my-auto">
-            
-            {/* DISH & FLOATING STICKER CONTAINER */}
-            <div className="relative w-full max-w-[480px] sm:max-w-[520px] aspect-square flex items-center justify-center">
-              
-              {/* SOFT LIGHT ORANGE GLOW (NO CUTOFF LINES) */}
-              <div className="w-[320px] h-[320px] sm:w-[400px] sm:h-[400px] bg-[#E5A00D]/30 rounded-full blur-[100px] absolute inset-0 m-auto pointer-events-none" />
-
-              {/* HERO BIRYANI DISH IMAGE */}
-              <Image
-                src={biryaniImg}
-                alt="Q1 Bowl Artisan Dum Biryani"
-                priority
-                className="w-[92%] h-[92%] object-contain drop-shadow-[0_25px_45px_rgba(229,160,13,0.4)] relative z-10 transform hover:scale-105 transition-transform duration-500"
-              />
-
-              {/* -------------------------
-                  FLOATING STICKERS (BALANCED AROUND DISH)
-              -------------------------- */}
-
-              {/* TOP LEFT STICKER: SMASHED FRESH */}
-              <div className="absolute top-[2%] left-[-4%] sm:left-[-6%] z-20 animate-float-slow pointer-events-none">
-                <span className="font-modak text-4xl sm:text-5xl lg:text-6xl text-[#E5A00D] text-stroke-small uppercase leading-none block rotate-[-12deg] drop-shadow-xl">
-                  SMASHED<br />FRESH
-                </span>
-              </div>
-
-              {/* TOP RIGHT STICKER: BOLD FLAVOR */}
-              <div className="absolute top-[6%] right-[-4%] sm:right-[-6%] z-20 animate-float-reverse pointer-events-none">
-                <span className="font-modak text-4xl sm:text-5xl lg:text-6xl text-[#E5A00D] text-stroke-small uppercase leading-none block rotate-[12deg] drop-shadow-xl">
-                  BOLD<br />FLAVOR
-                </span>
-              </div>
-
-              {/* BOTTOM FLOATING BADGE */}
-              <div className="absolute -bottom-4 z-20 animate-float-slow pointer-events-none">
-                <div className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-[#0F3329] text-[#E5A00D] border-3 border-[#E5A00D] shadow-[5px_5px_0px_#071914] font-outfit text-xs sm:text-sm font-black uppercase tracking-wider">
-                  <Star className="w-4 h-4 fill-[#E5A00D]" />
-                  <span>HYDERABADI DUM BIRYANI</span>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-      </main>
-
-      {/* Footer Padding Spacing for Perfect Visual Alignment */}
-      <footer className="w-full py-4 text-center shrink-0">
-        <span className="font-sans text-xs text-[#0F3329]/50 font-medium">
-          © 2026 Q1 BOWL • ALL RIGHTS RESERVED
-        </span>
-      </footer>
-
-    </div>
-  );
-}
+import { AuthShell, fieldClassName, primaryButtonClassName } from "../components/auth-shell";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier, password }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Invalid credentials.");
+      router.push(result.redirect);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to log in.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-    <Suspense>
-      <LoginForm />
-    </Suspense>
+    <div className="animate-in fade-in zoom-in-95 duration-300 w-full">
+      <AuthShell
+        eyebrow="Welcome Back"
+        title="Sign In to Q1 Bowl"
+        description="Access your bowl subscriptions, saved preferences, and account status."
+      >
+        <form onSubmit={submit} className="space-y-2.5">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-black">
+              Email or Username
+            </label>
+            <input
+              required
+              type="text"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="you@example.com or alex_chef"
+              className={fieldClassName}
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold uppercase tracking-wider text-black">
+                Password
+              </label>
+            </div>
+            <input
+              required
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Your password"
+              className={fieldClassName}
+            />
+          </div>
+
+          {error && (
+            <div className="rounded-xl border-2 border-red-900 bg-red-100 p-2.5 text-xs font-bold text-red-900 shadow-[2px_2px_0px_#000]">
+              ⚠️ {error}
+            </div>
+          )}
+
+          <button disabled={loading} type="submit" className={primaryButtonClassName}>
+            {loading ? "Logging in..." : "Sign In →"}
+          </button>
+
+          {/* ── Divider ── */}
+          <div className="relative my-2 flex items-center justify-center">
+            <div className="w-full border-t-2 border-black/20" />
+            <span className="absolute bg-[#f5e3cd] px-3 text-[10px] font-extrabold uppercase tracking-widest text-black/50">
+              OR
+            </span>
+          </div>
+
+          {/* ── Google OAuth Button ── */}
+          <a
+            href="/api/auth/google"
+            className="flex w-full items-center justify-center gap-2.5 rounded-xl border-2 border-black bg-white px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider text-black shadow-[2.5px_2.5px_0px_#000] transition-all hover:bg-[#FFF8EE] hover:shadow-[3px_3px_0px_#E5A00D] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+            </svg>
+            <span>Continue with Google</span>
+          </a>
+
+          <p className="pt-1 text-center text-xs font-bold text-black/60">
+            Don&apos;t have an account?{" "}
+            <Link href="/register" className="underline decoration-2 hover:text-black">
+              Register here
+            </Link>
+          </p>
+        </form>
+      </AuthShell>
+    </div>
   );
 }

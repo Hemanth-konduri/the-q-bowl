@@ -7,6 +7,8 @@ import {
   foodItems,
   categories,
   subscriptionPlans,
+  subscriptionMealPricing,
+  subscriptionPackages,
   wallets,
   walletTransactions,
   offers,
@@ -121,8 +123,44 @@ async function runSeed() {
     `;
 
     await sql`
+      CREATE TABLE IF NOT EXISTS subscription_meal_pricing (
+        id text PRIMARY KEY,
+        meal_id text NOT NULL REFERENCES food_items(id) ON DELETE CASCADE,
+        price_per_meal real NOT NULL,
+        is_active boolean DEFAULT true NOT NULL,
+        created_at timestamp DEFAULT now() NOT NULL,
+        updated_at timestamp DEFAULT now() NOT NULL
+      );
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS subscription_packages (
+        id text PRIMARY KEY,
+        name text NOT NULL,
+        meal_credits integer NOT NULL,
+        discount real DEFAULT 0 NOT NULL,
+        is_featured boolean DEFAULT false NOT NULL,
+        is_active boolean DEFAULT true NOT NULL,
+        created_at timestamp DEFAULT now() NOT NULL,
+        updated_at timestamp DEFAULT now() NOT NULL
+      );
+    `;
+
+    await sql`
       ALTER TABLE subscriptions
+      ALTER COLUMN plan_id DROP NOT NULL,
+      ADD COLUMN IF NOT EXISTS meal_id text REFERENCES food_items(id),
+      ADD COLUMN IF NOT EXISTS package_id text REFERENCES subscription_packages(id),
+      ADD COLUMN IF NOT EXISTS meal_credits_purchased integer DEFAULT 0 NOT NULL,
+      ADD COLUMN IF NOT EXISTS meals_per_day integer DEFAULT 1 NOT NULL,
+      ADD COLUMN IF NOT EXISTS meal_timing text DEFAULT 'LUNCH' NOT NULL,
+      ADD COLUMN IF NOT EXISTS price_per_meal real DEFAULT 0 NOT NULL,
+      ADD COLUMN IF NOT EXISTS discount real DEFAULT 0 NOT NULL,
+      ADD COLUMN IF NOT EXISTS total_amount real DEFAULT 0 NOT NULL,
+      ADD COLUMN IF NOT EXISTS end_date date,
+      ADD COLUMN IF NOT EXISTS next_delivery_date date,
       ADD COLUMN IF NOT EXISTS address_id text REFERENCES addresses(id),
+      ADD COLUMN IF NOT EXISTS payment_id text UNIQUE REFERENCES payments(id),
       ADD COLUMN IF NOT EXISTS dietary_preference text DEFAULT 'VEG',
       ADD COLUMN IF NOT EXISTS spice_preference text DEFAULT 'MEDIUM',
       ADD COLUMN IF NOT EXISTS allergies text[] DEFAULT '{}',
@@ -130,6 +168,70 @@ async function runSeed() {
       ADD COLUMN IF NOT EXISTS delivery_days text[] DEFAULT '{}',
       ADD COLUMN IF NOT EXISTS preferred_delivery_time text DEFAULT '12:00 PM - 1:00 PM',
       ADD COLUMN IF NOT EXISTS pause_rules text;
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS subscription_deliveries (
+        id text PRIMARY KEY,
+        subscription_id text NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
+        delivery_date date NOT NULL,
+        meal_type text NOT NULL,
+        status text DEFAULT 'SCHEDULED' NOT NULL,
+        meal_id text REFERENCES food_items(id),
+        created_at timestamp DEFAULT now() NOT NULL,
+        updated_at timestamp DEFAULT now() NOT NULL
+      );
+    `;
+
+    await sql`
+      ALTER TABLE payments
+      ADD COLUMN IF NOT EXISTS user_id text REFERENCES users(id) ON DELETE CASCADE,
+      ADD COLUMN IF NOT EXISTS razorpay_order_id text,
+      ADD COLUMN IF NOT EXISTS razorpay_payment_id text,
+      ADD COLUMN IF NOT EXISTS razorpay_signature text,
+      ADD COLUMN IF NOT EXISTS currency text DEFAULT 'INR' NOT NULL,
+      ADD COLUMN IF NOT EXISTS purpose text DEFAULT 'ORDER' NOT NULL,
+      ADD COLUMN IF NOT EXISTS receipt text;
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS payment_events (
+        id text PRIMARY KEY,
+        event_id text UNIQUE NOT NULL,
+        event_type text NOT NULL,
+        payload text,
+        processed boolean DEFAULT false NOT NULL,
+        created_at timestamp DEFAULT now() NOT NULL
+      );
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS subscription_drafts (
+        id text PRIMARY KEY,
+        user_id text UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        current_step integer DEFAULT 1 NOT NULL,
+        meal_id text REFERENCES food_items(id),
+        package_id text REFERENCES subscription_packages(id),
+        is_custom_credits boolean DEFAULT false NOT NULL,
+        custom_credits integer,
+        meal_credits integer DEFAULT 10 NOT NULL,
+        meals_per_day integer DEFAULT 1 NOT NULL,
+        meal_timing text DEFAULT 'LUNCH' NOT NULL,
+        start_date date,
+        delivery_days text[] DEFAULT '{}' NOT NULL,
+        preferred_time text,
+        address_id text REFERENCES addresses(id),
+        latitude real,
+        longitude real,
+        subtotal real DEFAULT 0 NOT NULL,
+        discount real DEFAULT 0 NOT NULL,
+        total_amount real DEFAULT 0 NOT NULL,
+        status text DEFAULT 'DRAFT' NOT NULL,
+        last_saved_at timestamp DEFAULT now() NOT NULL,
+        expires_at timestamp NOT NULL,
+        created_at timestamp DEFAULT now() NOT NULL,
+        updated_at timestamp DEFAULT now() NOT NULL
+      );
     `;
 
     await sql`
@@ -164,13 +266,14 @@ async function runSeed() {
     if (existingSettings.length === 0) {
       await db.insert(kitchenSettings).values({
         id: "kitchen-main",
-        kitchenName: "Q1 Bowl Hyderabad Artisan Hub",
-        kitchenLat: 17.4399,
-        kitchenLng: 78.3847,
-        deliveryRadiusKm: 7.5,
+        kitchenName: "Q1 Bowl Rajahmundry Central Hub",
+        kitchenLat: 16.9891,
+        kitchenLng: 81.7835,
+        deliveryRadiusKm: 15.0,
       });
       console.log("✅ Kitchen Settings seeded.");
     }
+
 
     // 3. Seed Subscription Plans
     console.log("📅 Seeding Subscription Plans...");
@@ -240,6 +343,64 @@ async function runSeed() {
         },
       ]);
       console.log("✅ Subscription Plans seeded.");
+    }
+
+    // 3b. Seed Subscription Meal Packages
+    console.log("📦 Seeding Subscription Packages...");
+    const existingPackages = await db.select().from(subscriptionPackages);
+    if (existingPackages.length === 0) {
+      await db.insert(subscriptionPackages).values([
+        {
+          id: "pkg-20-meals",
+          name: "20 Meals Package",
+          mealCredits: 20,
+          discount: 0,
+          isFeatured: false,
+          isActive: true,
+        },
+        {
+          id: "pkg-40-meals",
+          name: "40 Meals Package",
+          mealCredits: 40,
+          discount: 200,
+          isFeatured: true,
+          isActive: true,
+        },
+        {
+          id: "pkg-60-meals",
+          name: "60 Meals Package",
+          mealCredits: 60,
+          discount: 450,
+          isFeatured: false,
+          isActive: true,
+        },
+        {
+          id: "pkg-80-meals",
+          name: "80 Meals Package",
+          mealCredits: 80,
+          discount: 700,
+          isFeatured: false,
+          isActive: true,
+        },
+      ]);
+      console.log("✅ Subscription Packages seeded.");
+    }
+
+    // 3c. Seed Subscription Meal Pricing for catalog food items
+    console.log("🥗 Seeding Subscription Meal Pricing...");
+    const existingPricing = await db.select().from(subscriptionMealPricing);
+    const catalogFoods = await db.select().from(foodItems);
+    if (existingPricing.length === 0 && catalogFoods.length > 0) {
+      for (const item of catalogFoods) {
+        const mealPrice = Math.round(item.price * 0.85); // 15% discount on standard meal price
+        await db.insert(subscriptionMealPricing).values({
+          id: `smp-${item.id}`,
+          mealId: item.id,
+          pricePerMeal: mealPrice > 0 ? mealPrice : 149,
+          isActive: true,
+        });
+      }
+      console.log("✅ Subscription Meal Pricing seeded.");
     }
 
     // 4. Seed Wallets for existing users
@@ -328,16 +489,17 @@ async function runSeed() {
     const existingAreas = await db.select().from(deliveryAreas);
     if (existingAreas.length === 0) {
       await db.insert(deliveryAreas).values({
-        id: "area-hyderabad-main",
-        name: "Hitec City & Gachibowli Hub",
-        kitchenLat: 17.4399,
-        kitchenLng: 78.3847,
+        id: "area-rajahmundry-main",
+        name: "Rajahmundry Central Hub",
+        kitchenLat: 16.9891,
+        kitchenLng: 81.7835,
         radius: 15,
         deliveryFee: 49,
         isActive: true,
       });
       console.log("✅ Delivery Areas seeded.");
     }
+
 
     console.log("🎉 Database Migration & Seeding Complete!");
   } catch (err) {

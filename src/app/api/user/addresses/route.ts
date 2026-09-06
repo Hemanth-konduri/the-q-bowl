@@ -74,31 +74,19 @@ export async function POST(req: NextRequest) {
     const latNum = parseFloat(latitude);
     const lngNum = parseFloat(longitude);
 
-    // Calculate distance from Kitchen Hub (17.4399, 78.3847)
-    const kitchenLat = 17.4399;
-    const kitchenLng = 78.3847;
-    const maxRadius = 15; // km
+    // Dynamic Database Delivery Zone Validation
+    const { DeliveryZoneService } = await import("@/lib/services/DeliveryZoneService");
+    const zoneVal = await DeliveryZoneService.validateLocation(latNum, lngNum);
 
-    const R = 6371; // km
-    const dLat = ((latNum - kitchenLat) * Math.PI) / 180;
-    const dLng = ((lngNum - kitchenLng) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((kitchenLat * Math.PI) / 180) *
-        Math.cos((latNum * Math.PI) / 180) *
-        Math.sin(dLng / 2) *
-        Math.sin(dLng / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distanceKm = R * c;
-
-    if (distanceKm > maxRadius) {
+    if (!zoneVal.isWithinRadius) {
       return NextResponse.json(
         {
-          error: `Selected location is ${distanceKm.toFixed(1)} km away, which exceeds our maximum delivery radius of ${maxRadius} km.`,
+          error: `Selected location is ${zoneVal.distanceKm} km away from ${zoneVal.zoneName}, which exceeds our maximum delivery radius of ${zoneVal.allowedRadiusKm} km.`,
         },
         { status: 400 }
       );
     }
+
 
     // Check existing addresses
     const existing = await db

@@ -4,7 +4,8 @@ import {
   users,
   subscriptions,
   subscriptionPlans,
-  subscriptionDays,
+  subscriptionPackages,
+  payments,
   orders,
   orderItems,
   addresses,
@@ -49,18 +50,22 @@ export async function GET() {
         mealsRemaining: subscriptions.mealsRemaining,
         startDate: subscriptions.startDate,
         expectedEndDate: subscriptions.expectedEndDate,
-        pricePaid: subscriptions.pricePaid,
-        planName: subscriptionPlans.name,
-        planDescription: subscriptionPlans.description,
+        pricePaid: payments.amount,
+        planName: subscriptionPackages.name,
+        mealName: foodItems.name,
+        planDescription: foodItems.name,
       })
       .from(subscriptions)
-      .leftJoin(subscriptionPlans, eq(subscriptions.planId, subscriptionPlans.id))
+      .leftJoin(subscriptionPackages, eq(subscriptions.packageId, subscriptionPackages.id))
+      .leftJoin(foodItems, eq(subscriptions.mealId, foodItems.id))
+      .leftJoin(payments, eq(subscriptions.paymentId, payments.id))
       .where(
         and(
           eq(subscriptions.userId, session.userId),
           eq(subscriptions.status, "ACTIVE")
         )
       )
+      .orderBy(desc(subscriptions.createdAt))
       .limit(1);
 
     const activeSubscription = activeSubs.length > 0 ? activeSubs[0] : null;
