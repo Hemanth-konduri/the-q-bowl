@@ -14,6 +14,8 @@ import {
   Wallet,
   BarChart3,
   Settings,
+  MessageSquare,
+  Tag,
 } from "lucide-react";
 
 const menu = [
@@ -25,6 +27,8 @@ const menu = [
   { name: "Delivery", icon: Bike, href: "/admin/delivery" },
   { name: "Customers", icon: Users, href: "/admin/customers" },
   { name: "Payments", icon: Wallet, href: "/admin/payments" },
+  { name: "Feedback", icon: MessageSquare, href: "/admin/feedback" },
+  { name: "Coupons", icon: Tag, href: "/admin/coupons" },
   { name: "Analytics", icon: BarChart3, href: "/admin/analytics" },
   { name: "Settings", icon: Settings, href: "/admin/settings" },
 ];

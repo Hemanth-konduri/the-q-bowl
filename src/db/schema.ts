@@ -478,14 +478,19 @@ export const subscriptionDayItems = pgTable("subscription_day_items", {
 
 export const offers = pgTable("offers", {
   id: text("id").primaryKey(),
+  code: text("code").unique(),
   name: text("name").notNull(),
   description: text("description"),
   discountType: discountTypeEnum("discount_type").notNull(),
   discountValue: real("discount_value").notNull(),
   minOrderAmount: real("min_order_amount"),
   maxDiscount: real("max_discount"),
-  startDate: timestamp("start_date").notNull(),
-  endDate: timestamp("end_date").notNull(),
+  startDate: timestamp("start_date").defaultNow().notNull(),
+  endDate: timestamp("end_date"),
+  usageLimit: integer("usage_limit"),
+  usageCount: integer("usage_count").default(0).notNull(),
+  perUserLimit: integer("per_user_limit").default(1).notNull(),
+  campaignType: text("campaign_type").default("COUPON").notNull(), // 'COUPON' | 'FIRST_ORDER' | 'FESTIVAL' | 'SUBSCRIPTION' | 'MEAL_SPECIFIC' | 'BUY_X_GET_Y'
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -550,6 +555,11 @@ export const payments = pgTable("payments", {
   receipt: text("receipt"),
   transactionId: text("transaction_id").unique(),
   status: paymentStatusEnum("status").default("PENDING").notNull(),
+  refundAmount: real("refund_amount").default(0),
+  refundReason: text("refund_reason"),
+  refundRefId: text("refund_ref_id"),
+  refundedAt: timestamp("refunded_at"),
+  notes: text("notes"),
   paidAt: timestamp("paid_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -639,4 +649,56 @@ export const subscriptionDrafts = pgTable("subscription_drafts", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// -------------------------------------------------------
+// APPLICATION & RESTAURANT SETTINGS
+// -------------------------------------------------------
+
+export const appSettings = pgTable("app_settings", {
+  id: text("id").primaryKey(),
+  kitchenName: text("kitchen_name").default("Q1 Bowl - Artisan Cloud Kitchen").notNull(),
+  phone: text("phone").default("+91 98765 43210"),
+  email: text("email").default("admin@q1bowl.com"),
+  address: text("address").default("Gachibowli, Hyderabad, Telangana 500032"),
+  gstNumber: text("gst_number").default("36AAAAA0000A1Z5"),
+  logoUrl: text("logo_url").default("/the_q_bowl_logo.png"),
+  openingTime: text("opening_time").default("07:00 AM"),
+  closingTime: text("closing_time").default("10:30 PM"),
+  autoAcceptOrders: boolean("auto_accept_orders").default(true).notNull(),
+  sameDayOrdering: boolean("same_day_ordering").default(true).notNull(),
+  deliveryRadiusKm: real("delivery_radius_km").default(7.5).notNull(),
+  enable2fa: boolean("enable_2fa").default(false).notNull(),
+  emailNotifications: boolean("email_notifications").default(true).notNull(),
+  newOrderAlerts: boolean("new_order_alerts").default(true).notNull(),
+  newSubscriptionAlerts: boolean("new_subscription_alerts").default(true).notNull(),
+  paymentAlerts: boolean("payment_alerts").default(true).notNull(),
+  timeZone: text("time_zone").default("Asia/Kolkata (GMT+5:30)"),
+  currency: text("currency").default("INR (₹)"),
+  dateFormat: text("date_format").default("DD/MM/YYYY"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// -------------------------------------------------------
+// CUSTOMER FEEDBACK & REVIEWS
+// -------------------------------------------------------
+
+export const customerFeedback = pgTable("customer_feedback", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
+  orderId: text("order_id").references(() => orders.id),
+  subscriptionId: text("subscription_id").references(() => subscriptions.id),
+  foodItemId: text("food_item_id").references(() => foodItems.id),
+  customerName: text("customer_name").notNull(),
+  category: text("category").default("MEAL_REVIEW").notNull(), // 'MEAL_REVIEW' | 'FOOD_ITEM' | 'DELIVERY' | 'SERVICE' | 'SUBSCRIPTION'
+  rating: integer("rating").default(5).notNull(), // 1 to 5
+  comment: text("comment").notNull(),
+  isResolved: boolean("is_resolved").default(false).notNull(),
+  isFeatured: boolean("is_featured").default(false).notNull(),
+  adminReply: text("admin_reply"),
+  repliedAt: timestamp("replied_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+
 

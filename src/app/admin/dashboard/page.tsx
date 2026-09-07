@@ -24,6 +24,7 @@ import {
   X,
   ExternalLink,
 } from "lucide-react";
+import { getDocumentViewUrl } from "@/lib/supabase-storage";
 
 interface KpiData {
   activeSubscriptions: number;
@@ -778,76 +779,138 @@ export default function AdminDashboardPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* 1. Aadhaar Document */}
-                <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-xs text-black">Aadhaar Card Document</span>
-                    {selectedRequest.aadhaarUrl && (
-                      <a
-                        href={selectedRequest.aadhaarUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[11px] font-extrabold text-black hover:text-[#E5A00D] flex items-center gap-1"
-                      >
-                        Open Full <ExternalLink size={12} />
-                      </a>
-                    )}
-                  </div>
-                  {selectedRequest.aadhaarUrl ? (
-                    <div className="relative h-44 w-full bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center">
-                      <img
-                        src={selectedRequest.aadhaarUrl}
-                        alt="Aadhaar Document"
-                        className="object-contain h-full w-full"
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = "none";
-                        }}
-                      />
-                      <span className="text-xs text-slate-500 font-mono p-2 text-center break-all">
-                        {selectedRequest.aadhaarDocument}
-                      </span>
+                {(() => {
+                  const aadhaarDocPath = selectedRequest.aadhaarDocument || selectedRequest.aadhaarUrl || "";
+                  const aadhaarViewUrl = getDocumentViewUrl(aadhaarDocPath);
+                  const isPdf = aadhaarDocPath.toLowerCase().includes(".pdf");
+
+                  return (
+                    <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-xs text-black">Aadhaar Card Document</span>
+                        {aadhaarViewUrl && (
+                          <a
+                            href={aadhaarViewUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[11px] font-extrabold text-black hover:text-[#E5A00D] flex items-center gap-1"
+                          >
+                            Open Full <ExternalLink size={12} />
+                          </a>
+                        )}
+                      </div>
+                      {aadhaarViewUrl ? (
+                        <div className="relative h-44 w-full bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center">
+                          {isPdf ? (
+                            <div className="flex flex-col items-center justify-center p-3 text-center space-y-2">
+                              <FileText className="w-10 h-10 text-[#E5A00D]" />
+                              <span className="text-xs font-black text-black uppercase">PDF Document File</span>
+                              <span className="text-[10px] text-slate-500 font-mono break-all line-clamp-1">
+                                {selectedRequest.aadhaarDocument || "aadhaar.pdf"}
+                              </span>
+                              <a
+                                href={aadhaarViewUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-3 py-1 bg-black text-[#E5A00D] font-bold text-[11px] rounded-lg hover:bg-neutral-800 transition-colors"
+                              >
+                                View PDF Document
+                              </a>
+                            </div>
+                          ) : (
+                            <img
+                              src={aadhaarViewUrl}
+                              alt="Aadhaar Document"
+                              className="object-contain h-full w-full"
+                              onError={(e) => {
+                                const target = e.target as HTMLElement;
+                                target.style.display = "none";
+                                const parent = target.parentElement;
+                                if (parent && !parent.querySelector(".fallback-card")) {
+                                  const div = document.createElement("div");
+                                  div.className = "fallback-card flex flex-col items-center justify-center p-3 text-center space-y-1.5";
+                                  div.innerHTML = `<div class="text-xs font-black text-slate-700">Document Image File</div><div class="text-[10px] text-slate-500 font-mono break-all p-1">${selectedRequest.aadhaarDocument || "aadhaar"}</div><a href="${aadhaarViewUrl}" target="_blank" class="px-3 py-1 bg-black text-[#E5A00D] font-bold text-[11px] rounded-lg">View Notice / Document</a>`;
+                                  parent.appendChild(div);
+                                }
+                              }}
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <div className="h-32 rounded-lg bg-slate-100 border border-dashed border-slate-300 flex items-center justify-center text-xs text-slate-500 font-medium">
+                          No Aadhaar document uploaded
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="h-32 rounded-lg bg-slate-100 border border-dashed border-slate-300 flex items-center justify-center text-xs text-slate-500 font-medium">
-                      No Aadhaar document uploaded
-                    </div>
-                  )}
-                </div>
+                  );
+                })()}
 
                 {/* 2. ID Proof Document */}
-                <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-extrabold text-xs text-black">Secondary ID Proof</span>
-                    {selectedRequest.idProofUrl && (
-                      <a
-                        href={selectedRequest.idProofUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[11px] font-extrabold text-black hover:text-[#E5A00D] flex items-center gap-1"
-                      >
-                        Open Full <ExternalLink size={12} />
-                      </a>
-                    )}
-                  </div>
-                  {selectedRequest.idProofUrl ? (
-                    <div className="relative h-44 w-full bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center">
-                      <img
-                        src={selectedRequest.idProofUrl}
-                        alt="ID Proof Document"
-                        className="object-contain h-full w-full"
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = "none";
-                        }}
-                      />
-                      <span className="text-xs text-slate-500 font-mono p-2 text-center break-all">
-                        {selectedRequest.idProofDocument}
-                      </span>
+                {(() => {
+                  const idProofDocPath = selectedRequest.idProofDocument || selectedRequest.idProofUrl || "";
+                  const idProofViewUrl = getDocumentViewUrl(idProofDocPath);
+                  const isPdf = idProofDocPath.toLowerCase().includes(".pdf");
+
+                  return (
+                    <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold text-xs text-black">Secondary ID Proof</span>
+                        {idProofViewUrl && (
+                          <a
+                            href={idProofViewUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[11px] font-extrabold text-black hover:text-[#E5A00D] flex items-center gap-1"
+                          >
+                            Open Full <ExternalLink size={12} />
+                          </a>
+                        )}
+                      </div>
+                      {idProofViewUrl ? (
+                        <div className="relative h-44 w-full bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center">
+                          {isPdf ? (
+                            <div className="flex flex-col items-center justify-center p-3 text-center space-y-2">
+                              <FileText className="w-10 h-10 text-[#E5A00D]" />
+                              <span className="text-xs font-black text-black uppercase">PDF Document File</span>
+                              <span className="text-[10px] text-slate-500 font-mono break-all line-clamp-1">
+                                {selectedRequest.idProofDocument || "id-proof.pdf"}
+                              </span>
+                              <a
+                                href={idProofViewUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-3 py-1 bg-black text-[#E5A00D] font-bold text-[11px] rounded-lg hover:bg-neutral-800 transition-colors"
+                              >
+                                View PDF Document
+                              </a>
+                            </div>
+                          ) : (
+                            <img
+                              src={idProofViewUrl}
+                              alt="ID Proof Document"
+                              className="object-contain h-full w-full"
+                              onError={(e) => {
+                                const target = e.target as HTMLElement;
+                                target.style.display = "none";
+                                const parent = target.parentElement;
+                                if (parent && !parent.querySelector(".fallback-card")) {
+                                  const div = document.createElement("div");
+                                  div.className = "fallback-card flex flex-col items-center justify-center p-3 text-center space-y-1.5";
+                                  div.innerHTML = `<div class="text-xs font-black text-slate-700">Document Image File</div><div class="text-[10px] text-slate-500 font-mono break-all p-1">${selectedRequest.idProofDocument || "id-proof"}</div><a href="${idProofViewUrl}" target="_blank" class="px-3 py-1 bg-black text-[#E5A00D] font-bold text-[11px] rounded-lg">View Notice / Document</a>`;
+                                  parent.appendChild(div);
+                                }
+                              }}
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <div className="h-32 rounded-lg bg-slate-100 border border-dashed border-slate-300 flex items-center justify-center text-xs text-slate-500 font-medium">
+                          No ID proof document uploaded
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <div className="h-32 rounded-lg bg-slate-100 border border-dashed border-slate-300 flex items-center justify-center text-xs text-slate-500 font-medium">
-                      No ID proof document uploaded
-                    </div>
-                  )}
-                </div>
+                  );
+                })()}
               </div>
             </div>
 

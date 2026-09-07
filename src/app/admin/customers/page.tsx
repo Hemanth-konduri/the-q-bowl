@@ -32,6 +32,7 @@ import {
   ChevronRight,
   User,
 } from "lucide-react";
+import { getDocumentViewUrl } from "@/lib/supabase-storage";
 
 interface CustomerRecord {
   id: string;
@@ -598,32 +599,32 @@ export default function AdminCustomersPage() {
                             {/* Aadhaar Doc */}
                             <div className="p-2 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-center">
                               <span className="text-[10px] font-bold text-slate-600 block">Aadhaar Card</span>
-                              {req.aadhaarUrl ? (
+                              {req.aadhaarUrl || req.aadhaarDocument ? (
                                 <button
                                   type="button"
-                                  onClick={() => setZoomDocUrl({ title: `Aadhaar Document - ${req.customerName}`, url: req.aadhaarUrl! })}
+                                  onClick={() => setZoomDocUrl({ title: `Aadhaar Document - ${req.customerName}`, url: getDocumentViewUrl(req.aadhaarUrl || req.aadhaarDocument || "") })}
                                   className="w-full py-1.5 bg-black text-[#E5A00D] rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 hover:bg-neutral-800"
                                 >
                                   <ZoomIn size={12} /> View Document
                                 </button>
                               ) : (
-                                <span className="text-[10px] text-slate-400">File uploaded</span>
+                                <span className="text-[10px] text-slate-400">No document</span>
                               )}
                             </div>
 
                             {/* ID Proof Doc */}
                             <div className="p-2 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-center">
                               <span className="text-[10px] font-bold text-slate-600 block">College / ID Card</span>
-                              {req.idProofUrl ? (
+                              {req.idProofUrl || req.idProofDocument ? (
                                 <button
                                   type="button"
-                                  onClick={() => setZoomDocUrl({ title: `Institution ID - ${req.customerName}`, url: req.idProofUrl! })}
+                                  onClick={() => setZoomDocUrl({ title: `Institution ID - ${req.customerName}`, url: getDocumentViewUrl(req.idProofUrl || req.idProofDocument || "") })}
                                   className="w-full py-1.5 bg-black text-[#E5A00D] rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 hover:bg-neutral-800"
                                 >
                                   <ZoomIn size={12} /> View Document
                                 </button>
                               ) : (
-                                <span className="text-[10px] text-slate-400">File uploaded</span>
+                                <span className="text-[10px] text-slate-400">No document</span>
                               )}
                             </div>
                           </div>
@@ -949,13 +950,32 @@ export default function AdminCustomersPage() {
               </button>
             </div>
 
-            <div className="p-2 bg-slate-900 rounded-xl overflow-hidden flex justify-center max-h-[70vh]">
+            <div className="p-2 bg-slate-900 rounded-xl overflow-hidden flex justify-center max-h-[70vh] min-h-[250px] relative items-center">
               {zoomDocUrl.url ? (
-                <img
-                  src={zoomDocUrl.url}
-                  alt={zoomDocUrl.title}
-                  className="max-h-[65vh] object-contain rounded-lg"
-                />
+                zoomDocUrl.url.toLowerCase().includes(".pdf") ? (
+                  <iframe
+                    src={zoomDocUrl.url}
+                    className="w-full h-[65vh] rounded-lg bg-white"
+                    title={zoomDocUrl.title}
+                  />
+                ) : (
+                  <img
+                    src={zoomDocUrl.url}
+                    alt={zoomDocUrl.title}
+                    className="max-h-[65vh] object-contain rounded-lg"
+                    onError={(e) => {
+                      const target = e.target as HTMLElement;
+                      target.style.display = "none";
+                      const parent = target.parentElement;
+                      if (parent && !parent.querySelector(".zoom-fallback")) {
+                        const div = document.createElement("div");
+                        div.className = "zoom-fallback flex flex-col items-center justify-center p-8 text-center space-y-3";
+                        div.innerHTML = `<div class="text-[#E5A00D] font-bold text-sm">Document File Preview</div><div class="text-xs text-slate-300 font-mono max-w-sm break-all">${zoomDocUrl.title}</div><a href="${zoomDocUrl.url}" target="_blank" class="px-4 py-2 bg-[#E5A00D] text-black font-extrabold text-xs rounded-xl">Open Full Document Page</a>`;
+                        parent.appendChild(div);
+                      }
+                    }}
+                  />
+                )
               ) : (
                 <div className="p-12 text-slate-400 font-bold text-center">
                   Document image file preview not available
