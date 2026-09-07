@@ -3,20 +3,24 @@ import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { users, verificationRequests } from "@/db/schema";
 import { getSession } from "@/lib/session";
-import { supabase, BUCKET_NAME } from "@/lib/supabase-storage";
+import { supabase, BUCKET_NAME, ensureBucketExists } from "@/lib/supabase-storage";
 
 const MAX_FILE_SIZE = 8 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "application/pdf"];
 
 async function storeDocument(file: File, userId: string, label: string) {
   if (!file || !ALLOWED_TYPES.includes(file.type.toLowerCase()) || file.size > MAX_FILE_SIZE) return null;
+  await ensureBucketExists();
   const extension = file.type === "application/pdf" ? "pdf" : file.type.includes("png") ? "png" : file.type.includes("webp") ? "webp" : "jpg";
   const filePath = `identity-documents/${userId}/${label}-${crypto.randomUUID()}.${extension}`;
   const { error } = await supabase.storage.from(BUCKET_NAME).upload(filePath, Buffer.from(await file.arrayBuffer()), {
     contentType: file.type,
-    upsert: false,
+    upsert: true,
   });
-  if (error) throw new Error("Document storage is unavailable.");
+  if (error) {
+    console.error("Identity document upload error:", error);
+    throw new Error("Document storage is unavailable.");
+  }
   return filePath;
 }
 

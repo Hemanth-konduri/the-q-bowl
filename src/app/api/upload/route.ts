@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
-import { supabase, BUCKET_NAME, getStoragePublicUrl } from "@/lib/supabase-storage";
+import { supabase, BUCKET_NAME, getStoragePublicUrl, ensureBucketExists } from "@/lib/supabase-storage";
 
 const ALLOWED_FOLDERS = ["meals", "categories", "offers", "subscriptions", "users/avatars", "branding"];
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
@@ -57,6 +57,8 @@ export async function POST(req: NextRequest) {
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+
+    await ensureBucketExists();
 
     // Attempt upload to Supabase Storage bucket
     const { data: uploadData, error: uploadError } = await supabase.storage
