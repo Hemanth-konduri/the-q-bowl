@@ -645,3 +645,32 @@ export const subscriptionDrafts = pgTable("subscription_drafts", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// -------------------------------------------------------
+// APPLICATION & RESTAURANT SETTINGS
+// -------------------------------------------------------
+
+export const appSettings = pgTable("app_settings", {
+  id: text("id").primaryKey(),
+  kitchenName: text("kitchen_name").default("Q1 Bowl - Artisan Cloud Kitchen").notNull(),
+  phone: text("phone").default("+91 98765 43210"),
+  email: text("email").default("admin@q1bowl.com"),
+  address: text("address").default("Gachibowli, Hyderabad, Telangana 500032"),
+  gstNumber: text("gst_number").default("36AAAAA0000A1Z5"),
+  logoUrl: text("logo_url").default("/the_q_bowl_logo.png"),
+  openingTime: text("opening_time").default("07:00 AM"),
+  closingTime: text("closing_time").default("10:30 PM"),
+  autoAcceptOrders: boolean("auto_accept_orders").default(true).notNull(),
+  sameDayOrdering: boolean("same_day_ordering").default(true).notNull(),
+  deliveryRadiusKm: real("delivery_radius_km").default(7.5).notNull(),
+  enable2fa: boolean("enable_2fa").default(false).notNull(),
+  emailNotifications: boolean("email_notifications").default(true).notNull(),
+  newOrderAlerts: boolean("new_order_alerts").default(true).notNull(),
+  newSubscriptionAlerts: boolean("new_subscription_alerts").default(true).notNull(),
+  paymentAlerts: boolean("payment_alerts").default(true).notNull(),
+  timeZone: text("time_zone").default("Asia/Kolkata (GMT+5:30)"),
+  currency: text("currency").default("INR (₹)"),
+  dateFormat: text("date_format").default("DD/MM/YYYY"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+
