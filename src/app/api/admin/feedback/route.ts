@@ -4,65 +4,6 @@ import { customerFeedback, users, orders, subscriptions, foodItems } from "@/db/
 import { requireAdminApi } from "@/lib/auth-guard";
 import { count, sql, desc, eq, and, ilike, or } from "drizzle-orm";
 
-const SEED_FEEDBACK = [
-  {
-    id: "fb-101",
-    customerName: "Ananya Sharma",
-    category: "MEAL_REVIEW",
-    rating: 5,
-    comment: "The High-Protein Chicken Bowl was incredibly fresh, warm, and delicious! Perfect post-workout meal.",
-    isResolved: true,
-    isFeatured: true,
-    adminReply: "Thank you so much Ananya! We are delighted to fuels your fitness journey with fresh protein bowls.",
-    repliedAt: new Date(Date.now() - 3600000).toISOString(),
-    createdAt: new Date(Date.now() - 7200000).toISOString(),
-    foodItemName: "High-Protein Chicken Bowl",
-    orderRef: "ORD-8921",
-  },
-  {
-    id: "fb-102",
-    customerName: "Vikram Malhotra",
-    category: "DELIVERY",
-    rating: 4,
-    comment: "Delivery arrived right on time during peak lunch rush. Packaging was neat and spill-proof.",
-    isResolved: false,
-    isFeatured: false,
-    adminReply: null,
-    repliedAt: null,
-    createdAt: new Date(Date.now() - 18000000).toISOString(),
-    foodItemName: "Paneer Power Bowl",
-    orderRef: "ORD-8854",
-  },
-  {
-    id: "fb-103",
-    customerName: "Priya Nair",
-    category: "SUBSCRIPTION",
-    rating: 5,
-    comment: "Loving the monthly subscription! Having healthy, home-style warm lunches delivered automatically saves so much time.",
-    isResolved: true,
-    isFeatured: true,
-    adminReply: "Thanks Priya! Happy to serve you daily.",
-    repliedAt: new Date(Date.now() - 86400000).toISOString(),
-    createdAt: new Date(Date.now() - 90000000).toISOString(),
-    foodItemName: "Weekly Gourmet Feast Plan",
-    orderRef: "SUB-3042",
-  },
-  {
-    id: "fb-104",
-    customerName: "Rahul Verma",
-    category: "SERVICE",
-    rating: 2,
-    comment: "Meal was great but delivery partner took a wrong turn resulting in a 10 min delay.",
-    isResolved: false,
-    isFeatured: false,
-    adminReply: null,
-    repliedAt: null,
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-    foodItemName: "Quinoa & Avocado Bowl",
-    orderRef: "ORD-8710",
-  },
-];
-
 export async function GET(req: NextRequest) {
   const auth = await requireAdminApi();
   if (auth.error) return auth.error;
@@ -98,23 +39,23 @@ export async function GET(req: NextRequest) {
       .leftJoin(users, eq(customerFeedback.userId, users.id))
       .leftJoin(foodItems, eq(customerFeedback.foodItemId, foodItems.id))
       .orderBy(desc(customerFeedback.createdAt))
-      .limit(200);
+      .limit(300);
 
-    const feedbackList = rawList.length > 0 ? rawList : (SEED_FEEDBACK as any[]);
+    const feedbackList = rawList;
 
-    // 1. Calculate KPI Metrics
+    // 1. Calculate Real KPI Metrics from Database
     const totalFeedback = feedbackList.length;
     const avgRatingVal =
       totalFeedback > 0
         ? (feedbackList.reduce((acc, f) => acc + (f.rating || 5), 0) / totalFeedback).toFixed(1)
-        : "4.8";
+        : "0.0";
     const fiveStarCount = feedbackList.filter((f) => f.rating === 5).length;
     const negativeCount = feedbackList.filter((f) => f.rating <= 2).length;
     const feedbackTodayCount = feedbackList.filter(
       (f) => new Date(f.createdAt).toDateString() === new Date().toDateString()
     ).length;
 
-    // 2. Dish Rating Insights Grouping
+    // 2. Dish Rating Insights Grouping (Real Database Items)
     const dishMap: Record<string, { id: string; name: string; totalReviews: number; totalRating: number; recentReview: string }> = {};
 
     feedbackList.forEach((f) => {
@@ -169,7 +110,7 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     console.error("GET /api/admin/feedback error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch feedback records." },
+      { error: "Failed to fetch real feedback records." },
       { status: 500 }
     );
   }

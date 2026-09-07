@@ -5,57 +5,6 @@ import { requireAdminApi } from "@/lib/auth-guard";
 import { count, sql, desc, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
-const SEED_CAMPAIGNS = [
-  {
-    id: "camp-101",
-    name: "First Order Welcome Discount",
-    campaignType: "FIRST_ORDER",
-    description: "Get 20% off on your first artisanal bowl order.",
-    discountType: "PERCENTAGE",
-    discountValue: 20,
-    minOrderAmount: 249,
-    maxDiscount: 100,
-    isActive: true,
-    usageCount: 428,
-  },
-  {
-    id: "camp-102",
-    name: "Diwali Festive Meal Feast",
-    campaignType: "FESTIVAL",
-    description: "Flat ₹150 discount on any meal plan subscription purchase.",
-    discountType: "FIXED",
-    discountValue: 150,
-    minOrderAmount: 999,
-    maxDiscount: 150,
-    isActive: true,
-    usageCount: 194,
-  },
-  {
-    id: "camp-103",
-    name: "Monthly Subscriber Special",
-    campaignType: "SUBSCRIPTION",
-    description: "15% additional discount for 30-day meal credit packages.",
-    discountType: "PERCENTAGE",
-    discountValue: 15,
-    minOrderAmount: 2000,
-    maxDiscount: 500,
-    isActive: true,
-    usageCount: 312,
-  },
-  {
-    id: "camp-104",
-    name: "Buy 2 Bowls Get 1 Free (UI Ready)",
-    campaignType: "BUY_X_GET_Y",
-    description: "Automatic free side bowl when ordering 2 signature bowls.",
-    discountType: "PERCENTAGE",
-    discountValue: 100,
-    minOrderAmount: 599,
-    maxDiscount: 250,
-    isActive: true,
-    usageCount: 88,
-  },
-];
-
 export async function GET() {
   const auth = await requireAdminApi();
   if (auth.error) return auth.error;
@@ -73,7 +22,7 @@ export async function GET() {
     ).length;
     const totalRedemptions = allOffers.reduce((acc, o) => acc + (o.usageCount || 0), 0);
     const totalDiscountGiven = allOffers.reduce(
-      (acc, o) => acc + (o.usageCount || 0) * (o.discountValue || 50),
+      (acc, o) => acc + (o.usageCount || 0) * (o.discountValue || 0),
       0
     );
 
@@ -82,18 +31,18 @@ export async function GET() {
 
     return NextResponse.json({
       summary: {
-        activeCouponsCount: activeCouponsCount || 4,
-        expiredCouponsCount: expiredCouponsCount || 1,
-        totalRedemptions: totalRedemptions || 1022,
-        totalDiscountGiven: totalDiscountGiven || 51100,
+        activeCouponsCount,
+        expiredCouponsCount,
+        totalRedemptions,
+        totalDiscountGiven,
       },
       coupons: couponsList,
-      campaigns: campaignsList.length > 0 ? campaignsList : SEED_CAMPAIGNS,
+      campaigns: campaignsList,
     });
   } catch (error: any) {
     console.error("GET /api/admin/coupons error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch coupon records." },
+      { error: "Failed to fetch real coupon records." },
       { status: 500 }
     );
   }

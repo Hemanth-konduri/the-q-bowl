@@ -67,7 +67,7 @@ export default function AdminFeedbackPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [summary, setSummary] = useState<SummaryData>({
     totalFeedback: 0,
-    averageRating: "4.8",
+    averageRating: "0.0",
     fiveStarCount: 0,
     negativeCount: 0,
     feedbackTodayCount: 0,
