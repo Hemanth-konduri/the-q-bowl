@@ -478,14 +478,19 @@ export const subscriptionDayItems = pgTable("subscription_day_items", {
 
 export const offers = pgTable("offers", {
   id: text("id").primaryKey(),
+  code: text("code").unique(),
   name: text("name").notNull(),
   description: text("description"),
   discountType: discountTypeEnum("discount_type").notNull(),
   discountValue: real("discount_value").notNull(),
   minOrderAmount: real("min_order_amount"),
   maxDiscount: real("max_discount"),
-  startDate: timestamp("start_date").notNull(),
-  endDate: timestamp("end_date").notNull(),
+  startDate: timestamp("start_date").defaultNow().notNull(),
+  endDate: timestamp("end_date"),
+  usageLimit: integer("usage_limit"),
+  usageCount: integer("usage_count").default(0).notNull(),
+  perUserLimit: integer("per_user_limit").default(1).notNull(),
+  campaignType: text("campaign_type").default("COUPON").notNull(), // 'COUPON' | 'FIRST_ORDER' | 'FESTIVAL' | 'SUBSCRIPTION' | 'MEAL_SPECIFIC' | 'BUY_X_GET_Y'
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -672,5 +677,28 @@ export const appSettings = pgTable("app_settings", {
   dateFormat: text("date_format").default("DD/MM/YYYY"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// -------------------------------------------------------
+// CUSTOMER FEEDBACK & REVIEWS
+// -------------------------------------------------------
+
+export const customerFeedback = pgTable("customer_feedback", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
+  orderId: text("order_id").references(() => orders.id),
+  subscriptionId: text("subscription_id").references(() => subscriptions.id),
+  foodItemId: text("food_item_id").references(() => foodItems.id),
+  customerName: text("customer_name").notNull(),
+  category: text("category").default("MEAL_REVIEW").notNull(), // 'MEAL_REVIEW' | 'FOOD_ITEM' | 'DELIVERY' | 'SERVICE' | 'SUBSCRIPTION'
+  rating: integer("rating").default(5).notNull(), // 1 to 5
+  comment: text("comment").notNull(),
+  isResolved: boolean("is_resolved").default(false).notNull(),
+  isFeatured: boolean("is_featured").default(false).notNull(),
+  adminReply: text("admin_reply"),
+  repliedAt: timestamp("replied_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 
 
