@@ -25,6 +25,7 @@ import {
   Smartphone,
   Banknote,
   ShieldCheck,
+  ShieldAlert,
 } from "lucide-react";
 import { AddressModal, AddressItem } from "./AddressModal";
 import { formatOrderId } from "@/lib/utils/orderIdFormatter";
@@ -841,13 +842,13 @@ export function CustomerNavbar() {
                       <ChevronRight size={14} className="text-zinc-400 group-hover:text-black transition-colors" />
                     </Link>
                     <Link
-                      href="/#menu"
+                      href="/complaints"
                       onClick={() => setProfileOpen(false)}
                       className="flex items-center justify-between px-3 py-2 text-xs font-bold text-black hover:bg-[#FFF8EE] rounded-xl transition-colors group"
                     >
                       <div className="flex items-center gap-2">
-                        <UtensilsCrossed size={15} className="text-[#E5A00D]" />
-                        <span>Explore Menu</span>
+                        <ShieldAlert size={15} className="text-rose-500" />
+                        <span>My Complaints</span>
                       </div>
                       <ChevronRight size={14} className="text-zinc-400 group-hover:text-black transition-colors" />
                     </Link>

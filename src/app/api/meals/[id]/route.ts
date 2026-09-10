@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { foodItems, categories } from "@/db/schema";
-import { eq, ne } from "drizzle-orm";
+import { eq, ne, and } from "drizzle-orm";
 
 export async function GET(
   req: Request,
@@ -68,7 +68,7 @@ export async function GET(
         isVeg: foodItems.isVeg,
       })
       .from(foodItems)
-      .where(ne(foodItems.id, id))
+      .where(and(ne(foodItems.id, id), eq(foodItems.isAvailable, true)))
       .limit(3);
 
     return NextResponse.json({

@@ -117,13 +117,19 @@ export default function InteractiveMapPinPickerModal({
 
     if (activeTarget === "KITCHEN") {
       setKitchenCoords({ lat, lng });
-      if (kitchenMarkerRef.current) kitchenMarkerRef.current.setLatLng([lat, lng]);
+      if (kitchenMarkerRef.current && (kitchenMarkerRef.current as any)._icon) {
+        try { kitchenMarkerRef.current.setLatLng([lat, lng]); } catch {}
+      }
     } else if (activeTarget === "CUSTOMER") {
       setCustomerCoords({ lat, lng });
-      if (customerMarkerRef.current) customerMarkerRef.current.setLatLng([lat, lng]);
+      if (customerMarkerRef.current && (customerMarkerRef.current as any)._icon) {
+        try { customerMarkerRef.current.setLatLng([lat, lng]); } catch {}
+      }
     } else {
       setRiderCoords({ lat, lng });
-      if (riderMarkerRef.current) riderMarkerRef.current.setLatLng([lat, lng]);
+      if (riderMarkerRef.current && (riderMarkerRef.current as any)._icon) {
+        try { riderMarkerRef.current.setLatLng([lat, lng]); } catch {}
+      }
     }
   };
 

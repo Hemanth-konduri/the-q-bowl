@@ -694,7 +694,9 @@ export const customerFeedback = pgTable("customer_feedback", {
   foodItemId: text("food_item_id").references(() => foodItems.id),
   customerName: text("customer_name").notNull(),
   category: text("category").default("MEAL_REVIEW").notNull(), // 'MEAL_REVIEW' | 'FOOD_ITEM' | 'DELIVERY' | 'SERVICE' | 'SUBSCRIPTION'
-  rating: integer("rating").default(5).notNull(), // 1 to 5
+  rating: integer("rating").default(5).notNull(), // 1 to 5 overall rating
+  foodRating: integer("food_rating").default(5).notNull(), // 1 to 5 food quality rating
+  deliveryRating: integer("delivery_rating").default(5).notNull(), // 1 to 5 delivery rating
   comment: text("comment").notNull(),
   isResolved: boolean("is_resolved").default(false).notNull(),
   isFeatured: boolean("is_featured").default(false).notNull(),
@@ -703,6 +705,38 @@ export const customerFeedback = pgTable("customer_feedback", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export const customerComplaints = pgTable("customer_complaints", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  orderId: text("order_id").references(() => orders.id, { onDelete: "set null" }),
+  customerName: text("customer_name").notNull(),
+  customerEmail: text("customer_email"),
+  customerPhone: text("customer_phone"),
+  category: text("category").notNull(), // 'Food Quality' | 'Delivery Issue' | 'Missing Item' | 'Packaging' | 'Wrong Order' | 'Other'
+  subject: text("subject").notNull(),
+  description: text("description").notNull(),
+  imageUrl: text("image_url"),
+  status: text("status").default("Open").notNull(), // 'Open' | 'Reviewing' | 'In Progress' | 'Resolved' | 'Closed'
+  priority: text("priority").default("MEDIUM").notNull(), // 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
+  adminNotes: text("admin_notes"),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const complaintMessages = pgTable("complaint_messages", {
+  id: text("id").primaryKey(),
+  complaintId: text("complaint_id")
+    .notNull()
+    .references(() => customerComplaints.id, { onDelete: "cascade" }),
+  senderType: text("sender_type").notNull(), // 'ADMIN' | 'CUSTOMER'
+  senderName: text("sender_name").notNull(),
+  message: text("message").notNull(),
+  statusUpdate: text("status_update"), // Status if changed by this message
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 
 
 

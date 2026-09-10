@@ -124,6 +124,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Food item ID is required" }, { status: 400 });
     }
 
+    if (quantity > 0) {
+      const foodItemRow = await db.select().from(foodItems).where(eq(foodItems.id, foodItemId)).limit(1);
+      if (foodItemRow.length === 0 || !foodItemRow[0].isAvailable) {
+        return NextResponse.json(
+          { error: "This item is currently unavailable and cannot be ordered." },
+          { status: 400 }
+        );
+      }
+    }
+
     const cartId = await getOrCreateCartId(userId, sessionKey);
 
     const existing = await db

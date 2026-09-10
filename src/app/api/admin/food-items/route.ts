@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { foodItems, categories } from "@/db/schema";
+import { foodItems, categories, menuItems } from "@/db/schema";
 import { requireAdminApi } from "@/lib/auth-guard";
+import { deleteStorageFile } from "@/lib/supabase-storage";
 import { desc, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 
@@ -95,6 +96,20 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const body = await req.json();
+
+    // Handle batch update array
+    if (Array.isArray(body.items)) {
+      for (const item of body.items) {
+        if (item.id && typeof item.isAvailable === "boolean") {
+          await db
+            .update(foodItems)
+            .set({ isAvailable: item.isAvailable, updatedAt: new Date() })
+            .where(eq(foodItems.id, item.id));
+        }
+      }
+      return NextResponse.json({ success: true, count: body.items.length });
+    }
+
     const { id, isAvailable, price, deliveryCharge, categoryId, name, description, imageUrl, calories, protein, isVeg, mealType } = body;
 
     if (!id) return NextResponse.json({ error: "Food item ID is required." }, { status: 400 });
@@ -122,3 +137,46 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Failed to update food item." }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  const auth = await requireAdminApi();
+  if (auth.error) return auth.error;
+
+  try {
+    const { searchParams } = new URL(req.url);
+    let id = searchParams.get("id");
+    if (!id) {
+      const body = await req.json().catch(() => ({}));
+      id = body.id;
+    }
+
+    if (!id) return NextResponse.json({ error: "Food item ID is required." }, { status: 400 });
+
+    const existing = await db.select().from(foodItems).where(eq(foodItems.id, id)).limit(1);
+    if (existing.length === 0) {
+      return NextResponse.json({ error: "Food item not found." }, { status: 404 });
+    }
+
+    const item = existing[0];
+
+    // Remove from Supabase storage if image exists
+    if (item.imageUrl) {
+      await deleteStorageFile(item.imageUrl);
+    }
+
+    // Delete foreign key references in menuItems table if present
+    await db.delete(menuItems).where(eq(menuItems.foodItemId, id)).catch(() => {});
+
+    // Delete item permanently from food_items table
+    await db.delete(foodItems).where(eq(foodItems.id, id));
+
+    return NextResponse.json({ success: true, message: `Successfully deleted ${item.name}` });
+  } catch (error: any) {
+    console.error("Error deleting food item:", error);
+    return NextResponse.json(
+      { error: "Failed to delete food item: " + (error?.message || "") },
+      { status: 500 }
+    );
+  }
+}
+

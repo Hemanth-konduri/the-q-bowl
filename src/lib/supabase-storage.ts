@@ -73,3 +73,31 @@ export function getDocumentViewUrl(filePath: string): string {
   const cleanPath = filePath.replace(/^\/+/, "");
   return `/api/admin/documents/view?path=${encodeURIComponent(cleanPath)}`;
 }
+
+/**
+ * Permanently delete a file from Supabase Storage given its URL or relative path.
+ */
+export async function deleteStorageFile(urlOrPath: string): Promise<boolean> {
+  if (!urlOrPath) return false;
+  try {
+    let filePath = urlOrPath;
+    if (urlOrPath.includes(`/storage/v1/object/public/${BUCKET_NAME}/`)) {
+      filePath = urlOrPath.split(`/storage/v1/object/public/${BUCKET_NAME}/`)[1];
+    } else if (urlOrPath.includes(`${BUCKET_NAME}/`)) {
+      filePath = urlOrPath.split(`${BUCKET_NAME}/`)[1];
+    }
+    const cleanPath = filePath.replace(/^\/+/, "");
+    if (cleanPath) {
+      const { error } = await supabase.storage.from(BUCKET_NAME).remove([cleanPath]);
+      if (error) {
+        console.warn("Supabase file removal warning:", error.message);
+        return false;
+      }
+      return true;
+    }
+  } catch (err) {
+    console.warn("Failed to delete file from Supabase storage:", err);
+  }
+  return false;
+}
+

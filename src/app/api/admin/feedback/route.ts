@@ -25,6 +25,8 @@ export async function GET(req: NextRequest) {
         customerName: customerFeedback.customerName,
         category: customerFeedback.category,
         rating: customerFeedback.rating,
+        foodRating: customerFeedback.foodRating,
+        deliveryRating: customerFeedback.deliveryRating,
         comment: customerFeedback.comment,
         isResolved: customerFeedback.isResolved,
         isFeatured: customerFeedback.isFeatured,

@@ -67,12 +67,20 @@ export async function GET(req: NextRequest) {
         })
         .returning();
       existing = created;
-    } else if (!existing[0].googleId) {
-      // Link Google account to existing user by email
-      await db
+    } else {
+      // Ensure existing user is marked emailVerified = true and linked to googleId
+      const updated = await db
         .update(users)
-        .set({ googleId: profile.id })
-        .where(eq(users.id, existing[0].id));
+        .set({
+          emailVerified: true,
+          googleId: profile.id,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, existing[0].id))
+        .returning();
+      if (updated.length > 0) {
+        existing = updated;
+      }
     }
 
     const user = existing[0];

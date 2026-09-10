@@ -104,3 +104,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message || "Failed to save pricing" }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    await requireAdmin();
+
+    const { searchParams } = new URL(req.url);
+    let id = searchParams.get("id");
+    if (!id) {
+      const body = await req.json().catch(() => ({}));
+      id = body.id;
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: "Pricing ID is required" }, { status: 400 });
+    }
+
+    await db.delete(subscriptionMealPricing).where(eq(subscriptionMealPricing.id, id));
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error("Admin Pricing DELETE Error:", error);
+    return NextResponse.json({ error: error.message || "Failed to delete pricing" }, { status: 500 });
+  }
+}
+

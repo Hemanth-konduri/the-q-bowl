@@ -29,8 +29,14 @@ export async function POST(req: NextRequest) {
     const session = await getSession();
     if (!session?.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const user = await db.select({ emailVerified: users.emailVerified }).from(users).where(eq(users.id, session.userId)).limit(1);
-    if (!user.length || !user[0].emailVerified) return NextResponse.json({ error: "Verify your email first." }, { status: 403 });
+    const user = await db
+      .select({ emailVerified: users.emailVerified, googleId: users.googleId })
+      .from(users)
+      .where(eq(users.id, session.userId))
+      .limit(1);
+
+    const isVerified = Boolean(user.length && (user[0].emailVerified || Boolean(user[0].googleId)));
+    if (!isVerified) return NextResponse.json({ error: "Verify your email first." }, { status: 403 });
 
     const formData = await req.formData();
     const aadhaar = formData.get("aadhaar") as File | null;
@@ -77,6 +83,7 @@ export async function GET() {
         .select({
           verificationStatus: users.verificationStatus,
           emailVerified: users.emailVerified,
+          googleId: users.googleId,
           rejectionReason: users.rejectionReason,
           aadhaarDocument: users.aadhaarDocument,
           idProofDocument: users.idProofDocument,
@@ -123,6 +130,7 @@ export async function GET() {
 
     return NextResponse.json({
       ...user,
+      emailVerified: Boolean(user.emailVerified || user.googleId),
       hasUploadedDocs,
       request: request ?? null,
       reviewNotes: user.rejectionReason || request?.reviewNotes || null,
@@ -141,3 +149,4 @@ export async function GET() {
     });
   }
 }
+

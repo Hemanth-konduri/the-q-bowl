@@ -59,6 +59,7 @@ export async function requireApprovedAuth(redirectTo = "/identity-verification")
       email: users.email,
       isActive: users.isActive,
       emailVerified: users.emailVerified,
+      googleId: users.googleId,
       verificationStatus: users.verificationStatus,
     })
     .from(users)
@@ -67,7 +68,7 @@ export async function requireApprovedAuth(redirectTo = "/identity-verification")
 
   if (!user.length) redirect(redirectTo);
   if (user[0].role === "ADMIN") return user[0];
-  if (!user[0].emailVerified) redirect("/verify-email");
+  if (!user[0].emailVerified && !user[0].googleId) redirect("/verify-email");
   if (user[0].verificationStatus === "REJECTED") redirect("/identity-verification");
   if (user[0].verificationStatus !== "APPROVED") redirect("/verification-pending");
   return user[0];
@@ -111,7 +112,7 @@ export async function requireAuthApi() {
     if (!session) return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
 
     const user = await db
-      .select({ id: users.id, role: users.role, isActive: users.isActive, emailVerified: users.emailVerified, verificationStatus: users.verificationStatus })
+      .select({ id: users.id, role: users.role, isActive: users.isActive, emailVerified: users.emailVerified, googleId: users.googleId, verificationStatus: users.verificationStatus })
       .from(users)
       .where(eq(users.id, session.userId))
       .limit(1);
@@ -123,7 +124,7 @@ export async function requireAuthApi() {
     return { user: user[0] };
   } catch (err) {
     console.warn("requireAuthApi caught DB connection error, using fallback:", err);
-    return { user: { id: "user-fallback", role: "CUSTOMER" as const, isActive: true, emailVerified: true, verificationStatus: "APPROVED" as const } };
+    return { user: { id: "user-fallback", role: "CUSTOMER" as const, isActive: true, emailVerified: true, googleId: null, verificationStatus: "APPROVED" as const } };
   }
 }
 

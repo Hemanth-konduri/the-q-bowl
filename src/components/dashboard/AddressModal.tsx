@@ -227,127 +227,142 @@ export function AddressModal({
     setError(null);
     setAutoDetectNotice("Detecting your exact GPS location...");
 
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          setLatitude(lat);
-          setLongitude(lng);
+    const processPosition = async (pos: GeolocationPosition) => {
+      try {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setLatitude(lat);
+        setLongitude(lng);
 
-          setAutoDetectNotice("Resolving street, area & pincode...");
+        setAutoDetectNotice("Resolving street, area & pincode...");
 
-          // Free OpenStreetMap Nominatim reverse geocoding
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`,
-            {
-              headers: {
-                "Accept-Language": "en",
-              },
-            }
+        // Free OpenStreetMap Nominatim reverse geocoding
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`,
+          {
+            headers: {
+              "Accept-Language": "en",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to reverse geocode location");
+        }
+
+        const data = await response.json();
+        const addr = data.address || {};
+
+        // Extract components intelligently
+        const road = addr.road || addr.street || addr.pedestrian || addr.path || "";
+        const houseNumber = addr.house_number || addr.building || "";
+        const neighbourhood = addr.neighbourhood || addr.suburb || addr.residential || addr.quarter || addr.city_district || "";
+        const detectedCity = addr.city || addr.town || addr.municipality || addr.village || addr.county || "";
+        const detectedState = addr.state || "";
+        const detectedPostcode = addr.postcode || "";
+
+        // Populate Street
+        const streetParts = [houseNumber, road].filter(Boolean).join(", ");
+        if (streetParts && !streetAddress) {
+          setStreetAddress(streetParts);
+        } else if (!streetAddress && data.display_name) {
+          setStreetAddress(data.display_name.split(",").slice(0, 2).join(", "));
+        }
+
+        // Populate Area
+        if (neighbourhood) {
+          setArea(neighbourhood);
+        } else if (road && !streetAddress) {
+          setArea(road);
+        }
+
+        // Match or Set State
+        let matchedState = "";
+        for (const s of INDIAN_STATES) {
+          if (
+            detectedState.toLowerCase().includes(s.toLowerCase()) ||
+            s.toLowerCase().includes(detectedState.toLowerCase())
+          ) {
+            matchedState = s;
+            break;
+          }
+        }
+
+        if (matchedState) {
+          setState(matchedState);
+          setCustomStateMode(false);
+          const cities = INDIAN_STATES_AND_CITIES[matchedState] || [];
+          
+          // Match or Set City
+          const matchedCity = cities.find(
+            (c) =>
+              detectedCity.toLowerCase().includes(c.toLowerCase()) ||
+              c.toLowerCase().includes(detectedCity.toLowerCase())
           );
 
-          if (!response.ok) {
-            throw new Error("Failed to reverse geocode location");
+          if (matchedCity) {
+            setCity(matchedCity);
+            setCustomCityMode(false);
+          } else if (detectedCity) {
+            setCity(detectedCity);
+            setCustomCityMode(true);
           }
-
-          const data = await response.json();
-          const addr = data.address || {};
-
-          // Extract components intelligently
-          const road = addr.road || addr.street || addr.pedestrian || addr.path || "";
-          const houseNumber = addr.house_number || addr.building || "";
-          const neighbourhood = addr.neighbourhood || addr.suburb || addr.residential || addr.quarter || addr.city_district || "";
-          const detectedCity = addr.city || addr.town || addr.municipality || addr.village || addr.county || "";
-          const detectedState = addr.state || "";
-          const detectedPostcode = addr.postcode || "";
-
-          // Populate Street
-          const streetParts = [houseNumber, road].filter(Boolean).join(", ");
-          if (streetParts && !streetAddress) {
-            setStreetAddress(streetParts);
-          } else if (!streetAddress && data.display_name) {
-            setStreetAddress(data.display_name.split(",").slice(0, 2).join(", "));
+        } else if (detectedState) {
+          setState(detectedState);
+          setCustomStateMode(true);
+          if (detectedCity) {
+            setCity(detectedCity);
+            setCustomCityMode(true);
           }
-
-          // Populate Area
-          if (neighbourhood) {
-            setArea(neighbourhood);
-          } else if (road && !streetAddress) {
-            setArea(road);
-          }
-
-          // Match or Set State
-          let matchedState = "";
-          for (const s of INDIAN_STATES) {
-            if (
-              detectedState.toLowerCase().includes(s.toLowerCase()) ||
-              s.toLowerCase().includes(detectedState.toLowerCase())
-            ) {
-              matchedState = s;
-              break;
-            }
-          }
-
-          if (matchedState) {
-            setState(matchedState);
-            setCustomStateMode(false);
-            const cities = INDIAN_STATES_AND_CITIES[matchedState] || [];
-            
-            // Match or Set City
-            const matchedCity = cities.find(
-              (c) =>
-                detectedCity.toLowerCase().includes(c.toLowerCase()) ||
-                c.toLowerCase().includes(detectedCity.toLowerCase())
-            );
-
-            if (matchedCity) {
-              setCity(matchedCity);
-              setCustomCityMode(false);
-            } else if (detectedCity) {
-              setCity(detectedCity);
-              setCustomCityMode(true);
-            }
-          } else if (detectedState) {
-            setState(detectedState);
-            setCustomStateMode(true);
-            if (detectedCity) {
-              setCity(detectedCity);
-              setCustomCityMode(true);
-            }
-          }
-
-          // Populate Pincode
-          if (detectedPostcode) {
-            const cleanPin = detectedPostcode.replace(/\D/g, "").slice(0, 6);
-            if (cleanPin) setPincode(cleanPin);
-          }
-
-          setAutoDetectNotice("📍 Location auto-filled! You can review or edit any field below.");
-          setTimeout(() => setAutoDetectNotice(null), 5000);
-        } catch (fetchErr) {
-          console.error("Geocoding lookup error:", fetchErr);
-          setAutoDetectNotice("📍 GPS coordinates captured! Please verify your area and pincode.");
-          setTimeout(() => setAutoDetectNotice(null), 4000);
-        } finally {
-          setLocating(false);
         }
-      },
-      (geoErr) => {
+
+        // Populate Pincode
+        if (detectedPostcode) {
+          const cleanPin = detectedPostcode.replace(/\D/g, "").slice(0, 6);
+          if (cleanPin) setPincode(cleanPin);
+        }
+
+        setAutoDetectNotice("📍 Location auto-filled! You can review or edit any field below.");
+        setTimeout(() => setAutoDetectNotice(null), 5000);
+      } catch (fetchErr) {
+        console.error("Geocoding lookup error:", fetchErr);
+        setAutoDetectNotice("📍 GPS coordinates captured! Please verify your area and pincode.");
+        setTimeout(() => setAutoDetectNotice(null), 4000);
+      } finally {
         setLocating(false);
-        setAutoDetectNotice(null);
-        console.error("GPS position error:", geoErr);
-        if (geoErr.code === 1) {
-          setError("Location permission denied. Please enable location access or type your address manually.");
-        } else if (geoErr.code === 2) {
-          setError("Location unavailable. Please fill in the details manually.");
-        } else {
-          setError("Location request timed out. Please try again or type manually.");
-        }
-      },
+      }
+    };
+
+    const handleGeoError = (geoErr: GeolocationPositionError, isHighAccuracyAttempt = true) => {
+      console.warn("GPS position error:", `Code ${geoErr.code}: ${geoErr.message || "Unknown error"}`);
+
+      // If high accuracy failed due to position unavailable or timeout, attempt low-accuracy fallback
+      if (isHighAccuracyAttempt && (geoErr.code === 2 || geoErr.code === 3)) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => processPosition(pos),
+          (fallbackErr) => handleGeoError(fallbackErr, false),
+          { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
+        );
+        return;
+      }
+
+      setLocating(false);
+      setAutoDetectNotice(null);
+      if (geoErr.code === 1) {
+        setError("Location permission denied. Please enable location access in your browser or type your address manually.");
+      } else if (geoErr.code === 2) {
+        setError("Location unavailable. Please fill in your address details manually.");
+      } else {
+        setError("Location request timed out. Please try again or type manually.");
+      }
+    };
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => processPosition(pos),
+      (err) => handleGeoError(err, true),
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 8000,
         maximumAge: 30000,
       }
     );

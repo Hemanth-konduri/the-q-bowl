@@ -38,6 +38,9 @@ import {
   CreditCard,
   ShieldCheck,
   Printer,
+  Upload,
+  Image as ImageIcon,
+  MessageSquare,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { AddressModal, AddressItem } from "./AddressModal";
@@ -178,6 +181,232 @@ export function CustomerDashboardView() {
   const [addressModalOpen, setAddressModalOpen] = useState(false);
   const [addressModalMode, setAddressModalMode] = useState<"LIST" | "FORM">("LIST");
   const [addressToEdit, setAddressToEdit] = useState<AddressItem | null>(null);
+
+  // Active Subscription & Recent Deliveries State
+  interface DashboardSubscription {
+    id: string;
+    status: string;
+    totalMeals: number;
+    mealsUsed: number;
+    mealsRemaining: number;
+    startDate: string;
+    endDate?: string;
+    expectedEndDate?: string;
+    pricePaid?: number;
+    planName?: string;
+    mealName?: string;
+    planDescription?: string;
+    preferredDeliveryTime?: string;
+  }
+
+  interface DashboardDelivery {
+    id: string;
+    date: string;
+    mealType: string;
+    itemsSummary: string;
+    status: string;
+    quantity: number;
+    type: "SUBSCRIPTION" | "ORDER";
+  }
+
+  const [activeSubscription, setActiveSubscription] = useState<DashboardSubscription | null>(null);
+  const [recentDeliveries, setRecentDeliveries] = useState<DashboardDelivery[]>([]);
+  const [loadingDashboardData, setLoadingDashboardData] = useState(true);
+
+  // ── Feedback & Complaint System State ──
+  interface PendingFeedbackData {
+    orderId: string;
+    deliveryDate: string;
+    mealType: string;
+    foodItemName: string;
+    itemCount: number;
+  }
+
+  const [pendingHomeFeedback, setPendingHomeFeedback] = useState<PendingFeedbackData | null>(null);
+  const [reviewedOrderIds, setReviewedOrderIds] = useState<string[]>([]);
+  const [loadingFeedbackStatus, setLoadingFeedbackStatus] = useState(true);
+
+  // Feedback Modal State
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [feedbackOrderId, setFeedbackOrderId] = useState<string | null>(null);
+  const [feedbackFoodName, setFeedbackFoodName] = useState<string>("");
+  const [feedbackDate, setFeedbackDate] = useState<string>("");
+  const [feedbackOverallRating, setFeedbackOverallRating] = useState<number>(5);
+  const [feedbackFoodRating, setFeedbackFoodRating] = useState<number>(5);
+  const [feedbackDeliveryRating, setFeedbackDeliveryRating] = useState<number>(5);
+  const [feedbackComment, setFeedbackComment] = useState<string>("");
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [feedbackSuccessNotice, setFeedbackSuccessNotice] = useState<string | null>(null);
+
+  // Complaint Modal State
+  const [complaintModalOpen, setComplaintModalOpen] = useState(false);
+  const [complaintOrderId, setComplaintOrderId] = useState<string | null>(null);
+  const [complaintCategory, setComplaintCategory] = useState<string>("Food Quality");
+  const [complaintSubject, setComplaintSubject] = useState<string>("");
+  const [complaintDescription, setComplaintDescription] = useState<string>("");
+  const [complaintImage, setComplaintImage] = useState<string>("");
+  const [submittingComplaint, setSubmittingComplaint] = useState(false);
+  const [complaintSuccessNotice, setComplaintSuccessNotice] = useState<string | null>(null);
+
+  // My Complaints View State
+  const [myComplaintsModalOpen, setMyComplaintsModalOpen] = useState(false);
+  const [userComplaintsList, setUserComplaintsList] = useState<any[]>([]);
+  const [loadingComplaints, setLoadingComplaints] = useState(false);
+
+  const fetchUserFeedbackStatus = async () => {
+    try {
+      setLoadingFeedbackStatus(true);
+      const res = await fetch("/api/user/feedback");
+      if (res.ok) {
+        const data = await res.json();
+        setPendingHomeFeedback(data.pendingFeedbackCard || null);
+        setReviewedOrderIds(data.reviewedOrderIds || []);
+      }
+    } catch (e) {
+      console.error("Failed to fetch user feedback status:", e);
+    } finally {
+      setLoadingFeedbackStatus(false);
+    }
+  };
+
+  const fetchUserComplaints = async () => {
+    try {
+      setLoadingComplaints(true);
+      const res = await fetch("/api/user/complaints");
+      if (res.ok) {
+        const data = await res.json();
+        setUserComplaintsList(data.complaints || []);
+      }
+    } catch (e) {
+      console.error("Failed to fetch user complaints:", e);
+    } finally {
+      setLoadingComplaints(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserFeedbackStatus();
+    fetchUserComplaints();
+  }, []);
+
+  const handleSubmitFeedback = async (e: React.FormEvent, targetOrderId?: string) => {
+    e.preventDefault();
+    const oid = targetOrderId || feedbackOrderId || pendingHomeFeedback?.orderId;
+    if (!oid) return;
+
+    setSubmittingFeedback(true);
+    try {
+      const res = await fetch("/api/user/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: oid,
+          rating: feedbackOverallRating,
+          foodRating: feedbackFoodRating,
+          deliveryRating: feedbackDeliveryRating,
+          comment: feedbackComment,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to submit feedback.");
+
+      setFeedbackSuccessNotice("Thank you! Your feedback has been submitted successfully ✓");
+      setTimeout(() => setFeedbackSuccessNotice(null), 5000);
+
+      setReviewedOrderIds((prev) => [...prev, oid]);
+      if (pendingHomeFeedback?.orderId === oid) {
+        setPendingHomeFeedback(null);
+      }
+
+      setFeedbackModalOpen(false);
+      setFeedbackComment("");
+      setFeedbackOverallRating(5);
+      setFeedbackFoodRating(5);
+      setFeedbackDeliveryRating(5);
+      fetchUserFeedbackStatus();
+    } catch (err: any) {
+      alert(err.message || "Unable to submit feedback.");
+    } finally {
+      setSubmittingFeedback(false);
+    }
+  };
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image size should be less than 5MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setComplaintImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmitComplaint = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!complaintSubject.trim() || !complaintDescription.trim()) return;
+
+    setSubmittingComplaint(true);
+    try {
+      const res = await fetch("/api/user/complaints", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: complaintOrderId,
+          category: complaintCategory,
+          subject: complaintSubject,
+          description: complaintDescription,
+          imageUrl: complaintImage,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to submit complaint.");
+
+      setComplaintSuccessNotice("Complaint submitted successfully! Our support team will resolve it shortly ✓");
+      setTimeout(() => setComplaintSuccessNotice(null), 5000);
+
+      setComplaintModalOpen(false);
+      setComplaintSubject("");
+      setComplaintDescription("");
+      setComplaintImage("");
+      fetchUserComplaints();
+    } catch (err: any) {
+      alert(err.message || "Unable to submit complaint.");
+    } finally {
+      setSubmittingComplaint(false);
+    }
+  };
+
+  useEffect(() => {
+    async function loadDashboardData() {
+      setLoadingDashboardData(true);
+      try {
+        const res = await fetch("/api/user/dashboard");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.activeSubscription) {
+            setActiveSubscription(data.activeSubscription);
+          } else {
+            setActiveSubscription(null);
+          }
+          if (data.recentDeliveries && Array.isArray(data.recentDeliveries)) {
+            setRecentDeliveries(data.recentDeliveries);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading dashboard data:", err);
+      } finally {
+        setLoadingDashboardData(false);
+      }
+    }
+
+    loadDashboardData();
+  }, []);
 
   // Fetch real active default delivery address
   async function loadUserAddresses() {
@@ -950,14 +1179,24 @@ export function CustomerDashboardView() {
               </div>
             </div>
 
-            <button
-              onClick={loadUserOrders}
-              disabled={loadingOrders}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FFF8EE] hover:bg-black text-black hover:text-white border-2 border-black font-outfit font-black text-xs uppercase tracking-wider shadow-[2px_2px_0_#000] transition-all disabled:opacity-50"
-            >
-              <RefreshCw size={14} className={loadingOrders ? "animate-spin" : ""} />
-              <span>Refresh History</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setMyComplaintsModalOpen(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-red-50 text-red-700 border-2 border-black font-outfit font-black text-xs uppercase tracking-wider shadow-[2px_2px_0_#000] transition-all"
+              >
+                <AlertCircle size={14} />
+                <span>My Support Complaints</span>
+              </button>
+
+              <button
+                onClick={loadUserOrders}
+                disabled={loadingOrders}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FFF8EE] hover:bg-black text-black hover:text-white border-2 border-black font-outfit font-black text-xs uppercase tracking-wider shadow-[2px_2px_0_#000] transition-all disabled:opacity-50"
+              >
+                <RefreshCw size={14} className={loadingOrders ? "animate-spin" : ""} />
+                <span>Refresh History</span>
+              </button>
+            </div>
           </div>
 
           {loadingOrders ? (
@@ -992,8 +1231,43 @@ export function CustomerDashboardView() {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <span className="font-outfit font-black text-lg text-black">₹{ord.total}</span>
+                    <div className="flex items-center gap-2 flex-wrap sm:justify-end">
+                      <span className="font-outfit font-black text-lg text-black mr-2">₹{ord.total}</span>
+                      
+                      {ord.status === "DELIVERED" && (
+                        <>
+                          {reviewedOrderIds.includes(ord.id) ? (
+                            <span className="px-3 py-1.5 rounded-xl bg-zinc-100 text-zinc-600 font-bold text-xs border border-zinc-300">
+                              Feedback Submitted ✓
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setFeedbackOrderId(ord.id);
+                                setFeedbackFoodName(ord.items?.map((i: any) => i.name).join(", ") || "Gourmet Order");
+                                setFeedbackDate(new Date(ord.createdAt).toLocaleDateString("en-IN"));
+                                setFeedbackModalOpen(true);
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-[#E5A00D] text-black hover:bg-black hover:text-[#E5A00D] border-2 border-black font-outfit font-black text-xs uppercase tracking-wider transition-all shadow-[2px_2px_0_#000] flex items-center gap-1.5"
+                            >
+                              <Star size={13} className="fill-black" />
+                              <span>Give Feedback</span>
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => {
+                              setComplaintOrderId(ord.id);
+                              setComplaintModalOpen(true);
+                            }}
+                            className="px-3 py-1.5 rounded-xl bg-white text-red-700 hover:bg-red-50 border-2 border-black font-outfit font-black text-xs uppercase tracking-wider transition-all shadow-[2px_2px_0_#000] flex items-center gap-1"
+                          >
+                            <AlertCircle size={13} />
+                            <span>Report Issue</span>
+                          </button>
+                        </>
+                      )}
+
                       <button
                         onClick={() => setInvoiceModalOrder(ord)}
                         className="px-3 py-1.5 rounded-xl bg-[#FFF8EE] hover:bg-black hover:text-white border border-black font-outfit font-black text-xs uppercase tracking-wider transition-colors shadow-sm"
@@ -1166,6 +1440,147 @@ export function CustomerDashboardView() {
       {/* ── HOME / DISHES SECTION (Only when activeTab is "home") ── */}
       {activeTab === "home" && (
         <>
+          {/* ── 0.5 Pending Order Feedback Card (Auto-appears for unreviewed delivered orders) ── */}
+          {pendingHomeFeedback && (
+            <div className="rounded-3xl border-3 border-black bg-[#FFF8EE] shadow-[6px_6px_0_#000] p-6 sm:p-8 relative overflow-hidden transition-all hover:shadow-[8px_8px_0_#000] space-y-6 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-black/10 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-[#E5A00D] border-2 border-black flex items-center justify-center text-black font-black shadow-[3px_3px_0_#000]">
+                    <Star className="w-6 h-6 fill-black text-black" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="bg-black text-[#E5A00D] px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border border-black shadow-[2px_2px_0_#000]">
+                        Post-Delivery Review
+                      </span>
+                      <span className="text-[11px] font-mono font-bold text-zinc-500">
+                        {pendingHomeFeedback.deliveryDate}
+                      </span>
+                    </div>
+                    <h4 className="font-outfit text-xl sm:text-2xl font-black uppercase text-black mt-0.5">
+                      How was your recent meal?
+                    </h4>
+                    <p className="text-xs font-semibold text-zinc-600">
+                      {pendingHomeFeedback.foodItemName} ({formatOrderId(pendingHomeFeedback.orderId)})
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setPendingHomeFeedback(null)}
+                  className="text-xs font-bold text-zinc-400 hover:text-black self-start sm:self-center"
+                >
+                  Dismiss ✕
+                </button>
+              </div>
+
+              <form onSubmit={(e) => handleSubmitFeedback(e, pendingHomeFeedback.orderId)} className="space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-white p-4 rounded-2xl border-2 border-black shadow-[3px_3px_0_#000]">
+                  {/* Overall Rating */}
+                  <div className="space-y-1 text-center sm:text-left">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-black block">Overall Experience</span>
+                    <div className="flex items-center justify-center sm:justify-start gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setFeedbackOverallRating(star)}
+                          className="p-1 hover:scale-110 transition-transform"
+                        >
+                          <Star
+                            className={`w-6 h-6 ${star <= feedbackOverallRating ? "fill-amber-400 text-amber-500" : "text-zinc-300"}`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Food Quality Rating */}
+                  <div className="space-y-1 text-center sm:text-left">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-black block">Food Quality</span>
+                    <div className="flex items-center justify-center sm:justify-start gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setFeedbackFoodRating(star)}
+                          className="p-1 hover:scale-110 transition-transform"
+                        >
+                          <Star
+                            className={`w-6 h-6 ${star <= feedbackFoodRating ? "fill-amber-400 text-amber-500" : "text-zinc-300"}`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Delivery Experience Rating */}
+                  <div className="space-y-1 text-center sm:text-left">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-black block">Delivery Experience</span>
+                    <div className="flex items-center justify-center sm:justify-start gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setFeedbackDeliveryRating(star)}
+                          className="p-1 hover:scale-110 transition-transform"
+                        >
+                          <Star
+                            className={`w-6 h-6 ${star <= feedbackDeliveryRating ? "fill-amber-400 text-amber-500" : "text-zinc-300"}`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Review Comment Textarea */}
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider text-black mb-1">
+                    Written Review <span className="text-zinc-400 font-semibold">(Optional)</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={feedbackComment}
+                    onChange={(e) => setFeedbackComment(e.target.value)}
+                    placeholder="Tell us about the taste, packaging, heat retention, or delivery speed..."
+                    className="w-full rounded-2xl border-2 border-black p-3 text-xs font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-[#E5A00D]"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between gap-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setComplaintOrderId(pendingHomeFeedback.orderId);
+                      setComplaintModalOpen(true);
+                    }}
+                    className="text-xs font-extrabold text-red-700 hover:text-black underline flex items-center gap-1"
+                  >
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    Report an Issue / Complaint
+                  </button>
+
+                  <button
+                    disabled={submittingFeedback}
+                    type="submit"
+                    className="px-6 py-2.5 rounded-xl bg-black text-[#FFF8EE] hover:bg-[#E5A00D] hover:text-black font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[3px_3px_0_#000] hover:shadow-none transition-all flex items-center gap-2"
+                  >
+                    {submittingFeedback ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <span>Submit Review ✓</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
           {/* ── 1. Hero Offers & Discount Slider with Real Kitchen Background Images ── */}
           <div
             onMouseEnter={() => setIsSliderHovered(true)}
@@ -1612,9 +2027,329 @@ export function CustomerDashboardView() {
               </div>
             )}
 
+          {/* ── 4. Subscription Status & Recent Deliveries Section ── */}
+          <div className="pt-6 space-y-8">
+            
+            {/* Section Title */}
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b-2 border-black/10 pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="bg-[#E5A00D] border-2 border-black px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider text-black shadow-[2px_2px_0_#000]">
+                    Dashboard Hub
+                  </span>
+                  <span className="text-[11px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
+                    Real-Time Tracking
+                  </span>
+                </div>
+                <h3 className="font-outfit text-2xl sm:text-3xl font-black uppercase tracking-tight text-black mt-1">
+                  Subscription Status &amp; Deliveries
+                </h3>
+                <p className="text-xs text-zinc-600 font-medium mt-0.5">
+                  Manage your active meal plan balance, daily dispatches, and recent order history
+                </p>
+              </div>
+            </div>
+
+            {/* 1. Subscription Status Card Container */}
+            {loadingDashboardData ? (
+              <div className="rounded-3xl border-3 border-black bg-[#FFF8EE] shadow-[6px_6px_0_#000] p-6 sm:p-8 space-y-6 animate-pulse">
+                <div className="flex justify-between items-center">
+                  <div className="h-6 bg-zinc-200 rounded-lg w-48" />
+                  <div className="h-6 bg-zinc-200 rounded-full w-24" />
+                </div>
+                <div className="h-4 bg-zinc-200 rounded-full w-full" />
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="h-16 bg-zinc-200 rounded-2xl" />
+                  ))}
+                </div>
+              </div>
+            ) : activeSubscription ? (
+              (() => {
+                const totalMeals = activeSubscription.totalMeals || 30;
+                const mealsRemaining = activeSubscription.mealsRemaining ?? 0;
+                const mealsConsumed = activeSubscription.mealsUsed ?? Math.max(0, totalMeals - mealsRemaining);
+                const progressPercent = Math.min(100, Math.max(0, Math.round((mealsConsumed / totalMeals) * 100)));
+
+                const isExpiringSoon = mealsRemaining <= 5 || activeSubscription.status === "EXPIRING_SOON";
+                const computedStatus = isExpiringSoon ? "EXPIRING SOON" : activeSubscription.status;
+
+                // Days remaining calculation
+                const expDateStr = activeSubscription.expectedEndDate || activeSubscription.endDate;
+                let daysRemaining: number | null = null;
+                if (expDateStr) {
+                  const diffMs = new Date(expDateStr).getTime() - new Date().getTime();
+                  daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+                }
+
+                const startDateFormatted = activeSubscription.startDate
+                  ? new Date(activeSubscription.startDate).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })
+                  : "N/A";
+
+                const endDateFormatted = expDateStr
+                  ? new Date(expDateStr).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })
+                  : "N/A";
+
+                return (
+                  <div className="rounded-3xl border-3 border-black bg-[#FFF8EE] shadow-[6px_6px_0_#000] p-6 sm:p-8 space-y-6 relative overflow-hidden transition-all hover:shadow-[8px_8px_0_#000]">
+                    {/* Header Row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-black/10 pb-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-[#E5A00D] border-2 border-black flex items-center justify-center text-black font-black shadow-[3px_3px_0_#000]">
+                          <UtensilsCrossed className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-mono font-bold uppercase text-zinc-500">
+                              Active Subscription
+                            </span>
+                            {daysRemaining !== null && (
+                              <span className="bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-md text-[10px] font-bold">
+                                {daysRemaining} {daysRemaining === 1 ? "day" : "days"} left
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="font-outfit text-xl sm:text-2xl font-black uppercase text-black">
+                            {activeSubscription.planName || activeSubscription.mealName || "Gourmet Meal Pass"}
+                          </h4>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider border-2 border-black shadow-[2px_2px_0_#000] ${
+                            isExpiringSoon
+                              ? "bg-amber-300 text-black"
+                              : "bg-emerald-400 text-black"
+                          }`}
+                        >
+                          <span className="h-2 w-2 rounded-full bg-black animate-ping" />
+                          {computedStatus}
+                        </span>
+
+                        <Link
+                          href="/subscriptions"
+                          className="px-4 py-2 rounded-xl bg-black text-[#FFF8EE] hover:bg-[#E5A00D] hover:text-black font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[2px_2px_0_#000] transition-all flex items-center gap-1.5"
+                        >
+                          <span>Manage</span>
+                          <ChevronRight size={14} />
+                        </Link>
+                      </div>
+                    </div>
+
+                    {/* Progress Bar Section */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider">
+                        <span className="text-zinc-600 flex items-center gap-1.5">
+                          <Sparkles className="w-4 h-4 text-[#E5A00D]" />
+                          Meal Consumption Progress
+                        </span>
+                        <span className="font-outfit font-black text-black">
+                          {mealsConsumed} of {totalMeals} Meals Used ({progressPercent}%)
+                        </span>
+                      </div>
+                      <div className="h-4 w-full bg-zinc-200 rounded-full border-2 border-black overflow-hidden p-0.5 shadow-[inner_0_2px_4px_rgba(0,0,0,0.1)]">
+                        <div
+                          className="h-full bg-[#E5A00D] rounded-full transition-all duration-500 border border-black"
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Metrics Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+                      <div className="bg-white p-4 rounded-2xl border-2 border-black shadow-[3px_3px_0_#000]">
+                        <span className="text-[10px] font-bold uppercase text-zinc-400 block">Meals Remaining</span>
+                        <span className="font-outfit text-2xl sm:text-3xl font-black text-emerald-700">
+                          {mealsRemaining}
+                        </span>
+                        <span className="text-[10px] font-semibold text-zinc-500 block mt-0.5">Ready for dispatch</span>
+                      </div>
+
+                      <div className="bg-white p-4 rounded-2xl border-2 border-black shadow-[3px_3px_0_#000]">
+                        <span className="text-[10px] font-bold uppercase text-zinc-400 block">Meals Consumed</span>
+                        <span className="font-outfit text-2xl sm:text-3xl font-black text-black">
+                          {mealsConsumed}
+                        </span>
+                        <span className="text-[10px] font-semibold text-zinc-500 block mt-0.5">Successfully delivered</span>
+                      </div>
+
+                      <div className="bg-white p-4 rounded-2xl border-2 border-black shadow-[3px_3px_0_#000]">
+                        <span className="text-[10px] font-bold uppercase text-zinc-400 block">Start Date</span>
+                        <span className="font-outfit text-sm sm:text-base font-black text-black mt-1 block">
+                          {startDateFormatted}
+                        </span>
+                        <span className="text-[10px] font-semibold text-zinc-500 block">Subscription activated</span>
+                      </div>
+
+                      <div className="bg-[#FFF8EE] p-4 rounded-2xl border-2 border-black shadow-[3px_3px_0_#000]">
+                        <span className="text-[10px] font-bold uppercase text-zinc-400 block">Expiry Date</span>
+                        <span className="font-outfit text-sm sm:text-base font-black text-black mt-1 block">
+                          {endDateFormatted}
+                        </span>
+                        <span className="text-[10px] font-semibold text-zinc-500 block">Plan validity end</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()
+            ) : (
+              /* 2. No Active Subscription Empty State */
+              <div className="rounded-3xl border-3 border-black bg-white shadow-[6px_6px_0_#000] p-8 sm:p-12 text-center space-y-5">
+                <div className="w-16 h-16 rounded-3xl bg-[#FFF8EE] border-3 border-black mx-auto flex items-center justify-center text-black shadow-[4px_4px_0_#000]">
+                  <Package className="w-8 h-8 stroke-[2.5]" />
+                </div>
+
+                <div className="max-w-md mx-auto space-y-2">
+                  <h4 className="font-outfit text-xl sm:text-2xl font-black uppercase text-black">
+                    You don&apos;t have an active meal subscription
+                  </h4>
+                  <p className="text-xs sm:text-sm text-zinc-600 font-medium leading-relaxed">
+                    Unlock flat savings of up to 35% with daily automated dispatches cooked fresh in authentic terracotta handis.
+                  </p>
+                </div>
+
+                <div className="pt-2">
+                  <Link
+                    href="/subscriptions"
+                    className="px-6 py-3.5 rounded-2xl bg-[#E5A00D] text-black hover:bg-black hover:text-[#E5A00D] font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[3px_3px_0_#000] hover:shadow-none transition-all inline-flex items-center gap-2"
+                  >
+                    <span>Browse Meal Plans</span>
+                    <ArrowRight size={16} />
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {/* 3. Recent Deliveries Section (Immediately below Subscription Status) */}
+            <div className="space-y-4 pt-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-outfit text-xl sm:text-2xl font-black uppercase tracking-tight text-black">
+                    Recent Deliveries
+                  </h4>
+                  <p className="text-xs text-zinc-600 font-medium">
+                    Latest meal dispatches and order fulfillments
+                  </p>
+                </div>
+
+                <Link
+                  href="/orders"
+                  className="flex items-center gap-1 font-outfit text-xs font-black uppercase tracking-wider text-amber-700 hover:text-black transition-colors bg-white px-3 py-1.5 rounded-xl border-2 border-black shadow-[2px_2px_0_#000]"
+                >
+                  <span>View All</span>
+                  <ChevronRight size={14} />
+                </Link>
+              </div>
+
+              {loadingDashboardData ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-20 bg-zinc-200 rounded-2xl animate-pulse" />
+                  ))}
+                </div>
+              ) : recentDeliveries.length > 0 ? (
+                <div className="space-y-3">
+                  {recentDeliveries.map((del) => {
+                    const isDelivered = del.status === "DELIVERED" || del.status === "COMPLETED";
+                    const isCancelled = del.status === "CANCELLED" || del.status === "SKIPPED";
+
+                    const formattedDate = del.date
+                      ? new Date(del.date).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "Recent";
+
+                    return (
+                      <div
+                        key={del.id}
+                        className="rounded-2xl border-2 border-black bg-white p-4 sm:p-5 shadow-[4px_4px_0_#000] flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:translate-x-[-1px] hover:translate-y-[-1px]"
+                      >
+                        <div className="flex items-start sm:items-center gap-3.5">
+                          <div
+                            className={`w-10 h-10 rounded-xl border-2 border-black flex items-center justify-center flex-shrink-0 shadow-[2px_2px_0_#000] ${
+                              isDelivered
+                                ? "bg-emerald-300 text-black"
+                                : isCancelled
+                                ? "bg-red-200 text-black"
+                                : "bg-[#E5A00D] text-black"
+                            }`}
+                          >
+                            {isDelivered ? (
+                              <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
+                            ) : isCancelled ? (
+                              <X className="w-5 h-5 stroke-[2.5]" />
+                            ) : (
+                              <Truck className="w-5 h-5 stroke-[2.5]" />
+                            )}
+                          </div>
+
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-outfit font-black text-sm uppercase text-black line-clamp-1">
+                                {del.itemsSummary}
+                              </span>
+                              <span className="text-[10px] font-mono font-bold bg-zinc-100 border border-black/20 px-2 py-0.5 rounded-md text-zinc-700">
+                                Qty: {del.quantity}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-3 text-[11px] font-bold text-zinc-500">
+                              <span>{formattedDate}</span>
+                              <span>•</span>
+                              <span className="uppercase text-amber-900 font-extrabold">{del.mealType}</span>
+                              <span>•</span>
+                              <span className="font-mono text-zinc-600">
+                                {del.id ? formatOrderId(del.id) : "#QB-ORDER"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 border-zinc-100 pt-2 sm:pt-0">
+                          <span
+                            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-black ${
+                              isDelivered
+                                ? "bg-emerald-100 text-emerald-900 border-emerald-950"
+                                : isCancelled
+                                ? "bg-red-100 text-red-900 border-red-950"
+                                : "bg-amber-100 text-amber-950 border-amber-950"
+                            }`}
+                          >
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                isDelivered ? "bg-emerald-600" : isCancelled ? "bg-red-600" : "bg-amber-600"
+                              }`}
+                            />
+                            {del.status.replace(/_/g, " ")}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-8 text-center rounded-2xl border-2 border-dashed border-black/20 bg-white/60">
+                  <p className="font-outfit font-black text-sm text-black">No delivery records found yet.</p>
+                  <p className="text-xs text-zinc-500 font-semibold mt-0.5">Your meal dispatches and orders will be logged here in real-time.</p>
+                </div>
+              )}
+            </div>
+
           </div>
-        </>
-      )}
+        </div>
+      </>
+    )}
 
       {/* Interactive Delivery Address Modal */}
       <AddressModal
@@ -1755,6 +2490,359 @@ export function CustomerDashboardView() {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ── Feedback Submission Modal ── */}
+      {feedbackModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-[#FFF8EE] rounded-3xl border-3 border-black shadow-[8px_8px_0_#000] p-6 sm:p-8 space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between border-b-2 border-black pb-4">
+              <div>
+                <span className="bg-black text-[#E5A00D] px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider">
+                  Delivered Order Review
+                </span>
+                <h3 className="font-outfit text-xl sm:text-2xl font-black uppercase text-black mt-1">
+                  Give Order Feedback
+                </h3>
+                <p className="text-xs font-semibold text-zinc-600">
+                  {feedbackFoodName || "Gourmet Dish"} {feedbackOrderId ? `(${formatOrderId(feedbackOrderId)})` : ""}
+                </p>
+              </div>
+              <button
+                onClick={() => setFeedbackModalOpen(false)}
+                className="p-2 rounded-xl bg-white hover:bg-black hover:text-white border-2 border-black transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitFeedback} className="space-y-5">
+              <div className="space-y-4 bg-white p-4 rounded-2xl border-2 border-black shadow-[3px_3px_0_#000]">
+                {/* Overall Rating */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wider text-black">Overall Experience</span>
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setFeedbackOverallRating(star)}
+                        className="p-1 hover:scale-110 transition-transform"
+                      >
+                        <Star
+                          className={`w-5 h-5 ${star <= feedbackOverallRating ? "fill-amber-400 text-amber-500" : "text-zinc-300"}`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Food Quality Rating */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wider text-black">Food Quality</span>
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setFeedbackFoodRating(star)}
+                        className="p-1 hover:scale-110 transition-transform"
+                      >
+                        <Star
+                          className={`w-5 h-5 ${star <= feedbackFoodRating ? "fill-amber-400 text-amber-500" : "text-zinc-300"}`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Delivery Experience Rating */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wider text-black">Delivery Experience</span>
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setFeedbackDeliveryRating(star)}
+                        className="p-1 hover:scale-110 transition-transform"
+                      >
+                        <Star
+                          className={`w-5 h-5 ${star <= feedbackDeliveryRating ? "fill-amber-400 text-amber-500" : "text-zinc-300"}`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-black mb-1">
+                  Written Review <span className="text-zinc-400 font-semibold">(Optional)</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={feedbackComment}
+                  onChange={(e) => setFeedbackComment(e.target.value)}
+                  placeholder="Share details about flavor, portion size, packaging, or delivery..."
+                  className="w-full rounded-2xl border-2 border-black p-3 text-xs font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-[#E5A00D]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setFeedbackModalOpen(false)}
+                  className="px-5 py-2.5 rounded-xl bg-white border-2 border-black font-outfit font-black text-xs uppercase"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={submittingFeedback}
+                  type="submit"
+                  className="px-6 py-2.5 rounded-xl bg-black text-[#FFF8EE] hover:bg-[#E5A00D] hover:text-black font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[3px_3px_0_#000] transition-all flex items-center gap-2"
+                >
+                  {submittingFeedback ? "Submitting..." : "Submit Review ✓"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Complaint / Support Ticket Submission Modal ── */}
+      {complaintModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-[#FFF8EE] rounded-3xl border-3 border-black shadow-[8px_8px_0_#000] p-6 sm:p-8 space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between border-b-2 border-black pb-4">
+              <div>
+                <span className="bg-red-600 text-white px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider">
+                  Support &amp; Issue Resolution
+                </span>
+                <h3 className="font-outfit text-xl sm:text-2xl font-black uppercase text-black mt-1">
+                  Report Order Issue
+                </h3>
+                {complaintOrderId && (
+                  <p className="text-xs font-semibold text-zinc-600">
+                    Order ID: {formatOrderId(complaintOrderId)}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => setComplaintModalOpen(false)}
+                className="p-2 rounded-xl bg-white hover:bg-black hover:text-white border-2 border-black transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitComplaint} className="space-y-4">
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-black mb-1">
+                  Complaint Category <span className="text-red-600">*</span>
+                </label>
+                <select
+                  value={complaintCategory}
+                  onChange={(e) => setComplaintCategory(e.target.value)}
+                  className="w-full rounded-2xl border-2 border-black p-3 text-xs font-black bg-white focus:outline-none focus:ring-2 focus:ring-[#E5A00D]"
+                >
+                  <option value="Food Quality">Food Quality (Taste, Spoilage, Temperature)</option>
+                  <option value="Delivery Issue">Delivery Issue (Delayed, Driver Behavior)</option>
+                  <option value="Missing Item">Missing Item / Portion Defect</option>
+                  <option value="Packaging">Packaging Damage / Spillage</option>
+                  <option value="Other">Other Query / Support Ticket</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-black mb-1">
+                  Subject <span className="text-red-600">*</span>
+                </label>
+                <input
+                  required
+                  type="text"
+                  value={complaintSubject}
+                  onChange={(e) => setComplaintSubject(e.target.value)}
+                  placeholder="e.g., Leaking terracotta handi lid / Missing mint chutney"
+                  className="w-full rounded-2xl border-2 border-black p-3 text-xs font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-[#E5A00D]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-black mb-1">
+                  Detailed Description <span className="text-red-600">*</span>
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  value={complaintDescription}
+                  onChange={(e) => setComplaintDescription(e.target.value)}
+                  placeholder="Please describe the issue in detail so our kitchen quality manager can assist you..."
+                  className="w-full rounded-2xl border-2 border-black p-3 text-xs font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-[#E5A00D]"
+                />
+              </div>
+
+              {/* Proof Image Upload */}
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-black mb-1">
+                  Attach Photo Proof <span className="text-zinc-400 font-semibold">(Optional)</span>
+                </label>
+                <div className="flex items-center gap-3">
+                  <label className="flex-1 cursor-pointer rounded-2xl border-2 border-dashed border-black bg-white p-3 text-center transition-all hover:bg-[#FFF8EE]">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageFileChange}
+                      className="hidden"
+                    />
+                    <div className="flex items-center justify-center gap-2 text-xs font-bold text-black">
+                      <Upload size={14} />
+                      <span>{complaintImage ? "Change Photo" : "Upload Photo Proof"}</span>
+                    </div>
+                  </label>
+                </div>
+                {complaintImage && (
+                  <div className="mt-2 relative h-24 w-24 rounded-xl border-2 border-black overflow-hidden shadow-[2px_2px_0_#000]">
+                    <img src={complaintImage} alt="Proof" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setComplaintImage("")}
+                      className="absolute top-1 right-1 bg-black text-white p-1 rounded-full text-[10px]"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setComplaintModalOpen(false)}
+                  className="px-5 py-2.5 rounded-xl bg-white border-2 border-black font-outfit font-black text-xs uppercase"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={submittingComplaint}
+                  type="submit"
+                  className="px-6 py-2.5 rounded-xl bg-red-600 text-white hover:bg-black font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[3px_3px_0_#000] transition-all flex items-center gap-2"
+                >
+                  {submittingComplaint ? "Submitting..." : "Submit Complaint ✓"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── My Support Complaints List Drawer Modal ── */}
+      {myComplaintsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl bg-[#FFF8EE] rounded-3xl border-3 border-black shadow-[8px_8px_0_#000] p-6 sm:p-8 space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between border-b-2 border-black pb-4">
+              <div>
+                <span className="bg-[#E5A00D] border-2 border-black px-2 py-0.5 rounded-lg text-[10px] font-black uppercase text-black">
+                  Customer Support Hub
+                </span>
+                <h3 className="font-outfit text-xl sm:text-2xl font-black uppercase text-black mt-1">
+                  My Support Complaints &amp; Tickets
+                </h3>
+                <p className="text-xs font-semibold text-zinc-600">
+                  Track resolution status &amp; read responses from Q-Bowl Admin Care
+                </p>
+              </div>
+              <button
+                onClick={() => setMyComplaintsModalOpen(false)}
+                className="p-2 rounded-xl bg-white hover:bg-black hover:text-white border-2 border-black transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {loadingComplaints ? (
+              <div className="py-12 text-center space-y-2">
+                <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#E5A00D]" />
+                <p className="text-xs font-bold text-zinc-600">Fetching your support tickets...</p>
+              </div>
+            ) : userComplaintsList.length === 0 ? (
+              <div className="p-8 text-center rounded-2xl border-2 border-dashed border-black/20 bg-white">
+                <p className="font-outfit font-black text-sm text-black">No support complaints filed.</p>
+                <p className="text-xs text-zinc-500 font-semibold mt-0.5">If you ever encounter an issue with your meal or delivery, file a ticket here.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {userComplaintsList.map((cmp) => {
+                  const isResolved = cmp.status === "RESOLVED";
+                  const isInProgress = cmp.status === "IN_PROGRESS";
+
+                  return (
+                    <div
+                      key={cmp.id}
+                      className="rounded-2xl border-2 border-black bg-white p-5 shadow-[4px_4px_0_#000] space-y-3"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-black/10 pb-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-mono font-bold bg-amber-100 border border-amber-300 px-2 py-0.5 rounded text-amber-900">
+                              {cmp.category}
+                            </span>
+                            {cmp.orderId && (
+                              <span className="text-[10px] font-mono font-bold text-zinc-500">
+                                Order: {formatOrderId(cmp.orderId)}
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="font-outfit font-black text-base uppercase text-black mt-1">
+                            {cmp.subject}
+                          </h4>
+                        </div>
+
+                        <span
+                          className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-black ${
+                            isResolved
+                              ? "bg-emerald-100 text-emerald-900 border-emerald-950"
+                              : isInProgress
+                              ? "bg-amber-100 text-amber-950 border-amber-950"
+                              : "bg-red-100 text-red-900 border-red-950"
+                          }`}
+                        >
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              isResolved ? "bg-emerald-600" : isInProgress ? "bg-amber-600" : "bg-red-600"
+                            }`}
+                          />
+                          {cmp.status.replace(/_/g, " ")}
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-zinc-700 font-semibold leading-relaxed">
+                        {cmp.description}
+                      </p>
+
+                      {cmp.imageUrl && (
+                        <div className="pt-1">
+                          <span className="text-[10px] font-bold text-zinc-400 block mb-1">Attached Photo Proof:</span>
+                          <img src={cmp.imageUrl} alt="Proof" className="h-20 w-20 object-cover rounded-xl border border-black" />
+                        </div>
+                      )}
+
+                      {cmp.adminNotes && (
+                        <div className="bg-[#FFF8EE] p-3 rounded-xl border border-black/20 text-xs space-y-1">
+                          <span className="font-outfit font-black uppercase text-black flex items-center gap-1 text-[11px]">
+                            <MessageSquare className="w-3.5 h-3.5 text-[#E5A00D]" />
+                            Response from Q-Bowl Support Team:
+                          </span>
+                          <p className="text-zinc-800 font-medium">{cmp.adminNotes}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -276,21 +276,33 @@ export default function LiveTrackingMap({
   useEffect(() => {
     if (!mapInstanceRef.current) return;
 
-    if (kitchenMarkerRef.current && (kitchenMarkerRef.current as any)._map) {
+    if (
+      kitchenMarkerRef.current &&
+      (kitchenMarkerRef.current as any)._map &&
+      (kitchenMarkerRef.current as any)._icon
+    ) {
       try {
         kitchenMarkerRef.current.setLatLng([activeKitchenLat, activeKitchenLng]);
       } catch {
         // safety guard against _leaflet_pos
       }
     }
-    if (driverMarkerRef.current && (driverMarkerRef.current as any)._map) {
+    if (
+      driverMarkerRef.current &&
+      (driverMarkerRef.current as any)._map &&
+      (driverMarkerRef.current as any)._icon
+    ) {
       try {
         driverMarkerRef.current.setLatLng([effectiveDriverLat, effectiveDriverLng]);
       } catch {
         // safety guard against _leaflet_pos
       }
     }
-    if (customerMarkerRef.current && (customerMarkerRef.current as any)._map) {
+    if (
+      customerMarkerRef.current &&
+      (customerMarkerRef.current as any)._map &&
+      (customerMarkerRef.current as any)._icon
+    ) {
       try {
         customerMarkerRef.current.setLatLng([effectiveCustLat, effectiveCustLng]);
       } catch {
