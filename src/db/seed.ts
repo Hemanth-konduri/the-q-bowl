@@ -258,21 +258,73 @@ async function runSeed() {
       );
     `;
 
+    await sql`
+      CREATE TABLE IF NOT EXISTS delivery_partners (
+        id text PRIMARY KEY,
+        user_id text REFERENCES users(id) ON DELETE CASCADE,
+        full_name text NOT NULL,
+        phone text NOT NULL,
+        email text,
+        current_lat real,
+        current_lng real,
+        last_location_at timestamp,
+        is_active boolean DEFAULT true NOT NULL,
+        created_at timestamp DEFAULT now() NOT NULL,
+        updated_at timestamp DEFAULT now() NOT NULL
+      );
+    `;
+
+    await sql`
+      ALTER TABLE delivery_partners
+      ADD COLUMN IF NOT EXISTS current_lat real,
+      ADD COLUMN IF NOT EXISTS current_lng real,
+      ADD COLUMN IF NOT EXISTS last_location_at timestamp,
+      ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true;
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS normal_order_deliveries (
+        id text PRIMARY KEY,
+        order_id text NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+        delivery_partner_id text REFERENCES delivery_partners(id),
+        status text DEFAULT 'SCHEDULED' NOT NULL,
+        delivered_at timestamp,
+        notes text,
+        created_at timestamp DEFAULT now() NOT NULL,
+        updated_at timestamp DEFAULT now() NOT NULL
+      );
+    `;
+
+    await sql`
+      ALTER TABLE normal_order_deliveries
+      ADD COLUMN IF NOT EXISTS delivery_partner_id text REFERENCES delivery_partners(id),
+      ADD COLUMN IF NOT EXISTS status text DEFAULT 'SCHEDULED',
+      ADD COLUMN IF NOT EXISTS delivered_at timestamp,
+      ADD COLUMN IF NOT EXISTS notes text;
+    `;
+
     console.log("✅ DDL Schema updates applied successfully!");
 
     // 2. Seed Kitchen Settings
     console.log("📍 Seeding Kitchen Hub Settings...");
-    const existingSettings = await db.select().from(kitchenSettings).limit(1);
-    if (existingSettings.length === 0) {
-      await db.insert(kitchenSettings).values({
-        id: "kitchen-main",
-        kitchenName: "Q1 Bowl Rajahmundry Central Hub",
-        kitchenLat: 16.9891,
-        kitchenLng: 81.7835,
-        deliveryRadiusKm: 15.0,
-      });
-      console.log("✅ Kitchen Settings seeded.");
-    }
+    await sql`
+      INSERT INTO kitchen_settings (id, kitchen_name, kitchen_lat, kitchen_lng, delivery_radius_km, updated_at)
+      VALUES (
+        'kitchen-main',
+        'The Q Bowl, Bridge County, Canteen, Rajanagaram, Velugubanda, Andhra Pradesh 533296',
+        17.0521416,
+        81.8677663,
+        20.0,
+        now()
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        kitchen_name = EXCLUDED.kitchen_name,
+        kitchen_lat = EXCLUDED.kitchen_lat,
+        kitchen_lng = EXCLUDED.kitchen_lng,
+        delivery_radius_km = EXCLUDED.delivery_radius_km,
+        updated_at = now();
+    `;
+    console.log("✅ Kitchen Settings updated.");
 
 
     // 3. Seed Subscription Plans
@@ -486,19 +538,29 @@ async function runSeed() {
 
     // 6. Seed Delivery Areas
     console.log("🗺️ Seeding Delivery Areas...");
-    const existingAreas = await db.select().from(deliveryAreas);
-    if (existingAreas.length === 0) {
-      await db.insert(deliveryAreas).values({
-        id: "area-rajahmundry-main",
-        name: "Rajahmundry Central Hub",
-        kitchenLat: 16.9891,
-        kitchenLng: 81.7835,
-        radius: 15,
-        deliveryFee: 49,
-        isActive: true,
-      });
-      console.log("✅ Delivery Areas seeded.");
-    }
+    await sql`
+      INSERT INTO delivery_areas (id, name, kitchen_lat, kitchen_lng, radius, delivery_fee, is_active, created_at, updated_at)
+      VALUES (
+        'area-rajahmundry-main',
+        'The Q Bowl Cloud Kitchen (Bridge County, Canteen, Rajanagaram, Velugubanda, AP 533296)',
+        17.0521416,
+        81.8677663,
+        20.0,
+        49.0,
+        true,
+        now(),
+        now()
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        kitchen_lat = EXCLUDED.kitchen_lat,
+        kitchen_lng = EXCLUDED.kitchen_lng,
+        radius = EXCLUDED.radius,
+        delivery_fee = EXCLUDED.delivery_fee,
+        is_active = true,
+        updated_at = now();
+    `;
+    console.log("✅ Delivery Areas updated.");
 
 
     console.log("🎉 Database Migration & Seeding Complete!");

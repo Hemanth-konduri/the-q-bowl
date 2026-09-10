@@ -25,6 +25,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { getDocumentViewUrl } from "@/lib/supabase-storage";
+import { formatOrderId } from "@/lib/utils/orderIdFormatter";
 
 interface KpiData {
   activeSubscriptions: number;
@@ -472,7 +473,7 @@ export default function AdminDashboardPage() {
                           <tr key={order.id} className="hover:bg-slate-50 transition-colors">
                             {/* Order ID */}
                             <td className="py-3.5 pr-4">
-                              <p className="font-mono font-black text-black">#{order.id.slice(0, 8)}</p>
+                              <p className="font-mono font-black text-black">{formatOrderId(order.id)}</p>
                               <p className="text-[11px] text-slate-400">
                                 {new Date(order.createdAt).toLocaleTimeString([], {
                                   hour: "2-digit",

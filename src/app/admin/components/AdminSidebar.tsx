@@ -16,6 +16,7 @@ import {
   Settings,
   MessageSquare,
   Tag,
+  KeyRound,
 } from "lucide-react";
 
 const menu = [
@@ -29,6 +30,7 @@ const menu = [
   { name: "Payments", icon: Wallet, href: "/admin/payments" },
   { name: "Feedback", icon: MessageSquare, href: "/admin/feedback" },
   { name: "Coupons", icon: Tag, href: "/admin/coupons" },
+  { name: "Credentials", icon: KeyRound, href: "/admin/credentials" },
   { name: "Analytics", icon: BarChart3, href: "/admin/analytics" },
   { name: "Settings", icon: Settings, href: "/admin/settings" },
 ];

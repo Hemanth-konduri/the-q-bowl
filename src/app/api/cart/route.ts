@@ -4,6 +4,7 @@ import { carts, cartItems, foodItems, offers, users } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { jwtVerify } from "jose";
+import { getSession } from "@/lib/session";
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "q1-bowl-artisan-super-secret-key-2026"
@@ -11,6 +12,9 @@ const JWT_SECRET = new TextEncoder().encode(
 
 async function getUserIdFromToken(): Promise<string | null> {
   try {
+    const session = await getSession();
+    if (session?.userId) return session.userId;
+
     const cookieStore = await cookies();
     const token = cookieStore.get("auth_token")?.value;
     if (!token) return null;

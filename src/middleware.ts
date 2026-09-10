@@ -43,8 +43,17 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // ── Redirect active Admin session away from user verification routes ──
-  if (session?.role === "ADMIN") {
+  // ── Delivery Boy protected routes (/delivery-dashboard) ──
+  if (pathname.startsWith("/delivery-dashboard")) {
+    if (!session) return NextResponse.redirect(new URL("/login", req.url));
+    if (session.role !== "DELIVERY_STAFF" && session.role !== "ADMIN") {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
+    return NextResponse.next();
+  }
+
+  // ── Redirect active Admin/Delivery session away from user verification routes ──
+  if (session?.role === "ADMIN" || session?.role === "DELIVERY_STAFF") {
     if (
       pathname === "/identity-verification" ||
       pathname === "/verification-pending" ||
@@ -52,7 +61,9 @@ export async function middleware(req: NextRequest) {
       pathname === "/login" ||
       pathname === "/register"
     ) {
-      return NextResponse.redirect(new URL("/admin/dashboard", req.url));
+      return NextResponse.redirect(
+        new URL(session.role === "ADMIN" ? "/admin/dashboard" : "/delivery-dashboard", req.url)
+      );
     }
   }
 

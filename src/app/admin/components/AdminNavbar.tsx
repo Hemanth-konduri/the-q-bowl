@@ -15,6 +15,7 @@ import {
   X,
   ChevronRight,
 } from "lucide-react";
+import { formatOrderId } from "@/lib/utils/orderIdFormatter";
 
 interface AdminProfile {
   id: string;
@@ -254,7 +255,7 @@ export function AdminNavbar() {
                           </div>
                           <div>
                             <p className="text-xs font-bold text-black font-mono group-hover:text-[#E5A00D]">
-                              #{o.id.slice(0, 8)}...
+                              {formatOrderId(o.id)}
                             </p>
                             <p className="text-[11px] text-slate-500 font-semibold">
                               Status: {o.status} • ₹{o.total}

@@ -33,6 +33,7 @@ import {
   User,
 } from "lucide-react";
 import { getDocumentViewUrl } from "@/lib/supabase-storage";
+import { formatOrderId } from "@/lib/utils/orderIdFormatter";
 
 interface CustomerRecord {
   id: string;
@@ -914,7 +915,7 @@ export default function AdminCustomersPage() {
                       {inspectProfile.ordersHistory.map((o) => (
                         <div key={o.id} className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between font-bold">
                           <div>
-                            <div className="text-black font-black">#{o.id.slice(0, 8).toUpperCase()}</div>
+                            <div className="text-black font-black">{formatOrderId(o.id)}</div>
                             <div className="text-[11px] text-slate-500">{new Date(o.createdAt).toLocaleDateString()}</div>
                           </div>
                           <div className="text-right">

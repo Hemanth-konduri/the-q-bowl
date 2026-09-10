@@ -10,8 +10,9 @@ import {
   cartItems,
   foodItems,
   offers,
+  payments,
 } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { getSession } from "@/lib/session";
 
 export async function GET() {
@@ -38,6 +39,8 @@ export async function GET() {
         area: addresses.area,
         city: addresses.city,
         pincode: addresses.pincode,
+        latitude: addresses.latitude,
+        longitude: addresses.longitude,
       })
       .from(orders)
       .leftJoin(addresses, eq(orders.addressId, addresses.id))
@@ -52,25 +55,92 @@ export async function GET() {
           .from(orderItems)
           .where(eq(orderItems.orderId, ord.id));
 
-        // Fetch delivery assignment details (driver) if assigned
-        const delivery = await db
-          .select({
-            status: deliveryAssignments.status,
-            scheduledAt: deliveryAssignments.scheduledAt,
-            pickedUpAt: deliveryAssignments.pickedUpAt,
-            deliveredAt: deliveryAssignments.deliveredAt,
-            staffName: users.name,
-            staffPhone: users.phone,
-          })
-          .from(deliveryAssignments)
-          .leftJoin(users, eq(deliveryAssignments.staffId, users.id))
-          .where(eq(deliveryAssignments.orderId, ord.id))
-          .limit(1);
+        let deliveryInfo = null;
+        try {
+          // Fetch normal order delivery partner assignment details
+          const { normalOrderDeliveries, deliveryPartners } = await import("@/db/schema");
+          const partnerAssignment = await db
+            .select({
+              status: normalOrderDeliveries.status,
+              deliveredAt: normalOrderDeliveries.deliveredAt,
+              notes: normalOrderDeliveries.notes,
+              partnerId: deliveryPartners.id,
+              partnerName: deliveryPartners.fullName,
+              partnerPhone: deliveryPartners.phone,
+              partnerEmail: deliveryPartners.email,
+              currentLat: deliveryPartners.currentLat,
+              currentLng: deliveryPartners.currentLng,
+              lastLocationAt: deliveryPartners.lastLocationAt,
+            })
+            .from(normalOrderDeliveries)
+            .innerJoin(deliveryPartners, eq(normalOrderDeliveries.deliveryPartnerId, deliveryPartners.id))
+            .where(eq(normalOrderDeliveries.orderId, ord.id))
+            .limit(1);
+
+          if (partnerAssignment.length > 0) {
+            const p = partnerAssignment[0];
+            deliveryInfo = {
+              status: p.status || "ASSIGNED",
+              staffName: p.partnerName || "Express Fleet Driver",
+              staffPhone: p.partnerPhone || "+91 83285 34576",
+              staffEmail: p.partnerEmail || "driver@qbowl.in",
+              currentLat: p.currentLat,
+              currentLng: p.currentLng,
+              lastLocationAt: p.lastLocationAt,
+              deliveredAt: p.deliveredAt,
+              notes: p.notes,
+            };
+          } else {
+            // Fallback check in deliveryAssignments
+            const legacyDelivery = await db
+              .select({
+                status: deliveryAssignments.status,
+                scheduledAt: deliveryAssignments.scheduledAt,
+                pickedUpAt: deliveryAssignments.pickedUpAt,
+                deliveredAt: deliveryAssignments.deliveredAt,
+                staffName: users.name,
+                staffPhone: users.phone,
+              })
+              .from(deliveryAssignments)
+              .leftJoin(users, eq(deliveryAssignments.staffId, users.id))
+              .where(eq(deliveryAssignments.orderId, ord.id))
+              .limit(1);
+
+            if (legacyDelivery.length > 0 && legacyDelivery[0].staffName) {
+              deliveryInfo = legacyDelivery[0];
+            }
+          }
+        } catch (partnerErr) {
+          console.warn("Could not fetch driver assignment details for order:", ord.id, partnerErr);
+        }
+
+        let paymentInfo = null;
+        try {
+          const payRows = await db
+            .select({
+              id: payments.id,
+              method: payments.method,
+              status: payments.status,
+              amount: payments.amount,
+              paidAt: payments.paidAt,
+              razorpayPaymentId: payments.razorpayPaymentId,
+            })
+            .from(payments)
+            .where(eq(payments.orderId, ord.id))
+            .limit(1);
+
+          if (payRows.length > 0) {
+            paymentInfo = payRows[0];
+          }
+        } catch (payErr) {
+          console.warn("Could not fetch payment record for order:", ord.id, payErr);
+        }
 
         return {
           ...ord,
           items,
-          delivery: delivery.length > 0 ? delivery[0] : null,
+          delivery: deliveryInfo,
+          payment: paymentInfo,
         };
       })
     );
@@ -91,15 +161,31 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { addressId, deliverySlot, notes, paymentMethod, sessionKey = "guest-session" } = body;
+    let selectedAddressId = addressId;
 
-    if (!addressId) {
-      return NextResponse.json({ error: "Delivery address is required" }, { status: 400 });
+    if (!selectedAddressId) {
+      // Look up user's default or most recent address
+      const userAddrs = await db
+        .select()
+        .from(addresses)
+        .where(eq(addresses.userId, session.userId))
+        .orderBy(desc(addresses.isDefault), desc(addresses.createdAt))
+        .limit(1);
+
+      if (userAddrs.length > 0) {
+        selectedAddressId = userAddrs[0].id;
+      } else {
+        return NextResponse.json(
+          { error: "No delivery address found. Please add a delivery address to place your order.", code: "NO_ADDRESS" },
+          { status: 400 }
+        );
+      }
     }
 
-    // Verify address exists, belongs to authenticated user, has pin, and is within 15km radius
-    const addrRows = await db.select().from(addresses).where(eq(addresses.id, addressId)).limit(1);
+    // Verify address exists, belongs to authenticated user, has pin, and is within delivery radius
+    const addrRows = await db.select().from(addresses).where(eq(addresses.id, selectedAddressId)).limit(1);
     if (addrRows.length === 0) {
-      return NextResponse.json({ error: "Address not found" }, { status: 404 });
+      return NextResponse.json({ error: "Selected address not found", code: "NO_ADDRESS" }, { status: 404 });
     }
 
     const targetAddress = addrRows[0];
@@ -107,19 +193,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden: Selected address does not belong to your account." }, { status: 403 });
     }
 
-    if (targetAddress.latitude === null || targetAddress.longitude === null) {
-      return NextResponse.json(
-        { error: "Selected address missing map pin location. Please pin location on map before placing order." },
-        { status: 400 }
-      );
-    }
+    const { DeliveryZoneService } = await import("@/lib/services/DeliveryZoneService");
+    const activeZone = await DeliveryZoneService.getActiveDeliveryZone();
+
+    const lat = targetAddress.latitude !== null && targetAddress.latitude !== undefined
+      ? targetAddress.latitude
+      : activeZone.kitchenLat;
+    const lng = targetAddress.longitude !== null && targetAddress.longitude !== undefined
+      ? targetAddress.longitude
+      : activeZone.kitchenLng;
 
     // Dynamic Database Delivery Zone Validation
-    const { DeliveryZoneService } = await import("@/lib/services/DeliveryZoneService");
-    const zoneVal = await DeliveryZoneService.validateLocation(
-      targetAddress.latitude,
-      targetAddress.longitude
-    );
+    const zoneVal = await DeliveryZoneService.validateLocation(lat, lng);
 
     if (!zoneVal.isWithinRadius) {
       return NextResponse.json(
@@ -129,18 +214,50 @@ export async function POST(req: NextRequest) {
     }
 
 
-    // Fetch user's cart
-    const userCartRows = await db
+    // Fetch user's cart or initialize it
+    let userCartRows = await db
       .select()
       .from(carts)
       .where(eq(carts.userId, session.userId))
       .limit(1);
 
     if (userCartRows.length === 0) {
-      return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
+      const newCartId = `cart-usr-${session.userId}`;
+      await db.insert(carts).values({
+        id: newCartId,
+        userId: session.userId,
+        sessionKey: sessionKey || "user-session",
+      });
+      userCartRows = await db.select().from(carts).where(eq(carts.id, newCartId)).limit(1);
     }
 
     const cartObj = userCartRows[0];
+
+    // Check if items were provided in the request body (client-side cart sync)
+    if (body.items && Array.isArray(body.items) && body.items.length > 0) {
+      for (const item of body.items) {
+        if (!item.id || !item.quantity || item.quantity <= 0) continue;
+        const existingItem = await db
+          .select()
+          .from(cartItems)
+          .where(and(eq(cartItems.cartId, cartObj.id), eq(cartItems.foodItemId, item.id)))
+          .limit(1);
+
+        if (existingItem.length > 0) {
+          await db
+            .update(cartItems)
+            .set({ quantity: item.quantity, updatedAt: new Date() })
+            .where(eq(cartItems.id, existingItem[0].id));
+        } else {
+          await db.insert(cartItems).values({
+            id: `ci-${cartObj.id}-${item.id}`,
+            cartId: cartObj.id,
+            foodItemId: item.id,
+            quantity: item.quantity,
+          });
+        }
+      }
+    }
 
     const cItems = await db
       .select({
@@ -156,7 +273,7 @@ export async function POST(req: NextRequest) {
       .where(eq(cartItems.cartId, cartObj.id));
 
     if (cItems.length === 0) {
-      return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
+      return NextResponse.json({ error: "Your cart is currently empty. Please add items to proceed." }, { status: 400 });
     }
 
     // Check item availability
@@ -195,7 +312,7 @@ export async function POST(req: NextRequest) {
     await db.insert(orders).values({
       id: orderId,
       userId: session.userId,
-      addressId,
+      addressId: selectedAddressId,
       offerId: cartObj.offerId || null,
       type: "NORMAL",
       status: "PENDING",

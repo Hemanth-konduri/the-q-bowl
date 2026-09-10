@@ -76,6 +76,50 @@ export async function POST(req: NextRequest) {
     let breakdown: any = null;
 
     if (purpose === "ORDER") {
+      // If client sent cart items directly, synchronize with user's db cart first
+      if (body.items && Array.isArray(body.items) && body.items.length > 0) {
+        const { carts, cartItems } = await import("@/db/schema");
+        let userCartRows = await db
+          .select()
+          .from(carts)
+          .where(eq(carts.userId, session.userId))
+          .limit(1);
+
+        if (userCartRows.length === 0) {
+          const newCartId = `cart-usr-${session.userId}`;
+          await db.insert(carts).values({
+            id: newCartId,
+            userId: session.userId,
+            sessionKey: "user-session",
+          });
+          userCartRows = await db.select().from(carts).where(eq(carts.id, newCartId)).limit(1);
+        }
+
+        const cartObj = userCartRows[0];
+        for (const item of body.items) {
+          if (!item.id || !item.quantity || item.quantity <= 0) continue;
+          const existingItem = await db
+            .select()
+            .from(cartItems)
+            .where(and(eq(cartItems.cartId, cartObj.id), eq(cartItems.foodItemId, item.id)))
+            .limit(1);
+
+          if (existingItem.length > 0) {
+            await db
+              .update(cartItems)
+              .set({ quantity: item.quantity, updatedAt: new Date() })
+              .where(eq(cartItems.id, existingItem[0].id));
+          } else {
+            await db.insert(cartItems).values({
+              id: `ci-${cartObj.id}-${item.id}`,
+              cartId: cartObj.id,
+              foodItemId: item.id,
+              quantity: item.quantity,
+            });
+          }
+        }
+      }
+
       // Calculate cart total on server & create pending order
       const pendingOrder = await OrderService.createPendingOrder({
         userId: session.userId,

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
-import biryaniImg from "../../../../public/dum_biryani_hero.png";
+import biryaniImg from "../../../../public/q_bowl_hero_pristine.png";
 
 export default function Hero() {
   return (
@@ -33,22 +33,22 @@ export default function Hero() {
           pointer-events-none
           flex items-center justify-center
 
-          w-[82vw]
-          h-[82vw]
+          w-[80vw]
+          h-[80vw]
 
-          sm:w-[64vw]
-          sm:h-[64vw]
+          sm:w-[62vw]
+          sm:h-[62vw]
 
-          md:w-[52vw]
-          md:h-[52vw]
+          md:w-[48vw]
+          md:h-[48vw]
 
-          lg:w-[48vw]
-          lg:h-[48vw]
+          lg:w-[44vw]
+          lg:h-[44vw]
 
-          max-w-[340px] sm:max-w-[500px] md:max-w-[720px]
-          max-h-[340px] sm:max-h-[500px] md:max-h-[720px]
+          max-w-[320px] sm:max-w-[480px] md:max-w-[650px]
+          max-h-[320px] sm:max-h-[480px] md:max-h-[650px]
 
-          left-1/2
+          left-[46%] sm:left-[46.5%] md:left-[47%]
           top-[44%] sm:top-[46%] md:top-[47%]
 
           -translate-x-1/2
@@ -96,8 +96,8 @@ export default function Hero() {
             absolute
             z-30
 
-            top-[18%] sm:top-[28%] md:top-[30%]
-            left-[1%] sm:left-[4%] md:left-[6%]
+            top-[16%] sm:top-[26%] md:top-[28%]
+            left-[1%] sm:left-[3%] md:left-[4%]
 
             text-[#E5A00D]
             font-modak
@@ -132,8 +132,8 @@ export default function Hero() {
             absolute
             z-30
 
-            top-[22%] sm:top-[36%] md:top-[42%]
-            right-[1%] sm:right-[3%] md:right-[5%]
+            top-[20%] sm:top-[34%] md:top-[38%]
+            right-[1%] sm:right-[2%] md:right-[3%]
 
             text-[#E5A00D]
             font-modak
@@ -206,9 +206,9 @@ export default function Hero() {
             className="
               absolute
 
-              right-[0%]
+              right-[-1%]
               sm:right-[0%]
-              md:right-[1%]
+              md:right-[0%]
 
               top-[3%] sm:top-[5%] md:top-[7%]
             "

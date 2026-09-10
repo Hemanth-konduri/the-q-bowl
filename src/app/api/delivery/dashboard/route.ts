@@ -9,9 +9,11 @@ import {
   addresses,
   normalOrderDeliveries,
   orders,
+  orderItems,
   deliveryPartners,
 } from "@/db/schema";
-import { eq, and, ne, sql } from "drizzle-orm";
+import { eq, and, ne, sql, inArray } from "drizzle-orm";
+import { formatOrderId } from "@/lib/utils/orderIdFormatter";
 
 function getCurrentSessionName(): "Breakfast" | "Lunch" | "Dinner" {
   const hour = new Date().getHours();
@@ -33,10 +35,11 @@ export async function GET() {
     const { partner } = await requireDeliveryPartnerApi();
     const todayStr = getTodayDateString();
 
-    // 1. Fetch Subscription Deliveries for Today
+    // 1. Fetch Subscription Deliveries for Today assigned to this partner
     const subDeliveries = await db
       .select({
         id: subscriptionDeliveries.id,
+        orderId: subscriptionDeliveries.subscriptionId,
         deliveryType: sql<string>`'SUBSCRIPTION'`,
         customerName: users.name,
         customerEmail: users.email,
@@ -54,6 +57,7 @@ export async function GET() {
         pincode: addresses.pincode,
         latitude: addresses.latitude,
         longitude: addresses.longitude,
+        totalAmount: subscriptions.totalAmount,
       })
       .from(subscriptionDeliveries)
       .innerJoin(subscriptions, eq(subscriptionDeliveries.subscriptionId, subscriptions.id))
@@ -63,19 +67,21 @@ export async function GET() {
       .where(
         and(
           eq(subscriptionDeliveries.deliveryDate, todayStr),
+          eq(subscriptionDeliveries.deliveryPartnerId, partner.id),
           ne(subscriptionDeliveries.status, "CANCELLED")
         )
       );
 
-    // 2. Fetch Normal Order Deliveries for Today
+    // 2. Fetch Normal Order Deliveries assigned to this partner
     const normalDeliveries = await db
       .select({
         id: normalOrderDeliveries.id,
+        orderId: normalOrderDeliveries.orderId,
         deliveryType: sql<string>`'NORMAL'`,
         customerName: users.name,
         customerEmail: users.email,
         customerPhone: users.phone,
-        mealName: sql<string>`'À la carte Order'`,
+        mealName: sql<string>`'Order Dishes'`,
         mealType: sql<string>`'LUNCH'`,
         status: normalOrderDeliveries.status,
         deliveredAt: normalOrderDeliveries.deliveredAt,
@@ -88,14 +94,48 @@ export async function GET() {
         pincode: addresses.pincode,
         latitude: addresses.latitude,
         longitude: addresses.longitude,
+        totalAmount: orders.total,
       })
       .from(normalOrderDeliveries)
       .innerJoin(orders, eq(normalOrderDeliveries.orderId, orders.id))
       .innerJoin(users, eq(orders.userId, users.id))
       .leftJoin(addresses, eq(orders.addressId, addresses.id))
-      .where(ne(normalOrderDeliveries.status, "CANCELLED"));
+      .where(
+        and(
+          eq(normalOrderDeliveries.deliveryPartnerId, partner.id),
+          ne(normalOrderDeliveries.status, "CANCELLED")
+        )
+      );
 
-    const allDeliveries = [...subDeliveries, ...normalDeliveries];
+    // Fetch order items for normal deliveries
+    const orderIds = normalDeliveries.map((n) => n.orderId).filter(Boolean);
+    let itemsByOrderId: Record<string, any[]> = {};
+    if (orderIds.length > 0) {
+      const items = await db
+        .select()
+        .from(orderItems)
+        .where(inArray(orderItems.orderId, orderIds));
+      items.forEach((item) => {
+        if (!itemsByOrderId[item.orderId]) itemsByOrderId[item.orderId] = [];
+        itemsByOrderId[item.orderId].push(item);
+      });
+    }
+
+    const allDeliveries = [
+      ...subDeliveries.map((s) => ({
+        ...s,
+        items: [{ name: s.mealName || "Subscription Meal", quantity: 1, unitPrice: 0 }],
+      })),
+      ...normalDeliveries.map((n) => {
+        const dishList = itemsByOrderId[n.orderId] || [];
+        const dishSummary = dishList.map((d) => `${d.quantity}x ${d.name}`).join(", ") || "Fresh Artisan Bowl";
+        return {
+          ...n,
+          mealName: dishSummary,
+          items: dishList,
+        };
+      }),
+    ];
 
     const totalAssigned = allDeliveries.length;
     const deliveredCount = allDeliveries.filter((d) => d.status === "DELIVERED").length;
@@ -105,9 +145,9 @@ export async function GET() {
     return NextResponse.json({
       partner: {
         id: partner.id,
-        fullName: partner.fullName || "Ravi Kumar",
+        fullName: partner.fullName || "Delivery Partner",
         phone: partner.phone || "+918328534576",
-        email: partner.email || "ravi.delivery@qbowl.in",
+        email: partner.email || "driver@qbowl.in",
         partnerCode: partner.id.replace("dp-", "DEL-").toUpperCase(),
       },
       summary: {
@@ -118,12 +158,16 @@ export async function GET() {
       },
       deliveries: allDeliveries.map((d) => ({
         id: d.id,
-        deliveryType: d.deliveryType || "SUBSCRIPTION",
+        orderId: d.orderId,
+        orderIdDisplay: d.orderId ? formatOrderId(d.orderId) : `#DEL-${d.id.slice(-6).toUpperCase()}`,
+        deliveryType: d.deliveryType || "NORMAL",
         customerName: d.customerName || "Customer",
         customerPhone: d.customerPhone || "+918328534576",
         customerEmail: d.customerEmail || "",
-        mealName: d.mealName || "Chicken Fry Piece Biryani",
+        mealName: d.mealName || "Artisan Bowl",
         mealType: (d.mealType || "LUNCH").toUpperCase(),
+        items: d.items || [],
+        totalAmount: d.totalAmount || 0,
         status: d.status || "SCHEDULED",
         deliveredAt: d.deliveredAt ? new Date(d.deliveredAt).toISOString() : null,
         mealsRemaining: d.mealsRemaining || 0,
@@ -135,8 +179,8 @@ export async function GET() {
           area: d.area || "",
           city: d.city || "Rajahmundry",
           pincode: d.pincode || "",
-          latitude: d.latitude ? Number(d.latitude) : 17.0005,
-          longitude: d.longitude ? Number(d.longitude) : 81.7800,
+          latitude: d.latitude ? Number(d.latitude) : 17.0521416,
+          longitude: d.longitude ? Number(d.longitude) : 81.8677663,
         },
       })),
     });

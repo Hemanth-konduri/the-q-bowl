@@ -16,11 +16,14 @@ export async function POST(req: NextRequest) {
 
   await createSession({ userId: user.id, role: user.role });
 
-  // ── 1. ADMIN ISOLATED FLOW ──
-  // Admins log in directly with Email + Password only.
-  // Never trigger OTP, email verification check, or document submission for Admins.
+  // ── 1. ADMIN & DELIVERY STAFF DIRECT FLOW ──
+  // Admins & Delivery staff log in directly without customer verification steps.
   if (user.role === "ADMIN") {
     return NextResponse.json({ success: true, redirect: "/admin/dashboard" });
+  }
+
+  if (user.role === "DELIVERY_STAFF") {
+    return NextResponse.json({ success: true, redirect: "/delivery-dashboard" });
   }
 
   // ── 2. USER VERIFICATION FLOW ──

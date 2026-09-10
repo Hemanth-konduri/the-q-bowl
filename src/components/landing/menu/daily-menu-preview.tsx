@@ -26,121 +26,67 @@ interface MenuItem {
   protein: string;
 }
 
-const TODAY_ITEMS: MenuItem[] = [
-  {
-    id: "1",
-    name: "Signature Protein Harvest Bowl",
-    price: 249,
-    category: "Meals",
-    mealType: "LUNCH",
-    isVeg: false,
-    image: heroDishImg,
-    rating: 4.9,
-    calories: 540,
-    protein: "38g",
-  },
-  {
-    id: "2",
-    name: "Hyderabadi Chicken Dum Biryani",
-    price: 299,
-    category: "Biryani",
-    mealType: "LUNCH",
-    isVeg: false,
-    image: dumBiryaniImg,
-    rating: 4.9,
-    calories: 680,
-    protein: "32g",
-  },
-  {
-    id: "3",
-    name: "Royal Paneer Tikka Deluxe Bowl",
-    price: 239,
-    category: "Meals",
-    mealType: "DINNER",
-    isVeg: true,
-    image: paneerImg,
-    rating: 4.8,
-    calories: 590,
-    protein: "24g",
-  },
-  {
-    id: "4",
-    name: "Special Artisanal Dum Biryani",
-    price: 329,
-    category: "Biryani",
-    mealType: "DINNER",
-    isVeg: false,
-    image: biryaniImg,
-    rating: 4.9,
-    calories: 710,
-    protein: "35g",
-  },
-];
-
-const TOMORROW_ITEMS: MenuItem[] = [
-  {
-    id: "5",
-    name: "Mediterranean Protein Power Bowl",
-    price: 349,
-    category: "Meals",
-    mealType: "LUNCH",
-    isVeg: false,
-    image: heroDishImg,
-    rating: 4.9,
-    calories: 520,
-    protein: "42g",
-  },
-  {
-    id: "6",
-    name: "Awadhi Mutton Dum Biryani",
-    price: 389,
-    category: "Biryani",
-    mealType: "DINNER",
-    isVeg: false,
-    image: dumBiryaniImg,
-    rating: 4.8,
-    calories: 740,
-    protein: "36g",
-  },
-  {
-    id: "7",
-    name: "Keto Broccoli & Paneer Steak Bowl",
-    price: 269,
-    category: "Meals",
-    mealType: "DINNER",
-    isVeg: true,
-    image: paneerImg,
-    rating: 4.7,
-    calories: 410,
-    protein: "28g",
-  },
-  {
-    id: "8",
-    name: "Chef's Special Heritage Dum Biryani",
-    price: 359,
-    category: "Biryani",
-    mealType: "LUNCH",
-    isVeg: false,
-    image: biryaniImg,
-    rating: 4.9,
-    calories: 730,
-    protein: "34g",
-  },
-];
-
 export default function DailyMenuPreview() {
   const sectionRef = useRef<HTMLElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const controlsRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
-  const [selectedDay, setSelectedDay] = useState<"today" | "tomorrow">(
-    "today"
-  );
-
+  const [selectedDay, setSelectedDay] = useState<"today" | "tomorrow">("today");
   const [isChanging, setIsChanging] = useState(false);
 
-  const items = selectedDay === "today" ? TODAY_ITEMS : TOMORROW_ITEMS;
+  const [todayItems, setTodayItems] = useState<MenuItem[]>([]);
+  const [tomorrowItems, setTomorrowItems] = useState<MenuItem[]>([]);
+  const [loadingMenu, setLoadingMenu] = useState(true);
+
+  // Fetch real master food catalog from DB (No Demo Data)
+  useEffect(() => {
+    async function loadRealMenu() {
+      setLoadingMenu(true);
+      try {
+        const res = await fetch("/api/meals");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.meals && Array.isArray(data.meals) && data.meals.length > 0) {
+            const formatted: MenuItem[] = data.meals.map((m: any, idx: number) => {
+              let img = m.imageUrl;
+              if (!img || img === "") {
+                if (m.name?.toLowerCase().includes("biryani")) img = "/biryani_handi_slider.jpg";
+                else if (m.name?.toLowerCase().includes("burger")) img = "/truffle_burger.jpg";
+                else if (m.name?.toLowerCase().includes("pizza")) img = "/margherita_pizza.jpg";
+                else if (m.isVeg) img = "/paneer_bowl_new.png";
+                else img = "/chicken_dum_biryani.png";
+              }
+
+              return {
+                id: m.id,
+                name: m.name,
+                price: Number(m.price),
+                category: m.categoryName || (m.isVeg ? "Veg Delights" : "Artisan Bowls"),
+                mealType: (m.mealType as any) || (idx % 2 === 0 ? "LUNCH" : "DINNER"),
+                isVeg: Boolean(m.isVeg),
+                image: img,
+                rating: m.rating ? Number(m.rating) : 4.9,
+                calories: m.calories ? Number(m.calories) : 580,
+                protein: m.protein || "32g",
+              };
+            });
+
+            setTodayItems(formatted);
+            setTomorrowItems([...formatted].reverse());
+          }
+        }
+      } catch (err) {
+        console.error("Error loading meals for landing page:", err);
+      } finally {
+        setLoadingMenu(false);
+      }
+    }
+
+    loadRealMenu();
+  }, []);
+
+  const items = selectedDay === "today" ? todayItems : tomorrowItems;
 
   const changeDay = (day: "today" | "tomorrow") => {
     if (day === selectedDay || isChanging) return;
@@ -492,19 +438,35 @@ export default function DailyMenuPreview() {
         </div>
 
         {/* MENU GRID */}
-        <div
-          ref={gridRef}
-          className="
-            relative
-            z-10
-            grid
-            sm:grid-cols-2
-            lg:grid-cols-4
-            gap-x-6
-            gap-y-14
-          "
-        >
-          {items.map((dish) => (
+        {loadingMenu ? (
+          <div className="relative z-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-14">
+            {[1, 2, 3, 4].map((n) => (
+              <div
+                key={n}
+                className="h-[380px] rounded-[2rem] bg-zinc-900 border-2 border-[#E5A00D]/20 p-4 space-y-4 animate-pulse"
+              >
+                <div className="h-[240px] rounded-[1.5rem] bg-zinc-800" />
+                <div className="space-y-2">
+                  <div className="h-4 bg-zinc-800 rounded w-3/4" />
+                  <div className="h-3 bg-zinc-800/60 rounded w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : items.length > 0 ? (
+          <div
+            ref={gridRef}
+            className="
+              relative
+              z-10
+              grid
+              sm:grid-cols-2
+              lg:grid-cols-4
+              gap-x-6
+              gap-y-14
+            "
+          >
+            {items.map((dish) => (
             <article
               key={dish.id}
               className="
@@ -667,6 +629,12 @@ export default function DailyMenuPreview() {
             </article>
           ))}
         </div>
+      ) : (
+        <div className="relative z-10 p-12 text-center rounded-3xl border-2 border-[#E5A00D]/20 bg-zinc-900/50">
+          <p className="font-outfit font-black text-xl text-[#f5e3cd]">Kitchen Menu Loading</p>
+          <p className="text-sm text-[#D8C4A9] mt-1">Today&apos;s specials are being freshly prepared in our cloud kitchen.</p>
+        </div>
+      )}
       </div>
     </section>
   );

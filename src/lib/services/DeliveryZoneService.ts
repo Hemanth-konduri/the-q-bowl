@@ -12,13 +12,13 @@ export interface DeliveryZoneInfo {
   isActive: boolean;
 }
 
-// Default fallback for Rajahmundry Central Hub if database has no initial records
+// Default fallback for The Q Bowl Cloud Kitchen Hub (Bridge County, Canteen, Rajanagaram, Velugubanda, AP 533296)
 const DEFAULT_RAJAHMUNDRY_HUB: DeliveryZoneInfo = {
   id: "zone-rajahmundry-central",
-  zoneName: "Rajahmundry Central Hub",
-  kitchenLat: 16.9891,
-  kitchenLng: 81.7835,
-  deliveryRadiusKm: 15.0,
+  zoneName: "The Q Bowl (Bridge County, Canteen, Rajanagaram, Velugubanda, AP 533296)",
+  kitchenLat: 17.0521416001496,
+  kitchenLng: 81.867766342987642,
+  deliveryRadiusKm: 20.0,
   deliveryFee: 49.0,
   isActive: true,
 };

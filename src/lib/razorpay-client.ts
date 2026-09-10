@@ -70,12 +70,12 @@ export const openRazorpayModal = async (options: RazorpayOptions) => {
     ? RAZORPAY_METHOD_MAP[options.preferredMethod.toUpperCase()] || options.preferredMethod.toLowerCase()
     : undefined;
 
-  const razorpayConfig = {
+  const razorpayConfig: any = {
     key: options.keyId,
     amount: options.amount,
     currency: options.currency || "INR",
-    name: options.name || "Q Bowl",
-    description: options.description || "Food & Subscription Payment",
+    name: options.name || "The Q Bowl",
+    description: options.description || "Fresh Artisan Food Bowl & Fast Delivery",
     order_id: options.razorpayOrderId,
     prefill: {
       name: options.userName || "",
@@ -85,13 +85,49 @@ export const openRazorpayModal = async (options: RazorpayOptions) => {
     },
     config: {
       display: {
+        language: "en",
+        blocks: {
+          upi: {
+            name: "Pay via UPI (PhonePe, GPay, Paytm, Navi, Amazon Pay)",
+            instruments: [
+              {
+                method: "upi",
+                flows: ["intent", "qr", "collect"],
+                apps: ["google_pay", "phonepe", "paytm", "bhim", "cred", "amazonpay", "navi"],
+              },
+            ],
+          },
+          cards: {
+            name: "Cards (Credit / Debit)",
+            instruments: [
+              {
+                method: "card",
+              },
+            ],
+          },
+          netbanking: {
+            name: "Net Banking & Bank Transfer",
+            instruments: [
+              {
+                method: "netbanking",
+              },
+            ],
+          },
+        },
+        sequence:
+          preferredRazorpayMethod === "card"
+            ? ["block.cards", "block.upi", "block.netbanking"]
+            : preferredRazorpayMethod === "netbanking"
+            ? ["block.netbanking", "block.upi", "block.cards"]
+            : ["block.upi", "block.cards", "block.netbanking"],
         preferences: {
           show_default_blocks: true,
         },
       },
     },
     theme: {
-      color: "#496A5A",
+      color: "#E5A00D",
+      backdrop_color: "rgba(0, 0, 0, 0.75)",
     },
     handler: async (response: {
       razorpay_order_id: string;

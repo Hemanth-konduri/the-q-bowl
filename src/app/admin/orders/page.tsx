@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { AdminSidebar } from "../components/AdminSidebar";
 import { AdminNavbar } from "../components/AdminNavbar";
+import { formatOrderId } from "@/lib/utils/orderIdFormatter";
 import {
   Package,
   Utensils,
@@ -23,6 +24,8 @@ import {
   ShieldCheck,
   Award,
   ChevronRight,
+  Bike,
+  Check,
 } from "lucide-react";
 
 interface OrderItem {
@@ -41,6 +44,14 @@ interface PaymentInfo {
   status: string;
   transactionId?: string;
   paidAt?: string;
+}
+
+interface DeliveryBoy {
+  id: string;
+  fullName: string;
+  phone: string;
+  email?: string;
+  isActive: boolean;
 }
 
 interface OrderRecord {
@@ -73,6 +84,12 @@ interface OrderRecord {
   // Items & Payment
   items: OrderItem[];
   payment?: PaymentInfo | null;
+  assignedPartner?: {
+    id: string;
+    name: string;
+    phone: string;
+    status: string;
+  } | null;
 }
 
 interface SummaryStats {
@@ -95,12 +112,30 @@ export default function AdminOrdersPage() {
     deliveredCount: 0,
   });
 
+  // Delivery Partners List for Dispatch Assignment
+  const [deliveryBoys, setDeliveryBoys] = useState<DeliveryBoy[]>([]);
+  const [dispatchModalOrder, setDispatchModalOrder] = useState<OrderRecord | null>(null);
+  const [selectedDriverId, setSelectedDriverId] = useState<string>("");
+  const [dispatching, setDispatching] = useState(false);
+
   // Filter States
   const [activeTab, setActiveTab] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Customer & Order Modal State
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null);
+
+  async function fetchDeliveryBoys() {
+    try {
+      const res = await fetch("/api/admin/delivery-partners");
+      if (res.ok) {
+        const list = await res.json();
+        setDeliveryBoys(Array.isArray(list) ? list : []);
+      }
+    } catch (err) {
+      console.error("Error fetching delivery boys:", err);
+    }
+  }
 
   async function fetchOrdersData(isManual = false) {
     if (isManual) setRefreshing(true);
@@ -128,22 +163,54 @@ export default function AdminOrdersPage() {
 
   useEffect(() => {
     fetchOrdersData();
+    fetchDeliveryBoys();
   }, [activeTab]);
 
-  async function handleUpdateStatus(orderId: string, newStatus: string) {
+  async function handleUpdateStatus(orderId: string, newStatus: string, deliveryPartnerId?: string) {
     setUpdatingOrderId(orderId);
     try {
       const res = await fetch("/api/admin/orders", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, status: newStatus }),
+        body: JSON.stringify({ orderId, status: newStatus, deliveryPartnerId }),
       });
       if (res.ok) {
+        const assignedDriver = deliveryBoys.find((d) => d.id === deliveryPartnerId);
         setOrders((prev) =>
-          prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
+          prev.map((o) =>
+            o.id === orderId
+              ? {
+                  ...o,
+                  status: newStatus,
+                  assignedPartner: assignedDriver
+                    ? {
+                        id: assignedDriver.id,
+                        name: assignedDriver.fullName,
+                        phone: assignedDriver.phone,
+                        status: newStatus,
+                      }
+                    : o.assignedPartner,
+                }
+              : o
+          )
         );
         if (selectedOrder && selectedOrder.id === orderId) {
-          setSelectedOrder((prev) => (prev ? { ...prev, status: newStatus } : null));
+          setSelectedOrder((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  status: newStatus,
+                  assignedPartner: assignedDriver
+                    ? {
+                        id: assignedDriver.id,
+                        name: assignedDriver.fullName,
+                        phone: assignedDriver.phone,
+                        status: newStatus,
+                      }
+                    : prev.assignedPartner,
+                }
+              : null
+          );
         }
       }
     } catch (err) {
@@ -151,6 +218,17 @@ export default function AdminOrdersPage() {
     } finally {
       setUpdatingOrderId(null);
     }
+  }
+
+  async function handleConfirmDispatch(e: React.FormEvent) {
+    e.preventDefault();
+    if (!dispatchModalOrder || !selectedDriverId) return;
+
+    setDispatching(true);
+    await handleUpdateStatus(dispatchModalOrder.id, "OUT_FOR_DELIVERY", selectedDriverId);
+    setDispatching(false);
+    setDispatchModalOrder(null);
+    setSelectedDriverId("");
   }
 
   // Filtered orders list by search query
@@ -338,7 +416,7 @@ export default function AdminOrdersPage() {
                           {/* Order ID */}
                           <td className="py-4 pr-4">
                             <p className="font-mono font-black text-black group-hover:text-[#E5A00D] transition-colors">
-                              #{order.id.slice(0, 8)}
+                              {formatOrderId(order.id)}
                             </p>
                             <p className="text-[11px] text-slate-500 mt-0.5">
                               {new Date(order.createdAt).toLocaleString([], {
@@ -395,19 +473,28 @@ export default function AdminOrdersPage() {
 
                           {/* Status */}
                           <td className="py-4 px-4">
-                            <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-extrabold ${
-                                order.status === "DELIVERED"
-                                  ? "bg-emerald-100 text-emerald-800"
-                                  : order.status === "OUT_FOR_DELIVERY"
-                                  ? "bg-blue-100 text-blue-800"
-                                  : order.status === "PREPARING" || order.status === "CONFIRMED"
-                                  ? "bg-[#E5A00D] text-black"
-                                  : "bg-amber-100 text-amber-900"
-                              }`}
-                            >
-                              {order.status}
-                            </span>
+                            <div className="flex flex-col gap-1">
+                              <span
+                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-extrabold w-fit ${
+                                  order.status === "DELIVERED"
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : order.status === "OUT_FOR_DELIVERY"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : order.status === "PREPARING" || order.status === "CONFIRMED"
+                                    ? "bg-[#E5A00D] text-black"
+                                    : "bg-amber-100 text-amber-900"
+                                }`}
+                              >
+                                {order.status}
+                              </span>
+
+                              {order.assignedPartner && (
+                                <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md flex items-center gap-1 w-fit border border-slate-200">
+                                  <Bike size={11} className="text-black" />
+                                  <span>{order.assignedPartner.name}</span>
+                                </span>
+                              )}
+                            </div>
                           </td>
 
                           {/* Actions & View Customer */}
@@ -432,13 +519,17 @@ export default function AdminOrdersPage() {
                                 </button>
                               )}
 
-                              {(order.status === "PREPARING" || order.status === "CONFIRMED") && (
+                              {(order.status === "PREPARING" || order.status === "CONFIRMED" || order.status === "PENDING") && (
                                 <button
-                                  onClick={() => handleUpdateStatus(order.id, "OUT_FOR_DELIVERY")}
+                                  onClick={() => {
+                                    setDispatchModalOrder(order);
+                                    setSelectedDriverId(order.assignedPartner?.id || (deliveryBoys[0]?.id || ""));
+                                  }}
                                   disabled={updatingOrderId === order.id}
-                                  className="px-3 py-1.5 bg-[#E5A00D] hover:bg-amber-500 text-black font-black text-xs rounded-xl transition-colors shadow-sm disabled:opacity-50"
+                                  className="px-3 py-1.5 bg-[#E5A00D] hover:bg-amber-500 text-black font-black text-xs rounded-xl transition-colors shadow-sm disabled:opacity-50 flex items-center gap-1"
                                 >
-                                  Dispatch
+                                  <Bike size={13} />
+                                  <span>{order.assignedPartner ? "Re-assign Driver" : "Assign & Dispatch"}</span>
                                 </button>
                               )}
 
@@ -481,7 +572,7 @@ export default function AdminOrdersPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-xl font-black text-black">
-                    Order #{selectedOrder.id.slice(0, 8)}
+                    Order {formatOrderId(selectedOrder.id)}
                   </h3>
                   <span
                     className={`px-2.5 py-0.5 rounded text-xs font-black uppercase ${
@@ -633,13 +724,17 @@ export default function AdminOrdersPage() {
                   </button>
                 )}
 
-                {(selectedOrder.status === "PREPARING" || selectedOrder.status === "CONFIRMED") && (
+                {(selectedOrder.status === "PREPARING" || selectedOrder.status === "CONFIRMED" || selectedOrder.status === "PENDING") && (
                   <button
-                    onClick={() => handleUpdateStatus(selectedOrder.id, "OUT_FOR_DELIVERY")}
+                    onClick={() => {
+                      setDispatchModalOrder(selectedOrder);
+                      setSelectedDriverId(selectedOrder.assignedPartner?.id || (deliveryBoys[0]?.id || ""));
+                    }}
                     disabled={updatingOrderId === selectedOrder.id}
-                    className="flex-1 sm:flex-initial px-5 py-2 bg-[#E5A00D] hover:bg-amber-500 text-black font-black text-xs rounded-xl shadow-md transition-colors disabled:opacity-50"
+                    className="flex-1 sm:flex-initial px-5 py-2 bg-[#E5A00D] hover:bg-amber-500 text-black font-black text-xs rounded-xl shadow-md transition-colors disabled:opacity-50 flex items-center gap-1.5"
                   >
-                    Dispatch for Delivery
+                    <Bike size={15} />
+                    <span>{selectedOrder.assignedPartner ? "Re-assign Driver" : "Assign Driver & Dispatch"}</span>
                   </button>
                 )}
 
@@ -654,6 +749,132 @@ export default function AdminOrdersPage() {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════ */}
+      {/* ASSIGN DELIVERY BOY & DISPATCH MODAL                          */}
+      {/* ════════════════════════════════════════════════════════════ */}
+      {dispatchModalOrder && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white border-2 border-black w-full max-w-lg rounded-3xl shadow-[8px_8px_0_#000] p-6 sm:p-8 space-y-6 relative text-black">
+            
+            <div className="flex items-center justify-between border-b-2 border-black/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-[#E5A00D] border-2 border-black flex items-center justify-center text-black shadow-[2px_2px_0_#000]">
+                  <Bike size={20} />
+                </div>
+                <div>
+                  <h3 className="font-outfit text-xl font-black uppercase text-black">
+                    Assign Delivery Boy
+                  </h3>
+                  <p className="text-xs font-bold text-slate-500">
+                    Order {formatOrderId(dispatchModalOrder.id)} • {dispatchModalOrder.userName}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setDispatchModalOrder(null)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-black transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Order Destination Snapshot */}
+            <div className="bg-[#FFF8EE] p-4 rounded-2xl border-2 border-black space-y-1 text-xs font-medium">
+              <p className="font-outfit font-black text-xs uppercase text-slate-500">Drop-off Destination</p>
+              <p className="font-bold text-black">{dispatchModalOrder.address || "Main Customer Address"}</p>
+              <p className="text-slate-600 font-semibold text-[11px]">
+                {[dispatchModalOrder.area, dispatchModalOrder.city, dispatchModalOrder.pincode].filter(Boolean).join(", ")}
+              </p>
+              <p className="text-[#E5A00D] font-black text-xs pt-1">
+                Order Value: ₹{dispatchModalOrder.total} ({dispatchModalOrder.items.length} items)
+              </p>
+            </div>
+
+            {/* Delivery Driver Selector */}
+            <form onSubmit={handleConfirmDispatch} className="space-y-4">
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-black mb-2">
+                  Select Delivery Fleet Boy
+                </label>
+
+                {deliveryBoys.length === 0 ? (
+                  <div className="p-4 rounded-2xl border-2 border-dashed border-rose-300 bg-rose-50 text-rose-800 text-xs font-bold text-center">
+                    No active delivery boys registered. Go to Admin Credentials to create delivery staff accounts first.
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    {deliveryBoys.map((driver) => {
+                      const isSelected = selectedDriverId === driver.id;
+                      return (
+                        <div
+                          key={driver.id}
+                          onClick={() => setSelectedDriverId(driver.id)}
+                          className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between ${
+                            isSelected
+                              ? "border-black bg-[#E5A00D] shadow-[3px_3px_0_#000] scale-[1.01]"
+                              : "border-slate-200 bg-white hover:border-black hover:bg-slate-50"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`h-8 w-8 rounded-xl border border-black flex items-center justify-center font-outfit font-black text-xs ${
+                              isSelected ? "bg-black text-[#FFF8EE]" : "bg-[#FFF8EE] text-black"
+                            }`}>
+                              {driver.fullName.slice(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-outfit font-black text-xs uppercase text-black">{driver.fullName}</p>
+                              <p className="text-[11px] font-mono font-bold text-slate-700">{driver.phone || "No phone"}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                              driver.isActive ? "bg-emerald-100 text-emerald-800 border-emerald-300" : "bg-zinc-100 text-zinc-500 border-zinc-300"
+                            }`}>
+                              {driver.isActive ? "Active (Online)" : "Off Duty"}
+                            </span>
+                            {isSelected && <Check size={16} className="text-black stroke-[3]" />}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Buttons */}
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDispatchModalOrder(null)}
+                  className="px-4 py-2.5 rounded-xl border-2 border-black bg-white hover:bg-slate-100 font-outfit font-black text-xs uppercase tracking-wider text-black transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!selectedDriverId || dispatching}
+                  className="px-6 py-2.5 rounded-xl border-2 border-black bg-black text-[#E5A00D] hover:bg-[#E5A00D] hover:text-black font-outfit font-black text-xs uppercase tracking-wider transition-all shadow-[2px_2px_0_#000] disabled:opacity-50 flex items-center gap-2"
+                >
+                  {dispatching ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Dispatching...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Bike size={14} />
+                      <span>Confirm &amp; Dispatch Order</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+
           </div>
         </div>
       )}

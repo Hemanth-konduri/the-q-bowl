@@ -11,6 +11,7 @@ import {
 } from "@/db/schema";
 import { requireAdminApi } from "@/lib/auth-guard";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import { formatOrderId } from "@/lib/utils/orderIdFormatter";
 
 function getTodayDateString() {
   const d = new Date();
@@ -189,7 +190,7 @@ export async function GET(req: NextRequest) {
 
         return {
           id: o.id,
-          orderIdDisplay: o.id.startsWith("ord-") ? `#ORD-${o.id.slice(4, 10).toUpperCase()}` : `#${o.id}`,
+          orderIdDisplay: formatOrderId(o.id),
           rawId: o.id,
           orderType: "DAILY_ORDER" as const,
           customerName: o.customerName || "Daily Customer",

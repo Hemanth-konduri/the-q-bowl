@@ -96,7 +96,7 @@ export default function Navbar() {
               }`}
             >
               <Utensils className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-colors duration-500 ${isDarkSection ? "text-black" : "text-[#E5A00D]"}`} />
-              <span>Burgers &amp; Bowls</span>
+              <span>Order Now</span>
             </Link>
 
             {/* Menu Toggle Button */}

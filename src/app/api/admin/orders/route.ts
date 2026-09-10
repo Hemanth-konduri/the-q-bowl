@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { orders, orderItems, users, addresses, payments } from "@/db/schema";
+import {
+  orders,
+  orderItems,
+  users,
+  addresses,
+  payments,
+  deliveryPartners,
+  normalOrderDeliveries,
+  deliveryAssignments,
+} from "@/db/schema";
 import { requireAdminApi } from "@/lib/auth-guard";
 import { desc, eq, and, sql, inArray } from "drizzle-orm";
 
@@ -64,6 +73,7 @@ export async function GET(req: NextRequest) {
     const orderIds = orderList.map((o) => o.id);
     let itemsByOrderId: Record<string, any[]> = {};
     let paymentsByOrderId: Record<string, any> = {};
+    let assignedPartnerByOrderId: Record<string, any> = {};
 
     if (orderIds.length > 0) {
       // Fetch itemized order dishes
@@ -86,6 +96,30 @@ export async function GET(req: NextRequest) {
       paymentRecords.forEach((p) => {
         if (p.orderId) paymentsByOrderId[p.orderId] = p;
       });
+
+      // Fetch assigned delivery partner
+      const deliveries = await db
+        .select({
+          orderId: normalOrderDeliveries.orderId,
+          deliveryPartnerId: normalOrderDeliveries.deliveryPartnerId,
+          deliveryPartnerName: deliveryPartners.fullName,
+          deliveryPartnerPhone: deliveryPartners.phone,
+          deliveryStatus: normalOrderDeliveries.status,
+        })
+        .from(normalOrderDeliveries)
+        .leftJoin(deliveryPartners, eq(normalOrderDeliveries.deliveryPartnerId, deliveryPartners.id))
+        .where(inArray(normalOrderDeliveries.orderId, orderIds));
+
+      deliveries.forEach((d) => {
+        if (d.orderId) {
+          assignedPartnerByOrderId[d.orderId] = {
+            id: d.deliveryPartnerId,
+            name: d.deliveryPartnerName,
+            phone: d.deliveryPartnerPhone,
+            status: d.deliveryStatus,
+          };
+        }
+      });
     }
 
     const formattedOrders = orderList.map((o) => ({
@@ -93,6 +127,7 @@ export async function GET(req: NextRequest) {
       userName: o.userName || o.userEmail || "Customer User",
       items: itemsByOrderId[o.id] || [],
       payment: paymentsByOrderId[o.id] || null,
+      assignedPartner: assignedPartnerByOrderId[o.id] || null,
     }));
 
     // Calculate Summary Stats
@@ -125,16 +160,65 @@ export async function PATCH(req: NextRequest) {
   if (auth.error) return auth.error;
 
   try {
-    const { orderId, status } = await req.json();
+    const { orderId, status, deliveryPartnerId } = await req.json();
 
     if (!orderId || !status) {
       return NextResponse.json({ error: "Order ID and status are required." }, { status: 400 });
     }
 
+    // 1. Update order status
     await db
       .update(orders)
       .set({ status: status as any, updatedAt: new Date() })
       .where(eq(orders.id, orderId));
+
+    // 2. If assigning delivery partner or dispatching
+    if (deliveryPartnerId || status === "OUT_FOR_DELIVERY" || status === "DELIVERED") {
+      const now = new Date();
+
+      // Check existing normalOrderDeliveries record
+      const existingDel = await db
+        .select()
+        .from(normalOrderDeliveries)
+        .where(eq(normalOrderDeliveries.orderId, orderId))
+        .limit(1);
+
+      if (existingDel.length > 0) {
+        await db
+          .update(normalOrderDeliveries)
+          .set({
+            deliveryPartnerId: deliveryPartnerId || existingDel[0].deliveryPartnerId,
+            status: status === "DELIVERED" ? "DELIVERED" : "OUT_FOR_DELIVERY",
+            deliveredAt: status === "DELIVERED" ? now : existingDel[0].deliveredAt,
+            updatedAt: now,
+          })
+          .where(eq(normalOrderDeliveries.id, existingDel[0].id));
+      } else if (deliveryPartnerId) {
+        const delId = `nord-${Date.now().toString().slice(-6)}`;
+        await db.insert(normalOrderDeliveries).values({
+          id: delId,
+          orderId,
+          deliveryPartnerId,
+          status: status === "DELIVERED" ? "DELIVERED" : "OUT_FOR_DELIVERY",
+          deliveredAt: status === "DELIVERED" ? now : null,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        // Also record in deliveryAssignments
+        const assignId = `assign-${Date.now().toString().slice(-6)}`;
+        await db.insert(deliveryAssignments).values({
+          id: assignId,
+          deliveryPartnerId,
+          orderId,
+          status: status === "DELIVERED" ? "DELIVERED" : "ASSIGNED",
+          assignedAt: now,
+          deliveredAt: status === "DELIVERED" ? now : null,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+    }
 
     return NextResponse.json({ success: true, status });
   } catch (error) {
