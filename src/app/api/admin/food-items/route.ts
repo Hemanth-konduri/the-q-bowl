@@ -19,6 +19,7 @@ export async function GET() {
         description: foodItems.description,
         imageUrl: foodItems.imageUrl,
         price: foodItems.price,
+        deliveryCharge: foodItems.deliveryCharge,
         calories: foodItems.calories,
         protein: foodItems.protein,
         rating: foodItems.rating,
@@ -50,6 +51,7 @@ export async function POST(req: NextRequest) {
       description,
       imageUrl,
       price,
+      deliveryCharge,
       calories,
       protein,
       isVeg,
@@ -57,9 +59,9 @@ export async function POST(req: NextRequest) {
       isAvailable,
     } = body;
 
-    if (!categoryId || !name || price === undefined || !mealType) {
+    if (!categoryId || !name || price === undefined) {
       return NextResponse.json(
-        { error: "Category, Name, Price, and Meal Type are required." },
+        { error: "Category, Name, and Price are required." },
         { status: 400 }
       );
     }
@@ -72,10 +74,11 @@ export async function POST(req: NextRequest) {
       description: description || null,
       imageUrl: imageUrl || null,
       price: Number(price),
+      deliveryCharge: deliveryCharge !== undefined && deliveryCharge !== "" ? Number(deliveryCharge) : 0,
       calories: calories ? Number(calories) : 520,
       protein: protein || "30g",
       isVeg: Boolean(isVeg),
-      mealType: mealType as "BREAKFAST" | "LUNCH" | "DINNER" | "SNACK" | "OTHER",
+      mealType: (mealType || "LUNCH") as "BREAKFAST" | "LUNCH" | "DINNER" | "SNACK" | "OTHER",
       isAvailable: isAvailable !== undefined ? Boolean(isAvailable) : true,
     });
 
@@ -92,13 +95,14 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { id, isAvailable, price, categoryId, name, description, imageUrl, calories, protein, isVeg, mealType } = body;
+    const { id, isAvailable, price, deliveryCharge, categoryId, name, description, imageUrl, calories, protein, isVeg, mealType } = body;
 
     if (!id) return NextResponse.json({ error: "Food item ID is required." }, { status: 400 });
 
     const updateData: Record<string, unknown> = {};
     if (typeof isAvailable === "boolean") updateData.isAvailable = isAvailable;
     if (price !== undefined) updateData.price = Number(price);
+    if (deliveryCharge !== undefined) updateData.deliveryCharge = deliveryCharge !== "" ? Number(deliveryCharge) : 0;
     if (categoryId) updateData.categoryId = categoryId;
     if (name) updateData.name = name.trim();
     if (description !== undefined) updateData.description = description;

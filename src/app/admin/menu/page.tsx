@@ -38,6 +38,7 @@ interface FoodItem {
   description?: string;
   imageUrl?: string;
   price: number;
+  deliveryCharge?: number;
   calories: number;
   protein: string;
   isVeg: boolean;
@@ -85,6 +86,7 @@ export default function AdminMenuPage() {
     description: "",
     imageUrl: "",
     price: "",
+    deliveryCharge: "",
     calories: "520",
     protein: "32g",
     isVeg: true,
@@ -201,10 +203,11 @@ export default function AdminMenuPage() {
           description: itemForm.description,
           imageUrl: itemForm.imageUrl,
           price: Number(itemForm.price),
+          deliveryCharge: itemForm.deliveryCharge !== "" ? Number(itemForm.deliveryCharge) : 0,
           calories: Number(itemForm.calories) || 520,
           protein: itemForm.protein || "30g",
           isVeg: itemForm.isVeg,
-          mealType: itemForm.mealType,
+          mealType: itemForm.mealType || "LUNCH",
           isAvailable: itemForm.isAvailable,
         }),
       });
@@ -218,6 +221,7 @@ export default function AdminMenuPage() {
           description: "",
           imageUrl: "",
           price: "",
+          deliveryCharge: "",
           calories: "520",
           protein: "32g",
           isVeg: true,
@@ -442,6 +446,7 @@ export default function AdminMenuPage() {
                       description: "",
                       imageUrl: "",
                       price: "",
+                      deliveryCharge: "",
                       calories: "520",
                       protein: "32g",
                       isVeg: true,
@@ -673,7 +678,12 @@ export default function AdminMenuPage() {
                         <div className="pt-2 border-t border-slate-100 space-y-2">
                           <div className="flex items-center justify-between text-xs font-bold">
                             <span className="text-slate-500">{item.calories} kcal • {item.protein}</span>
-                            <span className="text-black font-black text-base">₹{item.price}</span>
+                            <div className="text-right">
+                              <span className="text-black font-black text-base">₹{item.price}</span>
+                              {item.deliveryCharge !== undefined && Number(item.deliveryCharge) > 0 && (
+                                <span className="block text-[10px] text-amber-600 font-semibold">+₹{item.deliveryCharge} delivery</span>
+                              )}
+                            </div>
                           </div>
 
                           <div className="flex items-center gap-2 pt-1">
@@ -686,10 +696,11 @@ export default function AdminMenuPage() {
                                   description: item.description || "",
                                   imageUrl: item.imageUrl || "",
                                   price: String(item.price),
+                                  deliveryCharge: item.deliveryCharge !== undefined && item.deliveryCharge !== null ? String(item.deliveryCharge) : "",
                                   calories: String(item.calories || 520),
                                   protein: item.protein || "32g",
                                   isVeg: item.isVeg,
-                                  mealType: item.mealType,
+                                  mealType: item.mealType || "LUNCH",
                                   isAvailable: item.isAvailable,
                                 });
                                 setShowItemModal(true);
@@ -816,6 +827,21 @@ export default function AdminMenuPage() {
                 </div>
 
                 <div>
+                  <label className="block font-bold text-black uppercase tracking-wider mb-1 flex items-center justify-between">
+                    <span>Delivery (₹)</span>
+                    <span className="text-[10px] text-slate-400 font-semibold lowercase">optional</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={itemForm.deliveryCharge}
+                    onChange={(e) => setItemForm({ ...itemForm, deliveryCharge: e.target.value })}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-black outline-none focus:border-[#E5A00D]"
+                  />
+                </div>
+
+                <div>
                   <label className="block font-bold text-black uppercase tracking-wider mb-1">
                     Calories (kcal)
                   </label>
@@ -826,22 +852,6 @@ export default function AdminMenuPage() {
                     onChange={(e) => setItemForm({ ...itemForm, calories: e.target.value })}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-black outline-none focus:border-[#E5A00D]"
                   />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-black uppercase tracking-wider mb-1">
-                    Meal Timing Slot
-                  </label>
-                  <select
-                    value={itemForm.mealType}
-                    onChange={(e) => setItemForm({ ...itemForm, mealType: e.target.value as any })}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-black outline-none focus:border-[#E5A00D]"
-                  >
-                    <option value="BREAKFAST">BREAKFAST</option>
-                    <option value="LUNCH">LUNCH</option>
-                    <option value="DINNER">DINNER</option>
-                    <option value="SNACK">SNACK</option>
-                  </select>
                 </div>
               </div>
 

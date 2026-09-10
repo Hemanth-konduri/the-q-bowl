@@ -19,6 +19,7 @@ export async function GET(
         description: foodItems.description,
         imageUrl: foodItems.imageUrl,
         price: foodItems.price,
+        deliveryCharge: foodItems.deliveryCharge,
         calories: foodItems.calories,
         protein: foodItems.protein,
         rating: foodItems.rating,
