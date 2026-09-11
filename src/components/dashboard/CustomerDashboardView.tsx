@@ -10,6 +10,7 @@ import {
   MapPin,
   ShoppingBag,
   ArrowRight,
+  ArrowLeft,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -41,10 +42,20 @@ import {
   Upload,
   Image as ImageIcon,
   MessageSquare,
+  ChefHat,
+  Megaphone,
+  Info,
+  Bell,
+  Calendar,
+  AlertTriangle,
+  Play,
+  Pause,
+  Zap,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { AddressModal, AddressItem } from "./AddressModal";
 import { formatOrderId } from "@/lib/utils/orderIdFormatter";
+import { openRazorpayModal } from "@/lib/razorpay-client";
 
 const LiveTrackingMap = dynamic(() => import("./LiveTrackingMap"), {
   ssr: false,
@@ -174,6 +185,76 @@ export function CustomerDashboardView() {
 
   // Favorites State
   const [favorites, setFavorites] = useState<string[]>([]);
+
+  // Kitchen Operational Status State & Modals
+  const [kitchenStatus, setKitchenStatus] = useState({
+    kitchenStatus: "OPEN",
+    openingTime: "07:00 AM",
+    closingTime: "10:30 PM",
+    isOrderingPaused: false,
+    estimatedPrepTime: "25 - 35 mins",
+    isNoticeBannerActive: true,
+    noticeBannerText: "Kitchen is open and serving fresh homemade bowls! Pre-orders welcome.",
+    noticeBannerType: "INFO" as "INFO" | "WARNING" | "ALERT" | "SUCCESS",
+    subscriberExemptionNote: "Active subscribers continue receiving daily scheduled meals on time without interruption.",
+    kitchenName: "The Q Bowl Cloud Kitchen, Bridge County Canteen Hub, Rajanagaram, Velugubanda, AP",
+    kitchenLat: 17.0605,
+    kitchenLng: 81.8640,
+    deliveryRadiusKm: 20.0,
+  });
+  const [showKitchenModal, setShowKitchenModal] = useState(false);
+  const [showKitchenPausedModal, setShowKitchenPausedModal] = useState(false);
+  const [dismissedNotice, setDismissedNotice] = useState(false);
+
+  // Fetch live kitchen operational status from backend (with fast 4s polling + window focus sync)
+  useEffect(() => {
+    async function fetchKitchenStatus() {
+      try {
+        const res = await fetch(`/api/kitchen/status?t=${Date.now()}`, {
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.settings) {
+            setKitchenStatus((prev) => ({ ...prev, ...data.settings }));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch kitchen status:", err);
+      }
+    }
+
+    fetchKitchenStatus();
+    const interval = setInterval(fetchKitchenStatus, 4000);
+    window.addEventListener("focus", fetchKitchenStatus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", fetchKitchenStatus);
+    };
+  }, []);
+
+  // Lock body scroll and enable ESC key to close full-screen Kitchen view
+  useEffect(() => {
+    if (showKitchenModal) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          setShowKitchenModal(false);
+          setShowKitchenPausedModal(false);
+        }
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+  }, [showKitchenModal]);
 
   // Active Delivery Address State & Modal
   const [activeAddress, setActiveAddress] = useState<AddressItem | null>(null);
@@ -459,6 +540,197 @@ export function CustomerDashboardView() {
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [invoiceModalOrder, setInvoiceModalOrder] = useState<any | null>(null);
 
+  // ── Subscription State ──
+  const [dbSubPackages, setDbSubPackages] = useState<any[]>([]);
+  const [dbSubMeals, setDbSubMeals] = useState<any[]>([]);
+  const [selectedSubPlan, setSelectedSubPlan] = useState<string>("pkg-30-meals");
+  const [subMealTiming, setSubMealTiming] = useState<"LUNCH" | "DINNER" | "BOTH">("LUNCH");
+  const [subStartDate, setSubStartDate] = useState<string>(() => {
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    return tomorrow.toISOString().split("T")[0];
+  });
+  const [activeSubRecord, setActiveSubRecord] = useState<any | null>(null);
+  const [allUserSubs, setAllUserSubs] = useState<any[]>([]);
+  const [subDeliveries, setSubDeliveries] = useState<any[]>([]);
+  const [subVegMeal, setSubVegMeal] = useState<any | null>(null);
+  const [loadingSubData, setLoadingSubData] = useState(false);
+  const [subSubmitting, setSubSubmitting] = useState(false);
+  const [subSuccessMsg, setSubSuccessMsg] = useState<string | null>(null);
+  const [subErrorMsg, setSubErrorMsg] = useState<string | null>(null);
+
+  // Load User Subscriptions, Active Packages & Active Meals from Database
+  async function loadSubscriptionData() {
+    try {
+      setLoadingSubData(true);
+      const res = await fetch("/api/user/subscriptions");
+      if (res.ok) {
+        const data = await res.json();
+        setActiveSubRecord(data.activeSubscription || null);
+        setAllUserSubs(data.allSubscriptions || []);
+        setSubDeliveries(data.deliveries || []);
+        
+        // Active packages from DB (only active ones returned by API)
+        const pkgs = data.availablePackages || [];
+        setDbSubPackages(pkgs);
+        if (pkgs.length > 0) {
+          // If currently selected plan is no longer in active packages, select the first available or featured
+          setSelectedSubPlan((current) => {
+            const exists = pkgs.some((p: any) => p.id === current);
+            if (exists) return current;
+            const featured = pkgs.find((p: any) => p.isFeatured);
+            return featured ? featured.id : pkgs[0].id;
+          });
+        }
+
+        // Active meals with active subscription pricing
+        const activeMeals = data.availableMeals || [];
+        setDbSubMeals(activeMeals);
+        
+        // Prefer Full Veg Meal if present among active pricing, else first active meal
+        const veg = activeMeals.find((m: any) => m.isVeg) || activeMeals[0] || null;
+        setSubVegMeal(veg);
+      }
+    } catch (e) {
+      console.error("Failed to load subscription data:", e);
+    } finally {
+      setLoadingSubData(false);
+    }
+  }
+
+  // Toggle Pause on active subscription
+  async function handleToggleSubPause(subId: string) {
+    try {
+      setSubSubmitting(true);
+      const res = await fetch("/api/user/subscriptions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "TOGGLE_PAUSE", subscriptionId: subId }),
+      });
+      if (res.ok) {
+        await loadSubscriptionData();
+      } else {
+        const err = await res.json();
+        setSubErrorMsg(err.error || "Failed to update subscription status");
+      }
+    } catch (e: any) {
+      setSubErrorMsg(e.message || "Failed to update subscription");
+    } finally {
+      setSubSubmitting(false);
+    }
+  }
+
+  // Subscribe to Selected Package Plan
+  async function handleSubscribePlan(pkgCredits: number, pkgName: string, packageId?: string) {
+    if (!activeAddress?.id) {
+      setAddressModalOpen(true);
+      return;
+    }
+    // Resolve target meal: from subscription pricing, or from active catalog
+    const targetMeal =
+      subVegMeal ||
+      dbSubMeals.find((m) => m.isVeg) ||
+      dbSubMeals[0] ||
+      dbFoodItems.find((f) => f.tagType === "PURE VEG") ||
+      dbFoodItems[0];
+
+    if (!targetMeal?.id) {
+      setSubErrorMsg("Please wait a moment while meals are loading...");
+      return;
+    }
+
+    setSubSubmitting(true);
+    setSubErrorMsg(null);
+    setSubSuccessMsg(null);
+
+    const matchedPkgId =
+      packageId || (pkgCredits === 20 ? "pkg-20-meals" : pkgCredits === 30 ? "pkg-30-meals" : "pkg-60-meals");
+
+    try {
+      // 1. Create official Razorpay Order for Subscription
+      const createRes = await fetch("/api/payments/razorpay/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          purpose: "SUBSCRIPTION",
+          packageId: matchedPkgId,
+          mealId: targetMeal.id,
+          addressId: activeAddress.id,
+          mealCredits: pkgCredits,
+          mealsPerDay: subMealTiming === "BOTH" ? 2 : 1,
+          mealTiming: subMealTiming,
+          deliveryDays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+        }),
+      });
+
+      const createData = await createRes.json();
+
+      if (!createRes.ok || !createData.success) {
+        // Fallback: If Razorpay keys are in demo/unconfigured mode or validation error
+        if (createData.error && !createData.error.includes("Razorpay credentials")) {
+          setSubErrorMsg(createData.error);
+          setSubSubmitting(false);
+          return;
+        }
+
+        // Direct subscribe fallback via backend API
+        const directRes = await fetch("/api/user/subscriptions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "CREATE_SUBSCRIPTION",
+            packageId: matchedPkgId,
+            mealId: targetMeal.id,
+            addressId: activeAddress.id,
+            mealCredits: pkgCredits,
+            mealsPerDay: subMealTiming === "BOTH" ? 2 : 1,
+            mealTiming: subMealTiming,
+            deliveryDays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+            preferredDeliveryTime: subMealTiming === "DINNER" ? "07:30 PM - 08:30 PM" : "12:00 PM - 01:00 PM",
+            startDate: subStartDate,
+          }),
+        });
+
+        const directData = await directRes.json();
+        if (directRes.ok && directData.success) {
+          setSubSuccessMsg(`🎉 Congratulations! Your ${pkgName} is activated! (Total: ₹${pkgCredits * 55})`);
+          await loadSubscriptionData();
+        } else {
+          setSubErrorMsg(directData.error || "Unable to activate subscription. Please try again.");
+        }
+        setSubSubmitting(false);
+        return;
+      }
+
+      // 2. Open Official Razorpay Checkout Modal
+      await openRazorpayModal({
+        keyId: createData.keyId,
+        razorpayOrderId: createData.razorpayOrderId || createData.orderId,
+        amount: createData.amount,
+        currency: createData.currency || "INR",
+        name: "The Q Bowl - Meal Subscriptions",
+        description: `${pkgName} · Full Veg Meal Plan`,
+        userEmail: createData.customer?.email || "",
+        userName: createData.customer?.name || "",
+        userPhone: createData.customer?.phone || "",
+        onSuccess: async (payData) => {
+          setSubSuccessMsg(`🎉 Payment verified! Your ${pkgName} is now active.`);
+          await loadSubscriptionData();
+          setSubSubmitting(false);
+          // Scroll up to the active plan card smoothly
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        },
+        onError: (errMsg) => {
+          setSubErrorMsg(errMsg || "Payment was not completed.");
+          setSubSubmitting(false);
+        },
+      });
+    } catch (err: any) {
+      console.error("Subscription purchase error:", err);
+      setSubErrorMsg(err?.message || "Failed to process subscription checkout.");
+      setSubSubmitting(false);
+    }
+  }
+
   // Load User Orders from Database
   async function loadUserOrders() {
     try {
@@ -475,9 +747,10 @@ export function CustomerDashboardView() {
     }
   }
 
-  // Load orders immediately on mount and listen to order placed events
+  // Load orders and subscriptions immediately on mount and listen to order placed events
   useEffect(() => {
     loadUserOrders();
+    loadSubscriptionData();
 
     function handleOrderPlaced() {
       loadUserOrders();
@@ -524,8 +797,11 @@ export function CustomerDashboardView() {
         loadUserOrders();
       } else if (hash === "#subscriptions") {
         setActiveTab("subscriptions");
+        loadSubscriptionData();
       } else if (hash === "#settings") {
         setActiveTab("settings");
+      } else if (hash === "#kitchen" || hash === "#kitchen-info") {
+        setShowKitchenModal(true);
       } else {
         setActiveTab("home");
         setActiveCategory("All Delicacies");
@@ -666,6 +942,12 @@ export function CustomerDashboardView() {
   }
 
   async function updateQuantity(foodItem: FoodItem, delta: number) {
+    // If customer is adding a new dish and kitchen ordering is paused or closed
+    if (delta > 0 && (kitchenStatus.isOrderingPaused || kitchenStatus.kitchenStatus !== "OPEN")) {
+      setShowKitchenModal(true);
+      return;
+    }
+
     const itemId = foodItem.id;
     const current = quantities[itemId] || 0;
     const next = Math.max(0, current + delta);
@@ -733,8 +1015,71 @@ export function CustomerDashboardView() {
 
   const activeSlideData = slides[currentSlide];
 
+  // Kitchen availability state: when closed, closed for today, temporarily unavailable, or ordering paused
+  const isKitchenClosedOrUnavailable =
+    kitchenStatus.kitchenStatus !== "OPEN" || Boolean(kitchenStatus.isOrderingPaused);
+
   return (
     <div className="space-y-8 w-full">
+
+      {/* ── LIVE KITCHEN ANNOUNCEMENT BANNER (Broadcast from Admin Kitchen) ── */}
+      {kitchenStatus.isNoticeBannerActive && !dismissedNotice && kitchenStatus.noticeBannerText && (
+        <div
+          className={`relative overflow-hidden rounded-2xl border-2 border-black p-3.5 sm:p-4 shadow-[4px_4px_0_#000] flex items-center justify-between gap-3 transition-all animate-in fade-in duration-300 ${kitchenStatus.noticeBannerType === "ALERT"
+              ? "bg-rose-100 text-rose-950"
+              : kitchenStatus.noticeBannerType === "WARNING"
+                ? "bg-amber-100 text-amber-950"
+                : kitchenStatus.noticeBannerType === "SUCCESS"
+                  ? "bg-emerald-100 text-emerald-950"
+                  : "bg-[#FFF8EE] text-black"
+            }`}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div
+              className={`h-9 w-9 rounded-xl border-2 border-black flex items-center justify-center shrink-0 shadow-[2px_2px_0_#000] ${kitchenStatus.noticeBannerType === "ALERT"
+                  ? "bg-rose-500 text-white"
+                  : kitchenStatus.noticeBannerType === "WARNING"
+                    ? "bg-amber-500 text-black"
+                    : kitchenStatus.noticeBannerType === "SUCCESS"
+                      ? "bg-emerald-500 text-white"
+                      : "bg-[#E5A00D] text-black"
+                }`}
+            >
+              <Megaphone size={18} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-outfit text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-black text-[#E5A00D]">
+                  Kitchen Broadcast
+                </span>
+                <span className="hidden xs:inline-flex items-center gap-1 text-[10px] font-bold text-zinc-600">
+                  <Clock size={11} /> Live Update
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm font-black mt-0.5 leading-snug line-clamp-2 sm:line-clamp-none">
+                {kitchenStatus.noticeBannerText}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setShowKitchenModal(true)}
+              className="hidden sm:flex items-center gap-1 text-[11px] font-black uppercase text-black underline hover:text-[#E5A00D] transition-colors cursor-pointer"
+            >
+              <ChefHat size={14} />
+              <span>Kitchen Info</span>
+            </button>
+            <button
+              onClick={() => setDismissedNotice(true)}
+              title="Dismiss announcement"
+              className="h-8 w-8 rounded-xl border border-black/20 hover:border-black flex items-center justify-center text-black/60 hover:text-black transition-colors cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── 0. Live Order Tracking View (Active Orders only) ── */}
       {activeTab === "active-order" && (
@@ -874,27 +1219,26 @@ export function CustomerDashboardView() {
                               Active Order {formatOrderId(ord.id)}
                             </span>
                             <span
-                              className={`px-3 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border ${
-                                ord.status === "OUT_FOR_DELIVERY"
+                              className={`px-3 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider border ${ord.status === "OUT_FOR_DELIVERY"
                                   ? "bg-emerald-500 text-white border-emerald-600 shadow-sm"
                                   : ord.status === "READY"
-                                  ? "bg-amber-500 text-black border-black shadow-sm"
-                                  : ord.status === "PREPARING"
-                                  ? "bg-[#E5A00D] text-black border-black shadow-sm"
-                                  : ord.status === "CONFIRMED"
-                                  ? "bg-amber-100 text-amber-950 border-amber-300"
-                                  : "bg-zinc-100 text-zinc-800 border-zinc-300"
-                              }`}
+                                    ? "bg-amber-500 text-black border-black shadow-sm"
+                                    : ord.status === "PREPARING"
+                                      ? "bg-[#E5A00D] text-black border-black shadow-sm"
+                                      : ord.status === "CONFIRMED"
+                                        ? "bg-amber-100 text-amber-950 border-amber-300"
+                                        : "bg-zinc-100 text-zinc-800 border-zinc-300"
+                                }`}
                             >
                               {ord.status === "OUT_FOR_DELIVERY"
                                 ? "Out for Delivery 🛵"
                                 : ord.status === "READY"
-                                ? "Handi Packed & Ready 🍲"
-                                : ord.status === "PREPARING"
-                                ? "Preparing Food 🔥"
-                                : ord.status === "CONFIRMED"
-                                ? "Order Confirmed ✨"
-                                : "Order Received ⏳"}
+                                  ? "Handi Packed & Ready 🍲"
+                                  : ord.status === "PREPARING"
+                                    ? "Preparing Food 🔥"
+                                    : ord.status === "CONFIRMED"
+                                      ? "Order Confirmed ✨"
+                                      : "Order Received ⏳"}
                             </span>
                           </div>
                           <p className="text-[11px] font-semibold text-zinc-500 mt-0.5">
@@ -935,12 +1279,12 @@ export function CustomerDashboardView() {
                               {ord.status === "OUT_FOR_DELIVERY"
                                 ? "Rider En Route with Sealed Handi"
                                 : ord.status === "READY"
-                                ? "Handi Sealed & Awaiting Courier Pickup"
-                                : ord.status === "PREPARING"
-                                ? "Preparing Your Order in Kitchen"
-                                : ord.status === "CONFIRMED"
-                                ? "Confirmed • Chef Assigned"
-                                : "Order Received by Kitchen"}
+                                  ? "Handi Sealed & Awaiting Courier Pickup"
+                                  : ord.status === "PREPARING"
+                                    ? "Preparing Your Order in Kitchen"
+                                    : ord.status === "CONFIRMED"
+                                      ? "Confirmed • Chef Assigned"
+                                      : "Order Received by Kitchen"}
                             </span>
                           </div>
                           <span className="font-mono font-bold text-[10px] text-amber-900/70 hidden sm:inline-block">
@@ -961,23 +1305,21 @@ export function CustomerDashboardView() {
                                   {/* Line segment from previous circle center to this circle center */}
                                   {idx > 0 && (
                                     <div
-                                      className={`absolute top-4 right-1/2 w-full h-1 sm:h-1.5 -translate-y-1/2 z-0 transition-colors duration-500 ${
-                                        idx <= stepIndex
+                                      className={`absolute top-4 right-1/2 w-full h-1 sm:h-1.5 -translate-y-1/2 z-0 transition-colors duration-500 ${idx <= stepIndex
                                           ? "bg-[#E5A00D] shadow-[0_0_6px_rgba(229,160,13,0.5)]"
                                           : "bg-zinc-200"
-                                      }`}
+                                        }`}
                                     />
                                   )}
 
                                   {/* Circle Node: exactly 32px height (top 0, center 16px = top-4), perfectly centered on the line */}
                                   <div
-                                    className={`relative z-10 w-8 h-8 rounded-full border-2 transition-all duration-300 flex items-center justify-center shrink-0 ${
-                                      isCurrent
+                                    className={`relative z-10 w-8 h-8 rounded-full border-2 transition-all duration-300 flex items-center justify-center shrink-0 ${isCurrent
                                         ? "bg-[#E5A00D] text-black border-black shadow-[0_0_12px_rgba(229,160,13,0.8)] ring-4 ring-amber-300/60 animate-pulse"
                                         : isPast
-                                        ? "bg-black text-[#E5A00D] border-black shadow-sm"
-                                        : "bg-white text-zinc-300 border-zinc-300"
-                                    }`}
+                                          ? "bg-black text-[#E5A00D] border-black shadow-sm"
+                                          : "bg-white text-zinc-300 border-zinc-300"
+                                      }`}
                                   >
                                     {isPast ? (
                                       <Check size={14} className="stroke-[3]" />
@@ -991,13 +1333,12 @@ export function CustomerDashboardView() {
 
                                   {/* Label directly underneath circle */}
                                   <p
-                                    className={`mt-1.5 font-outfit text-[10px] sm:text-[11px] font-black uppercase tracking-wider ${
-                                      isCurrent
+                                    className={`mt-1.5 font-outfit text-[10px] sm:text-[11px] font-black uppercase tracking-wider ${isCurrent
                                         ? "text-black font-black"
                                         : isPast
-                                        ? "text-zinc-800 font-bold"
-                                        : "text-zinc-400"
-                                    }`}
+                                          ? "text-zinc-800 font-bold"
+                                          : "text-zinc-400"
+                                      }`}
                                   >
                                     {step.label}
                                   </p>
@@ -1367,35 +1708,450 @@ export function CustomerDashboardView() {
 
       {/* ── 0.3 Subscriptions Tab ── */}
       {activeTab === "subscriptions" && (
-        <div className="space-y-6 animate-in fade-in duration-200">
-          <div className="rounded-3xl border-3 border-black bg-white p-6 sm:p-8 shadow-[6px_6px_0_#000] flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-[#E5A00D] border-2 border-black flex items-center justify-center shadow-[3px_3px_0_#000]">
-              <CalendarCheck size={28} className="text-black" />
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          {/* ── Mobile-Optimized Subscription Header & Address Pill ── */}
+          <div className="rounded-2xl border-2 border-black bg-white p-3.5 sm:p-4 shadow-[3px_3px_0_#000] space-y-3">
+            {/* Top Row: Title + Pure Veg Badge + Status Pill */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="h-8 w-8 rounded-xl bg-[#E5A00D] border border-black flex items-center justify-center shrink-0 shadow-[1px_1px_0_#000]">
+                  <CalendarCheck size={16} className="text-black" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h1 className="font-outfit text-sm sm:text-base font-black uppercase tracking-tight text-black">
+                      Meal Subscriptions
+                    </h1>
+                    <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                      Pure Veg
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status Pill */}
+              <div className="shrink-0">
+                <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border border-black shadow-[1px_1px_0_#000] ${
+                  activeSubRecord ? "bg-emerald-400 text-black" : "bg-zinc-100 text-zinc-700"
+                }`}>
+                  {activeSubRecord ? "Active" : "No Plan"}
+                </span>
+              </div>
             </div>
-            <div>
-              <h1 className="font-outfit text-2xl sm:text-3xl font-black uppercase tracking-tight text-black">
-                Your Meal Subscriptions
-              </h1>
-              <p className="text-xs font-bold text-zinc-600 mt-1">
-                Manage your scheduled corporate and daily meal bowl passes
-              </p>
+
+            {/* Bottom Row: Mobile-First Address Card */}
+            <div className="flex items-center justify-between gap-2.5 rounded-xl bg-[#FFF8EE] border border-amber-300/80 px-2.5 py-2">
+              <div className="flex items-start gap-2 min-w-0">
+                <MapPin size={14} className="text-amber-700 shrink-0 mt-0.5" />
+                <div className="min-w-0 text-xs text-zinc-800 leading-snug">
+                  {activeAddress ? (
+                    <div>
+                      <span className="font-black text-[10px] uppercase bg-black text-[#E5A00D] px-1.5 py-0.2 rounded mr-1.5 inline-block">
+                        {activeAddress.label || "Home"}
+                      </span>
+                      <span className="font-medium text-zinc-800 break-words">
+                        {activeAddress.address}
+                        {activeAddress.area ? `, ${activeAddress.area}` : ""}
+                        {activeAddress.city ? `, ${activeAddress.city}` : ""}
+                        {activeAddress.pincode ? ` - ${activeAddress.pincode}` : ""}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-zinc-500 font-medium text-xs">No address selected</span>
+                  )}
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  setAddressModalMode("LIST");
+                  setAddressModalOpen(true);
+                }}
+                className="shrink-0 px-2.5 py-1 rounded-lg bg-white hover:bg-zinc-50 text-black font-outfit font-black text-[10px] uppercase tracking-wider border border-black shadow-[1px_1px_0_#000] active:scale-95 transition-transform cursor-pointer"
+              >
+                {activeAddress ? "Change" : "Add"}
+              </button>
             </div>
           </div>
 
-          <div className="rounded-3xl border-3 border-black bg-white p-8 shadow-[5px_5px_0_#000] text-center space-y-4">
-            <CalendarCheck size={40} className="mx-auto text-[#E5A00D]" />
-            <h3 className="font-outfit text-xl font-black uppercase text-black">Daily Meal Passes Available</h3>
-            <p className="text-xs text-zinc-600 font-medium max-w-md mx-auto">
-              Save up to 30% on everyday handcrafted meals with automated doorstep handi deliveries.
-            </p>
-            <a
-              href="/#subscriptions"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-[#E5A00D] text-black font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[3px_3px_0_#000]"
-            >
-              <span>Explore Subscription Plans</span>
-              <ArrowRight size={14} />
-            </a>
+          {/* Feedback messages */}
+          {subSuccessMsg && (
+            <div className="p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-500 text-emerald-900 text-xs sm:text-sm font-bold flex items-center justify-between gap-3 animate-in fade-in zoom-in-95 shadow-[4px_4px_0_#059669]">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={20} className="text-emerald-700 shrink-0" />
+                <span>{subSuccessMsg}</span>
+              </div>
+              <button onClick={() => setSubSuccessMsg(null)} className="text-emerald-700 hover:text-black">
+                <X size={16} />
+              </button>
+            </div>
+          )}
+
+          {subErrorMsg && (
+            <div className="p-4 rounded-2xl bg-red-50 border-2 border-red-500 text-red-900 text-xs sm:text-sm font-bold flex items-center justify-between gap-3 animate-in fade-in zoom-in-95 shadow-[4px_4px_0_#dc2626]">
+              <div className="flex items-center gap-2">
+                <AlertCircle size={20} className="text-red-700 shrink-0" />
+                <span>{subErrorMsg}</span>
+              </div>
+              <button onClick={() => setSubErrorMsg(null)} className="text-red-700 hover:text-black">
+                <X size={16} />
+              </button>
+            </div>
+          )}
+
+          {/* Active Subscription Overview Card (If User Has Active Plan) */}
+          {activeSubRecord && (
+            <div className="rounded-3xl border-3 border-black bg-gradient-to-br from-[#1B4D3E] via-[#245e4c] to-[#0f3227] text-white p-6 sm:p-8 shadow-[6px_6px_0_#000] space-y-6 transition-transform hover:scale-[1.005]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/20 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-2xl bg-[#E5A00D] text-black font-black flex items-center justify-center border-2 border-black shadow-[2px_2px_0_#000] shrink-0">
+                    <Sparkles size={22} />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-300 block">
+                      Active Member Pass
+                    </span>
+                    <h3 className="font-outfit text-xl sm:text-2xl font-black uppercase text-white">
+                      {activeSubRecord.packageName || "Full Veg Meal Subscription"}
+                    </h3>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border-2 ${
+                      activeSubRecord.status === "ACTIVE"
+                        ? "bg-emerald-400 text-black border-black shadow-[2px_2px_0_#000]"
+                        : "bg-amber-400 text-black border-black shadow-[2px_2px_0_#000]"
+                    }`}
+                  >
+                    {activeSubRecord.status === "ACTIVE" ? "Active" : "Paused"}
+                  </span>
+
+                  <button
+                    disabled={subSubmitting}
+                    onClick={() => handleToggleSubPause(activeSubRecord.id)}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-black hover:bg-[#E5A00D] border-2 border-black font-outfit font-black text-xs uppercase tracking-wider shadow-[2px_2px_0_#000] active:translate-x-0.5 active:translate-y-0.5 transition-all cursor-pointer"
+                  >
+                    {activeSubRecord.status === "ACTIVE" ? (
+                      <>
+                        <Pause size={13} />
+                        <span>Pause Plan</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play size={13} />
+                        <span>Resume Plan</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Progress & Stats Matrix */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div className="bg-black/30 backdrop-blur-md rounded-2xl p-4 border border-white/10 transition-colors hover:bg-black/40">
+                  <span className="text-[10px] font-black uppercase text-amber-300 block">Meals Remaining</span>
+                  <span className="font-outfit text-3xl font-black text-white block mt-1">
+                    {activeSubRecord.mealsRemaining}
+                    <span className="text-xs text-zinc-300 font-bold ml-1">/ {activeSubRecord.totalMeals || activeSubRecord.mealCreditsPurchased}</span>
+                  </span>
+                </div>
+
+                <div className="bg-black/30 backdrop-blur-md rounded-2xl p-4 border border-white/10 transition-colors hover:bg-black/40">
+                  <span className="text-[10px] font-black uppercase text-amber-300 block">Next Scheduled Delivery</span>
+                  <span className="font-outfit text-xl font-black text-white block mt-2">
+                    {activeSubRecord.nextDeliveryDate || "Tomorrow"}
+                  </span>
+                  <span className="text-[10px] text-zinc-300 block font-semibold">Hot &amp; Fresh Handi</span>
+                </div>
+
+                <div className="col-span-2 sm:col-span-1 bg-black/30 backdrop-blur-md rounded-2xl p-4 border border-white/10 transition-colors hover:bg-black/40">
+                  <span className="text-[10px] font-black uppercase text-amber-300 block">Plan Valid Until</span>
+                  <span className="font-outfit text-xl font-black text-white block mt-2">
+                    {activeSubRecord.expectedEndDate || activeSubRecord.endDate || "Ongoing"}
+                  </span>
+                  <span className="text-[10px] text-emerald-300 block font-bold">Auto-extends on pause</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Active Subscription Plans (Directly Synced with Admin Toggle) ── */}
+          <div className="space-y-6">
+            <div className="border-b-2 border-black/10 pb-4">
+              <span className="text-xs font-black uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+                <UtensilsCrossed size={14} className="text-black" />
+                <span>Choose Your Plan</span>
+              </span>
+              <h2 className="font-outfit text-2xl sm:text-3xl font-black uppercase text-black mt-1">
+                {subVegMeal?.name || "Full Veg Meal Subscriptions"}
+              </h2>
+              <p className="text-xs text-zinc-600 font-semibold mt-0.5">
+                {subVegMeal?.description || "Steamed Rice, Fresh Pappu, and Veg Curry served hot in insulated clay handi."}
+              </p>
+            </div>
+
+            {/* If no plans are active */}
+            {dbSubPackages.length === 0 ? (
+              <div className="rounded-3xl border-3 border-black bg-[#FFF8EE] p-8 text-center space-y-3 shadow-[5px_5px_0_#000]">
+                <UtensilsCrossed size={36} className="mx-auto text-[#E5A00D]" />
+                <h3 className="font-outfit text-xl font-black uppercase text-black">
+                  Subscription Plans Temporarily Unavailable
+                </h3>
+                <p className="text-xs text-zinc-600 font-semibold max-w-md mx-auto">
+                  Our kitchen is currently updating seasonal subscription meal packages. Please check back shortly or enjoy ordering single bowls directly from our menu!
+                </p>
+              </div>
+            ) : (
+              /* The Dynamic Cards Grid: directly driven by Admin active plans */
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {dbSubPackages.map((pkg) => {
+                  const mealRate = subVegMeal?.pricePerMeal || 55;
+                  const originalSinglePrice = subVegMeal?.standardPrice || 60;
+                  const regularTotal = originalSinglePrice * pkg.mealCredits;
+                  const discountSavings = pkg.discount > 0 ? pkg.discount : Math.max(0, regularTotal - (mealRate * pkg.mealCredits));
+                  const finalTotal = Math.max(0, (mealRate * pkg.mealCredits) - (pkg.discount || 0));
+                  const isSelected = selectedSubPlan === pkg.id;
+
+                  return (
+                    <div
+                      key={pkg.id}
+                      onClick={() => setSelectedSubPlan(pkg.id)}
+                      className={`group relative rounded-3xl border-3 p-6 sm:p-7 flex flex-col justify-between transition-all duration-300 cursor-pointer hover:-translate-y-1.5 ${
+                        isSelected
+                          ? "bg-[#FFF8EE] border-black shadow-[7px_7px_0_#000] ring-2 ring-black"
+                          : "bg-white border-black/30 hover:border-black shadow-[3px_3px_0_#000] hover:shadow-[6px_6px_0_#000]"
+                      }`}
+                    >
+                      {pkg.isFeatured && (
+                        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#E5A00D] text-black px-4 py-0.5 rounded-full border-2 border-black font-outfit font-black text-[10px] uppercase tracking-wider shadow-[2px_2px_0_#000] flex items-center gap-1">
+                          <Sparkles size={11} className="text-black animate-spin" />
+                          <span>Most Popular</span>
+                        </div>
+                      )}
+
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 px-3 py-1 rounded-full border border-amber-300">
+                            {pkg.mealCredits >= 60 ? "Best Value" : pkg.mealCredits >= 30 ? "Full Month" : "Weekday Care"}
+                          </span>
+                          {discountSavings > 0 && (
+                            <span className="text-xs font-black text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-md border border-emerald-300">
+                              Save ₹{discountSavings}
+                            </span>
+                          )}
+                        </div>
+
+                        <div>
+                          <h3 className="font-outfit text-2xl sm:text-3xl font-black uppercase tracking-tight text-black group-hover:text-amber-900 transition-colors">
+                            {pkg.name}
+                          </h3>
+                          <p className="text-xs text-zinc-600 font-medium mt-1">
+                            {pkg.mealCredits >= 60
+                              ? "2 meals daily (Lunch + Dinner) for 30 days."
+                              : pkg.mealCredits >= 30
+                              ? "1 wholesome meal every single day of the month."
+                              : "Ideal for regular lunches or weekday dining."}
+                          </p>
+                        </div>
+
+                        {/* Clean Price Display */}
+                        <div className="p-4 rounded-2xl bg-white border-2 border-black shadow-[2px_2px_0_#000] flex items-baseline justify-between">
+                          <div>
+                            <span className="text-[10px] font-black uppercase text-zinc-400 block">Total Price</span>
+                            <span className="font-outfit text-3xl font-black text-black">₹{finalTotal.toLocaleString()}</span>
+                          </div>
+                          {regularTotal > finalTotal && (
+                            <span className="text-xs line-through text-zinc-400 font-bold">
+                              ₹{regularTotal.toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Highlights */}
+                        <ul className="space-y-2 text-xs font-semibold text-zinc-700 pt-1">
+                          <li className="flex items-center gap-2">
+                            <Check size={14} className="text-emerald-600 shrink-0" />
+                            <span>{pkg.mealCredits} Complete Fresh Homestyle Meals</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check size={14} className="text-emerald-600 shrink-0" />
+                            <span>Fresh hot handi delivery to your door</span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <Check size={14} className="text-emerald-600 shrink-0" />
+                            <span>Pause or skip days anytime on dashboard</span>
+                          </li>
+                        </ul>
+                      </div>
+
+                      <div className="pt-6">
+                        <button
+                          disabled={subSubmitting}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSubscribePlan(pkg.mealCredits, pkg.name, pkg.id);
+                          }}
+                          className={`w-full py-3.5 rounded-2xl font-outfit font-black text-xs uppercase tracking-wider border-2 border-black transition-all flex items-center justify-center gap-2 cursor-pointer active:translate-x-0.5 active:translate-y-0.5 ${
+                            isSelected
+                              ? "bg-black text-[#E5A00D] shadow-[3px_3px_0_#E5A00D] hover:bg-zinc-900"
+                              : "bg-white text-black shadow-[2px_2px_0_#000] hover:bg-[#FFF8EE]"
+                          }`}
+                        >
+                          {subSubmitting && selectedSubPlan === pkg.id ? (
+                            <Loader2 size={16} className="animate-spin text-[#E5A00D]" />
+                          ) : (
+                            <>
+                              <span>Subscribe {pkg.mealCredits} Meals (₹{finalTotal.toLocaleString()})</span>
+                              <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
+
+          {/* ── Meal Details & Dish Transparency Section (Premium Culinary Showcase) ── */}
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#FFFBF2] via-[#FFF8EE] to-[#FFF3E0] border border-amber-200/80 p-6 sm:p-10">
+            {/* Subtle background glow */}
+            <div className="absolute -top-12 -right-12 w-64 h-64 bg-amber-200/30 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-12 -left-12 w-64 h-64 bg-emerald-200/20 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              {/* Left 7 cols: Story & Dish details */}
+              <div className="lg:col-span-7 space-y-4">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100/80 text-amber-900 border border-amber-300/60 text-[11px] font-black uppercase tracking-wider">
+                  <Sparkles size={13} className="text-[#E5A00D]" />
+                  <span>What’s Inside Every Subscription Bowl</span>
+                </div>
+
+                <div className="space-y-2">
+                  <h3 className="font-outfit font-black text-2xl sm:text-3xl text-zinc-900 tracking-tight leading-tight">
+                    Rice, Pappu &amp; Fresh Seasonal Veg Curry
+                  </h3>
+                  <p className="text-sm text-zinc-600 font-medium leading-relaxed">
+                    Every meal is prepared fresh in clay handis using farm-sourced produce, authentic South Indian lentils (pappu), and aromatic steamed rice. Cooked with zero artificial preservatives and served piping hot.
+                  </p>
+                </div>
+
+                {/* 3 Food Elements */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2">
+                  <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-white/90 border border-amber-200/70 shadow-sm backdrop-blur-sm">
+                    <span className="text-2xl p-1 bg-amber-50 rounded-xl">🍚</span>
+                    <div>
+                      <span className="text-xs font-black text-zinc-900 block leading-tight">Steamed Rice</span>
+                      <span className="text-[10px] text-zinc-500 font-medium">Aromatic &amp; Fluffy</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-white/90 border border-amber-200/70 shadow-sm backdrop-blur-sm">
+                    <span className="text-2xl p-1 bg-amber-50 rounded-xl">🥣</span>
+                    <div>
+                      <span className="text-xs font-black text-zinc-900 block leading-tight">Homestyle Dal</span>
+                      <span className="text-[10px] text-zinc-500 font-medium">Authentic Pappu</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-white/90 border border-amber-200/70 shadow-sm backdrop-blur-sm">
+                    <span className="text-2xl p-1 bg-amber-50 rounded-xl">🥬</span>
+                    <div>
+                      <span className="text-xs font-black text-zinc-900 block leading-tight">Seasonal Sabzi</span>
+                      <span className="text-[10px] text-zinc-500 font-medium">Daily Rotating</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right 5 cols: Subscriber Advantage Perks */}
+              <div className="lg:col-span-5 bg-white/95 rounded-2xl p-5 sm:p-6 border border-amber-200/80 shadow-md space-y-4">
+                <div className="flex items-center gap-2.5 pb-2 border-b border-zinc-100">
+                  <div className="h-8 w-8 rounded-xl bg-amber-500/10 text-amber-700 flex items-center justify-center font-black">
+                    <Check size={18} className="stroke-[3]" />
+                  </div>
+                  <div>
+                    <h4 className="font-outfit font-black text-base text-zinc-900">Subscriber Advantage</h4>
+                    <p className="text-[11px] text-zinc-500 font-medium">Included with every plan</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <span className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-bold mt-0.5 shrink-0">✓</span>
+                    <div>
+                      <span className="text-xs font-black text-zinc-900 block">Special Discounted Rates Locked</span>
+                      <span className="text-[11px] text-zinc-500 font-medium">Save on every single meal compared to daily ordering</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <span className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-bold mt-0.5 shrink-0">✓</span>
+                    <div>
+                      <span className="text-xs font-black text-zinc-900 block">Guaranteed Priority Dispatch</span>
+                      <span className="text-[11px] text-zinc-500 font-medium">Your hot meal is prioritized for everyday on-time delivery</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Scheduled Deliveries Table (If active subscription exists) ── */}
+          {activeSubRecord && subDeliveries.length > 0 && (
+            <div className="rounded-3xl border-3 border-black bg-white p-6 sm:p-8 shadow-[5px_5px_0_#000] space-y-4 transition-all hover:shadow-[7px_7px_0_#000]">
+              <div className="flex items-center justify-between border-b-2 border-black/10 pb-3">
+                <div className="flex items-center gap-2">
+                  <Calendar size={18} className="text-[#E5A00D]" />
+                  <h3 className="font-outfit font-black text-base uppercase text-black">
+                    Upcoming Scheduled Deliveries
+                  </h3>
+                </div>
+                <span className="text-xs font-bold text-zinc-500">
+                  Showing next {Math.min(subDeliveries.length, 10)} scheduled drops
+                </span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-black/10 text-[10px] font-black uppercase text-zinc-400">
+                      <th className="py-2.5 px-3">Date</th>
+                      <th className="py-2.5 px-3">Session</th>
+                      <th className="py-2.5 px-3">Meal Item</th>
+                      <th className="py-2.5 px-3 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100 font-medium text-zinc-800">
+                    {subDeliveries.slice(0, 10).map((d) => (
+                      <tr key={d.id} className="hover:bg-[#FFF8EE] transition-colors">
+                        <td className="py-3 px-3 font-mono font-bold text-black">{d.deliveryDate}</td>
+                        <td className="py-3 px-3 uppercase text-[11px] font-bold text-zinc-600">{d.mealType}</td>
+                        <td className="py-3 px-3 font-bold text-black">{d.mealName || "Full Veg Meal"}</td>
+                        <td className="py-3 px-3 text-right">
+                          <span
+                            className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                              d.status === "DELIVERED"
+                                ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                                : d.status === "SCHEDULED"
+                                ? "bg-amber-100 text-amber-900 border border-amber-300"
+                                : "bg-zinc-100 text-zinc-600"
+                            }`}
+                          >
+                            {d.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
         </div>
       )}
 
@@ -1648,13 +2404,24 @@ export function CustomerDashboardView() {
                     )}
                   </button>
 
-                  <a
-                    href="#menu-section"
-                    className="inline-flex items-center gap-1 px-2.5 sm:px-5 lg:px-6 py-1.5 sm:py-2.5 lg:py-3.5 rounded-lg sm:rounded-2xl bg-[#E5A00D] text-black font-outfit font-black text-[10px] sm:text-xs lg:text-sm uppercase tracking-wider hover:bg-[#ffb515] border-2 border-black shadow-[2px_2px_0_#FFF8EE] sm:shadow-[4px_4px_0_#FFF8EE] hover:translate-x-0.5 hover:translate-y-0.5 transition-all shrink-0"
-                  >
-                    <span>Order</span>
-                    <ArrowRight size={12} className="text-black sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4" />
-                  </a>
+                  {isKitchenClosedOrUnavailable ? (
+                    <button
+                      onClick={() => setShowKitchenModal(true)}
+                      className="inline-flex items-center gap-1.5 px-2.5 sm:px-5 lg:px-6 py-1.5 sm:py-2.5 lg:py-3.5 rounded-lg sm:rounded-2xl bg-zinc-900 hover:bg-black text-zinc-200 font-outfit font-black text-[10px] sm:text-xs lg:text-sm uppercase tracking-wider border-2 border-zinc-700 shadow-[2px_2px_0_#FFF8EE] sm:shadow-[4px_4px_0_#FFF8EE] transition-all shrink-0 cursor-pointer"
+                      title="Kitchen is currently closed or unavailable"
+                    >
+                      <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                      <span>Kitchen Closed</span>
+                    </button>
+                  ) : (
+                    <a
+                      href="#menu-section"
+                      className="inline-flex items-center gap-1 px-2.5 sm:px-5 lg:px-6 py-1.5 sm:py-2.5 lg:py-3.5 rounded-lg sm:rounded-2xl bg-[#E5A00D] text-black font-outfit font-black text-[10px] sm:text-xs lg:text-sm uppercase tracking-wider hover:bg-[#ffb515] border-2 border-black shadow-[2px_2px_0_#FFF8EE] sm:shadow-[4px_4px_0_#FFF8EE] hover:translate-x-0.5 hover:translate-y-0.5 transition-all shrink-0"
+                    >
+                      <span>Order</span>
+                      <ArrowRight size={12} className="text-black sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4" />
+                    </a>
+                  )}
                 </div>
 
                 {/* Slide Navigation Controls */}
@@ -1665,8 +2432,8 @@ export function CustomerDashboardView() {
                         key={s.id}
                         onClick={() => setCurrentSlide(idx)}
                         className={`h-1.5 sm:h-2.5 rounded-full transition-all duration-500 ${idx === currentSlide
-                            ? "w-4 sm:w-8 bg-[#E5A00D] shadow-sm"
-                            : "w-1.5 sm:w-2.5 bg-white/40 hover:bg-white/70"
+                          ? "w-4 sm:w-8 bg-[#E5A00D] shadow-sm"
+                          : "w-1.5 sm:w-2.5 bg-white/40 hover:bg-white/70"
                           }`}
                         aria-label={`Go to slide ${idx + 1}`}
                       />
@@ -1707,8 +2474,8 @@ export function CustomerDashboardView() {
                         <div
                           key={slide.id}
                           className={`absolute inset-0 transition-all duration-1000 ease-in-out ${isActive
-                              ? "opacity-100 scale-100 z-10"
-                              : "opacity-0 scale-105 pointer-events-none z-0"
+                            ? "opacity-100 scale-100 z-10"
+                            : "opacity-0 scale-105 pointer-events-none z-0"
                             }`}
                         >
                           <Image
@@ -1716,7 +2483,8 @@ export function CustomerDashboardView() {
                             alt={slide.title}
                             fill
                             priority={idx === 0 || isActive}
-                            className="object-cover transition-transform duration-1000 group-hover:scale-110"
+                            className={`object-cover transition-transform duration-1000 group-hover:scale-110 ${isKitchenClosedOrUnavailable ? "filter blur-[2px] grayscale-[20%]" : ""
+                              }`}
                           />
                         </div>
                       );
@@ -1725,86 +2493,157 @@ export function CustomerDashboardView() {
                 </div>
 
                 {/* Express Badge below circular image */}
-                <div className="mt-1 sm:mt-4 inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-0.5 sm:py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-white/20 text-[8px] sm:text-xs font-bold text-[#FFF8EE] shadow-lg animate-in fade-in duration-500" key={`badge-${currentSlide}`}>
-                  <span className="h-1 sm:h-2 w-1 sm:w-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="truncate max-w-[90px] sm:max-w-none">{activeSlideData.dishBadge}</span>
-                </div>
+                {isKitchenClosedOrUnavailable ? (
+                  <div
+                    onClick={() => setShowKitchenModal(true)}
+                    className="mt-1 sm:mt-4 inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-0.5 sm:py-1.5 rounded-full bg-red-950/85 backdrop-blur-md border border-red-500/50 text-[8px] sm:text-xs font-bold text-red-200 shadow-lg animate-in fade-in duration-500 cursor-pointer hover:bg-red-900"
+                  >
+                    <span className="h-1.5 sm:h-2 w-1.5 sm:w-2 rounded-full bg-red-500 animate-ping" />
+                    <span className="truncate max-w-[90px] sm:max-w-none">Kitchen Unavailable</span>
+                  </div>
+                ) : (
+                  <div className="mt-1 sm:mt-4 inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-0.5 sm:py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-white/20 text-[8px] sm:text-xs font-bold text-[#FFF8EE] shadow-lg animate-in fade-in duration-500" key={`badge-${currentSlide}`}>
+                    <span className="h-1 sm:h-2 w-1 sm:w-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="truncate max-w-[90px] sm:max-w-none">{activeSlideData.dishBadge}</span>
+                  </div>
+                )}
               </div>
 
             </div>
           </div>
 
-          {/* ── 2. Delivery & Subscription Status Bar ── */}
-          <div className="rounded-3xl border-3 border-black bg-white p-4 sm:p-5 shadow-[4px_4px_0_#000] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+          {/* ── 2. Delivery & Subscription Status Bar (Mobile Clean Address Only) ── */}
+          <div className="rounded-2xl sm:rounded-3xl border-2 sm:border-3 border-black bg-white p-3 sm:p-5 shadow-[2px_2px_0_#000] sm:shadow-[4px_4px_0_#000] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4">
 
-            {/* Left: Location & Delivery Time */}
-            <div className="flex items-center gap-3.5">
-              <div className="h-11 w-11 rounded-2xl bg-[#FFF8EE] border-2 border-black text-[#E5A00D] flex items-center justify-center shrink-0 shadow-[2px_2px_0_#000]">
-                <MapPin size={22} className="text-black" />
+            {/* Left: Location & Delivery Details */}
+            <div className="flex items-start sm:items-center gap-2.5 sm:gap-3.5 min-w-0 flex-1">
+              <div className="h-8 w-8 sm:h-11 sm:w-11 rounded-xl sm:rounded-2xl bg-[#FFF8EE] border border-black sm:border-2 text-[#E5A00D] flex items-center justify-center shrink-0 shadow-[1.5px_1.5px_0_#000] sm:shadow-[2px_2px_0_#000] mt-0.5 sm:mt-0">
+                <MapPin size={16} className="text-black sm:w-[22px] sm:h-[22px]" />
               </div>
-              <div className="leading-tight">
-                <div className="flex flex-wrap items-center gap-2 text-xs font-black uppercase text-black">
+
+              <div className="leading-tight min-w-0 flex-1">
+                {/* Top Row: Label, Prep Time, Change Button */}
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs font-black uppercase text-black">
                   <span>
                     {activeAddress
                       ? `DELIVERING TO ${activeAddress.label || "HOME"}`
                       : "NO DELIVERY ADDRESS"}
                   </span>
-                  <span className="text-zinc-400">•</span>
-                  <span className="text-amber-700 flex items-center gap-1 font-bold">
-                    <Clock size={12} /> 25–30 mins (2.4 km away)
+                  <span className="text-zinc-300">•</span>
+                  <span className="text-amber-700 flex items-center gap-1 font-bold whitespace-nowrap">
+                    <Clock size={11} /> {kitchenStatus.estimatedPrepTime || "25–30m"}
                   </span>
+                  <span className="text-zinc-300">•</span>
                   <button
                     onClick={() => {
                       setAddressToEdit(null);
                       setAddressModalMode(activeAddress ? "LIST" : "FORM");
                       setAddressModalOpen(true);
                     }}
-                    className="text-black underline font-bold hover:text-[#E5A00D] transition-colors ml-1 cursor-pointer"
+                    className="text-black underline font-bold hover:text-[#E5A00D] transition-colors cursor-pointer whitespace-nowrap"
                   >
                     {activeAddress ? "Change" : "Add Address"}
                   </button>
+
+                  {/* Live Kitchen Operational Status Pill (Hidden on mobile, visible on sm+) */}
+                  <button
+                    onClick={() => setShowKitchenModal(true)}
+                    className={`hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border cursor-pointer transition-all hover:scale-105 shadow-sm ml-1 ${kitchenStatus.kitchenStatus === "OPEN" && !kitchenStatus.isOrderingPaused
+                        ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
+                        : kitchenStatus.kitchenStatus === "TEMPORARILY_UNAVAILABLE" || kitchenStatus.isOrderingPaused
+                          ? "bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100"
+                          : "bg-rose-50 text-rose-900 border-rose-300 hover:bg-rose-100"
+                      }`}
+                  >
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span
+                        className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${kitchenStatus.kitchenStatus === "OPEN" && !kitchenStatus.isOrderingPaused
+                            ? "bg-emerald-400"
+                            : kitchenStatus.kitchenStatus === "TEMPORARILY_UNAVAILABLE" || kitchenStatus.isOrderingPaused
+                              ? "bg-amber-400"
+                              : "bg-rose-400"
+                          }`}
+                      />
+                      <span
+                        className={`relative inline-flex rounded-full h-1.5 w-1.5 ${kitchenStatus.kitchenStatus === "OPEN" && !kitchenStatus.isOrderingPaused
+                            ? "bg-emerald-500"
+                            : kitchenStatus.kitchenStatus === "TEMPORARILY_UNAVAILABLE" || kitchenStatus.isOrderingPaused
+                              ? "bg-amber-500"
+                              : "bg-rose-500"
+                          }`}
+                      />
+                    </span>
+                    <span>
+                      {kitchenStatus.kitchenStatus === "OPEN" && !kitchenStatus.isOrderingPaused
+                        ? "Kitchen Live"
+                        : kitchenStatus.kitchenStatus === "TEMPORARILY_UNAVAILABLE" || kitchenStatus.isOrderingPaused
+                          ? "Kitchen Busy"
+                          : "Kitchen Closed"}
+                    </span>
+                    <ChefHat size={10} className="opacity-70 ml-0.5" />
+                  </button>
                 </div>
+
+                {/* Bottom Row: Full readable Address line */}
                 {activeAddress ? (
-                  <p className="text-xs text-zinc-600 font-semibold mt-0.5">
+                  <p className="text-[11px] sm:text-xs text-zinc-600 font-semibold mt-1 break-words">
                     {activeAddress.address}, {activeAddress.area}, {activeAddress.city} - {activeAddress.pincode}
                   </p>
                 ) : (
-                  <p className="text-xs text-amber-800 font-semibold mt-0.5">
+                  <p className="text-[11px] sm:text-xs text-amber-800 font-semibold mt-1">
                     Please add a delivery address to ensure speedy doorstep delivery.
                   </p>
                 )}
               </div>
             </div>
 
-            {/* Right: Subscription Pass Toggle + View Cart Button */}
-            <div className="flex flex-wrap items-center gap-4 sm:gap-6 justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0 border-zinc-100">
-              <div className="flex items-center gap-3">
+            {/* Right: Subscription Status Badge + View Cart Button (Desktop/Tablet only, hidden on mobile) */}
+            <div className="hidden md:flex items-center gap-4 justify-end">
+              {activeSubRecord ? (
                 <button
-                  onClick={() => setSubscriptionPass(!subscriptionPass)}
-                  className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors duration-300 ${subscriptionPass ? "bg-emerald-600" : "bg-zinc-300"
-                    }`}
-                  aria-label="Toggle Subscription Pass"
+                  onClick={() => {
+                    window.location.hash = "subscriptions";
+                    setActiveTab("subscriptions");
+                  }}
+                  className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-500/80 text-emerald-900 transition-all text-left shadow-sm group"
                 >
-                  <div
-                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ${subscriptionPass ? "translate-x-6" : "translate-x-0"
-                      }`}
-                  />
+                  <div className="h-7 w-7 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-black shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                    <Sparkles size={13} />
+                  </div>
+                  <div className="leading-tight">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[11px] font-black uppercase text-black tracking-tight">Active</span>
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
+                    </div>
+                    <p className="text-[10px] font-bold text-emerald-800">
+                      {activeSubRecord.mealsRemaining ?? activeSubRecord.totalMeals ?? 0} left
+                    </p>
+                  </div>
                 </button>
-                <div className="leading-none text-left">
-                  <p className="text-xs font-black text-black">Daily Subscription Pass</p>
-                  <p className="text-[10px] font-bold text-emerald-700 mt-0.5">1 meal credit available today</p>
-                </div>
-              </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    window.location.hash = "subscriptions";
+                    setActiveTab("subscriptions");
+                  }}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#FFF8EE] hover:bg-amber-100 border border-amber-300/80 text-amber-900 transition-all text-left group"
+                >
+                  <CalendarCheck size={14} className="text-amber-700 group-hover:scale-110 transition-transform shrink-0" />
+                  <div className="leading-tight">
+                    <span className="text-[10px] font-black uppercase text-amber-950 block">Meal Subs</span>
+                    <span className="text-[9px] font-semibold text-zinc-600">Pure Veg @ ₹55</span>
+                  </div>
+                </button>
+              )}
 
               <button
                 onClick={() => {
-                  // Trigger navbar cart popover or show cart notice
                   window.dispatchEvent(new CustomEvent("qbowl-open-cart"));
                 }}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#FFF8EE] hover:bg-black text-black hover:text-[#FFF8EE] border-2 border-black font-outfit font-black text-xs uppercase tracking-wider shadow-[2px_2px_0_#000] transition-all"
               >
                 <ShoppingBag size={14} className="text-[#E5A00D]" />
-                <span>View Cart ({totalCartCount} Items)</span>
+                <span>Cart ({totalCartCount})</span>
                 <ChevronRight size={14} />
               </button>
             </div>
@@ -1817,8 +2656,8 @@ export function CustomerDashboardView() {
               <h2 className="font-outfit text-2xl sm:text-3xl font-black uppercase tracking-tight text-black">
                 Explore Curated Menus
               </h2>
-              <span className="text-xs font-bold text-zinc-500 hidden sm:inline-block">
-                Showing 44 handcrafted recipes
+              <span className="text-xs font-bold text-zinc-500">
+                {filteredItems.length} {filteredItems.length === 1 ? "dish" : "dishes"} available
               </span>
             </div>
 
@@ -1836,8 +2675,8 @@ export function CustomerDashboardView() {
                       );
                     }}
                     className={`px-5 py-2.5 rounded-full text-xs font-outfit font-black uppercase tracking-wider whitespace-nowrap border-2 transition-all shrink-0 ${isSelected
-                        ? "bg-[#E5A00D] text-black border-black shadow-[3px_3px_0_#000]"
-                        : "bg-white text-zinc-700 border-black/20 hover:border-black hover:text-black hover:bg-[#FFF8EE]"
+                      ? "bg-[#E5A00D] text-black border-black shadow-[3px_3px_0_#000]"
+                      : "bg-white text-zinc-700 border-black/20 hover:border-black hover:text-black hover:bg-[#FFF8EE]"
                       }`}
                   >
                     {cat}
@@ -1859,24 +2698,49 @@ export function CustomerDashboardView() {
                   Crafted fresh per order in authentic sealed terracotta handis &amp; wood ovens
                 </p>
               </div>
-              <Link
-                href="/#menu"
-                className="flex items-center gap-1 font-outfit text-xs font-black uppercase tracking-wider text-amber-700 hover:text-black transition-colors"
-              >
-                <span>View All 14 Biryanis</span>
-                <ChevronRight size={14} />
-              </Link>
             </div>
 
-            {/* Food Items Grid Cards */}
+            {/* Kitchen Offline / Unavailable Banner Notice above Food Grid */}
+            {isKitchenClosedOrUnavailable && (
+              <div className="rounded-2xl border-2 border-black bg-[#FFF8EE] p-3.5 sm:p-4 shadow-[4px_4px_0_#000] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-black animate-in fade-in">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-[#E5A00D] border-2 border-black flex items-center justify-center shrink-0 shadow-[2px_2px_0_#000]">
+                    <ChefHat size={20} className="text-black" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-outfit font-black text-sm uppercase tracking-wide text-black">
+                        Kitchen Currently {kitchenStatus.kitchenStatus === "TEMPORARILY_UNAVAILABLE" || kitchenStatus.isOrderingPaused ? "Unavailable" : "Closed"}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-black text-[#E5A00D] border border-black shadow-sm flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse" />
+                        Ordering Offline
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-600 font-medium mt-0.5">
+                      Dishes are shown for preview. Daily kitchen timings: <strong>{kitchenStatus.openingTime} – {kitchenStatus.closingTime}</strong>.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowKitchenModal(true)}
+                  className="px-4 py-2 rounded-xl bg-black text-[#FFF8EE] hover:bg-[#E5A00D] hover:text-black font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[2px_2px_0_#000] hover:shadow-none transition-all shrink-0 cursor-pointer flex items-center gap-1.5 self-start sm:self-center"
+                >
+                  <Clock size={13} className="text-[#E5A00D]" />
+                  <span>View Kitchen Hours</span>
+                </button>
+              </div>
+            )}
+
+            {/* Food Items Grid Cards - 1 item per row on mobile for clean focus */}
             {loadingMeals ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 {[1, 2, 3, 4].map((n) => (
                   <div
                     key={n}
-                    className="rounded-3xl border-3 border-black bg-white overflow-hidden shadow-[5px_5px_0_#000] p-4 space-y-4 animate-pulse"
+                    className="rounded-3xl border-3 border-black bg-white overflow-hidden shadow-[4px_4px_0_#000] sm:shadow-[5px_5px_0_#000] p-3 sm:p-4 space-y-3 sm:space-y-4 animate-pulse"
                   >
-                    <div className="h-48 w-full bg-zinc-200 rounded-2xl" />
+                    <div className="h-44 sm:h-48 w-full bg-zinc-200 rounded-2xl" />
                     <div className="space-y-2">
                       <div className="h-4 bg-zinc-200 rounded-md w-3/4" />
                       <div className="h-3 bg-zinc-100 rounded-md w-full" />
@@ -1890,29 +2754,44 @@ export function CustomerDashboardView() {
                 ))}
               </div>
             ) : filteredItems.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 {filteredItems.map((item) => {
                   const qty = quantities[item.id] || 0;
 
                   return (
                     <div
                       key={item.id}
-                      className="group rounded-3xl border-3 border-black bg-white overflow-hidden shadow-[5px_5px_0_#000] hover:shadow-[7px_7px_0_#000] hover:-translate-y-1 transition-all flex flex-col justify-between"
+                      className="group rounded-3xl border-3 border-black bg-white overflow-hidden shadow-[4px_4px_0_#000] sm:shadow-[5px_5px_0_#000] hover:shadow-[6px_6px_0_#000] sm:hover:shadow-[7px_7px_0_#000] hover:-translate-y-0.5 sm:hover:-translate-y-1 transition-all flex flex-col justify-between"
                     >
                       <div>
                         {/* Top Image Container with Badges */}
-                        <div className="relative h-52 w-full bg-zinc-100 overflow-hidden border-b-2 border-black">
+                        <div
+                          className="relative h-44 sm:h-52 w-full bg-zinc-100 overflow-hidden border-b-2 border-black cursor-pointer"
+                          onClick={() => {
+                            if (isKitchenClosedOrUnavailable) {
+                              setShowKitchenModal(true);
+                            }
+                          }}
+                        >
                           <Image
                             src={item.image}
                             alt={item.name}
                             fill
-                            className="object-cover group-hover:scale-105 transition-transform duration-500"
+                            className={`object-cover transition-all duration-500 ${isKitchenClosedOrUnavailable
+                                ? "filter blur-[2.5px] scale-105 brightness-[0.72] saturate-[0.8]"
+                                : "group-hover:scale-105"
+                              }`}
                           />
 
+                          {/* Cinematic Dark Vignette when Kitchen is Unavailable */}
+                          {isKitchenClosedOrUnavailable && (
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-black/35 pointer-events-none" />
+                          )}
+
                           {/* Tag badge (e.g. NON-VEG, PURE VEG) */}
-                          <div className="absolute top-3 left-3 z-10">
+                          <div className="absolute top-2.5 left-2.5 sm:top-3 sm:left-3 z-10 pointer-events-none">
                             <span
-                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-md ${item.tagType === "PURE VEG"
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] sm:text-[10px] font-black uppercase tracking-wider shadow-md ${item.tagType === "PURE VEG"
                                   ? "bg-emerald-600 text-white"
                                   : item.tagType === "ROYAL NON-VEG"
                                     ? "bg-[#8B3A00] text-amber-200"
@@ -1927,17 +2806,20 @@ export function CustomerDashboardView() {
                           </div>
 
                           {/* Top Right: Rating Badge + Favourite Heart Icon */}
-                          <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
+                          <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-10 flex items-center gap-1.5 sm:gap-2">
                             {/* Rating Badge */}
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/80 backdrop-blur-md text-white text-[11px] font-black border border-white/20 shadow-sm">
-                              <Star size={11} className="fill-amber-400 text-amber-400" />
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/80 backdrop-blur-md text-white text-[10px] sm:text-[11px] font-black border border-white/20 shadow-sm pointer-events-none">
+                              <Star size={10} className="fill-amber-400 text-amber-400 sm:w-[11px] sm:h-[11px]" />
                               <span>{item.rating}</span>
                             </span>
 
                             {/* Favourite Heart Button */}
                             <button
-                              onClick={(e) => toggleFavorite(item.id, e)}
-                              className={`p-1.5 rounded-full border-2 border-black transition-all shadow-[2px_2px_0_#000] active:scale-90 ${favorites.includes(item.id)
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleFavorite(item.id, e);
+                              }}
+                              className={`p-1.5 rounded-full border-2 border-black transition-all shadow-[1.5px_1.5px_0_#000] sm:shadow-[2px_2px_0_#000] active:scale-90 ${favorites.includes(item.id)
                                   ? "bg-red-50 text-red-600 border-red-950 scale-105"
                                   : "bg-white/95 text-zinc-400 hover:text-red-500 hover:bg-white"
                                 }`}
@@ -1945,20 +2827,37 @@ export function CustomerDashboardView() {
                               title={favorites.includes(item.id) ? "Favourited" : "Add to Favourites"}
                             >
                               <Heart
-                                size={14}
-                                className={`transition-colors ${favorites.includes(item.id)
-                                    ? "fill-red-600 text-red-600"
-                                    : ""
+                                size={13}
+                                className={`transition-colors sm:w-[14px] sm:h-[14px] ${favorites.includes(item.id) ? "fill-red-600 text-red-600" : ""
                                   }`}
                               />
                             </button>
                           </div>
+
+                          {/* Sleek Minimalist Floating Glass Unavailable Pill */}
+                          {isKitchenClosedOrUnavailable && (
+                            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-3 text-center pointer-events-none">
+                              <span className="px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full bg-black/85 backdrop-blur-md border border-white/25 text-white font-outfit font-black text-xs uppercase tracking-wider shadow-2xl flex items-center gap-1.5 sm:gap-2">
+                                <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                                <span>Unavailable</span>
+                              </span>
+                              <span className="text-[9px] sm:text-[10px] font-bold text-amber-200/90 mt-1 drop-shadow tracking-wide">
+                                {kitchenStatus.kitchenStatus === "CLOSED_TODAY"
+                                  ? "Closed today"
+                                  : kitchenStatus.kitchenStatus === "TEMPORARILY_UNAVAILABLE"
+                                    ? "Paused"
+                                    : kitchenStatus.isOrderingPaused
+                                      ? "Kitchen busy"
+                                      : `Opens ${kitchenStatus.openingTime || "07:00 AM"}`}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         {/* Card Content */}
-                        <div className="p-4 space-y-2.5">
+                        <div className="p-3.5 sm:p-4 space-y-1.5 sm:space-y-2.5">
                           {/* Specs / Nutritional subtext */}
-                          <div className="flex items-center justify-between text-[11px] font-bold text-zinc-500">
+                          <div className="flex items-center justify-between text-[10px] sm:text-[11px] font-bold text-zinc-500">
                             <span>{item.specs}</span>
                             <span className="font-mono text-zinc-600">
                               {item.calories} • {item.protein}
@@ -1978,15 +2877,24 @@ export function CustomerDashboardView() {
                       </div>
 
                       {/* Card Bottom: Price + Action Button / Counter */}
-                      <div className="p-4 pt-0 border-t border-zinc-100 flex items-center justify-between gap-3 mt-2">
+                      <div className="p-3.5 sm:p-4 pt-0 border-t border-zinc-100 flex items-center justify-between gap-3 mt-2">
                         <div>
                           <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">Price</span>
-                          <span className="font-outfit text-xl font-black text-black">
+                          <span className="font-outfit text-lg sm:text-xl font-black text-black">
                             ₹{item.price}
                           </span>
                         </div>
 
-                        {qty > 0 ? (
+                        {isKitchenClosedOrUnavailable ? (
+                          <button
+                            onClick={() => setShowKitchenModal(true)}
+                            className="px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-black text-[#FFF8EE] font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[2px_2px_0_#000] hover:shadow-none transition-all flex items-center gap-1.5 cursor-pointer"
+                            title="Kitchen unavailable"
+                          >
+                            <Clock size={12} className="text-[#E5A00D]" />
+                            <span>Unavailable</span>
+                          </button>
+                        ) : qty > 0 ? (
                           <div className="flex items-center gap-2 bg-[#FFF8EE] border-2 border-black rounded-xl px-2 py-1 shadow-[2px_2px_0_#000]">
                             <button
                               onClick={() => updateQuantity(item, -1)}
@@ -2012,7 +2920,7 @@ export function CustomerDashboardView() {
                             className="px-4 py-2 rounded-xl bg-black text-[#FFF8EE] hover:bg-[#E5A00D] hover:text-black font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[2px_2px_0_#000] hover:shadow-none transition-all flex items-center gap-1.5"
                           >
                             <span>Add to Bowl</span>
-                            <Plus size={14} />
+                            <Plus size={13} />
                           </button>
                         )}
                       </div>
@@ -2844,6 +3752,445 @@ export function CustomerDashboardView() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── FULL-SCREEN KITCHEN INFORMATION HUB (Slides down from top, covers screen, dashboard aesthetic) ── */}
+      {showKitchenModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="The Q Bowl Central Kitchen Hub"
+          className="fixed inset-0 z-[100] bg-[#f5e3cd] overflow-y-auto animate-slide-down-top flex flex-col justify-between selection:bg-[#E5A00D] selection:text-black"
+        >
+          {/* Top Sticky Bar */}
+          <header className="sticky top-0 z-50 bg-[#f5e3cd]/95 backdrop-blur-md border-b-3 border-black px-4 sm:px-8 py-3.5 sm:py-4 flex items-center justify-between shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
+            {/* Left: Back to Dashboard */}
+            <button
+              onClick={() => {
+                setShowKitchenModal(false);
+                setShowKitchenPausedModal(false);
+              }}
+              className="flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-2xl bg-white hover:bg-black text-black hover:text-[#FFF8EE] border-2 border-black shadow-[3px_3px_0_#000] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 transition-all font-outfit font-black text-xs uppercase tracking-wider cursor-pointer"
+            >
+              <ArrowLeft size={16} />
+              <span className="hidden sm:inline">Back to Dashboard</span>
+              <span className="sm:hidden">Back</span>
+            </button>
+
+            {/* Middle: Brand & Live Status Indicator */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="h-9 w-9 rounded-xl bg-[#E5A00D] border-2 border-black flex items-center justify-center shadow-[2px_2px_0_#000]">
+                <ChefHat size={18} className="text-black" />
+              </div>
+              <div className="text-left hidden xs:block">
+                <span className="font-outfit font-black text-xs sm:text-sm uppercase tracking-wider text-black block leading-tight">
+                  Central Kitchen Hub
+                </span>
+                <span className="text-[10px] font-bold text-zinc-600 block">
+                  Live Dum Operations &amp; Craft
+                </span>
+              </div>
+              <span
+                className={`ml-1 inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border-2 border-black shadow-[2px_2px_0_#000] ${
+                  kitchenStatus.kitchenStatus === "OPEN" && !kitchenStatus.isOrderingPaused
+                    ? "bg-emerald-300 text-black"
+                    : kitchenStatus.kitchenStatus === "TEMPORARILY_UNAVAILABLE" || kitchenStatus.isOrderingPaused
+                      ? "bg-[#E5A00D] text-black"
+                      : "bg-rose-400 text-black"
+                }`}
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-black opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-black" />
+                </span>
+                <span>
+                  {kitchenStatus.kitchenStatus === "OPEN" && !kitchenStatus.isOrderingPaused
+                    ? "Kitchen Live & Cooking"
+                    : kitchenStatus.kitchenStatus === "TEMPORARILY_UNAVAILABLE" || kitchenStatus.isOrderingPaused
+                      ? "Orders Paused Briefly"
+                      : "Kitchen Closed Right Now"}
+                </span>
+              </span>
+            </div>
+
+            {/* Right: Close Button */}
+            <button
+              onClick={() => {
+                setShowKitchenModal(false);
+                setShowKitchenPausedModal(false);
+              }}
+              className="h-10 w-10 sm:h-11 sm:w-11 rounded-2xl bg-[#E5A00D] hover:bg-[#ffb515] text-black border-2 border-black shadow-[3px_3px_0_#000] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 flex items-center justify-center transition-all cursor-pointer"
+              title="Close Kitchen View (Esc)"
+              aria-label="Close Kitchen View"
+            >
+              <X size={20} className="stroke-[2.5]" />
+            </button>
+          </header>
+
+          {/* Main Content Area */}
+          <main className="max-w-6xl w-full mx-auto px-4 sm:px-8 py-6 sm:py-10 space-y-8 flex-1">
+
+            {/* 1. Hero Operations Card (Dashboard Neo-Brutalist Style) */}
+            <section className="relative rounded-3xl border-3 border-black bg-white p-6 sm:p-8 lg:p-10 shadow-[6px_6px_0_#000] overflow-hidden">
+              {/* Subtle decorative glow in top corner */}
+              <div className="absolute -top-16 -right-16 w-60 h-60 bg-[#E5A00D]/20 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-16 -left-16 w-60 h-60 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+              <div className="relative z-10 space-y-6">
+                {/* Meta Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b-2 border-black/10 pb-4">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF8EE] border-2 border-black text-[11px] font-black uppercase tracking-wider text-black shadow-[2px_2px_0_#000]">
+                    <Sparkles size={13} className="text-[#E5A00D]" />
+                    <span>Slow Dum Craft &bull; Zero Aluminum</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs font-bold text-zinc-600">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Auto-Synced with Master Kitchen Desk</span>
+                  </div>
+                </div>
+
+                {/* Hero Headline */}
+                <div className="space-y-3">
+                  <h1 className="font-outfit font-black text-2xl sm:text-3xl lg:text-4xl uppercase tracking-tight text-black leading-tight">
+                    {kitchenStatus.kitchenStatus === "OPEN" && !kitchenStatus.isOrderingPaused
+                      ? "Authentic Clay Handis Cooking Fresh on Slow Dum"
+                      : kitchenStatus.kitchenStatus === "TEMPORARILY_UNAVAILABLE" || kitchenStatus.isOrderingPaused
+                        ? "High Demand Surge — Orders Paused Briefly for Quality"
+                        : "Central Kitchen Resting — Closed Until Next Shift"}
+                  </h1>
+                  <p className="text-sm sm:text-base text-zinc-700 font-medium leading-relaxed max-w-4xl">
+                    {kitchenStatus.kitchenStatus === "OPEN" && !kitchenStatus.isOrderingPaused
+                      ? "Every single delicacy is individually packed and sealed in an unlacquered earthen clay pot with whole-wheat dough. Cooked slowly over gentle heat to seal in natural aromas, authentic royal spices, and nutrition."
+                      : kitchenStatus.kitchenStatus === "TEMPORARILY_UNAVAILABLE" || kitchenStatus.isOrderingPaused
+                        ? "Our master chefs are currently managing a heavy rush of simmering handis. On-demand ordering is paused briefly to ensure every bowl leaves the kitchen with zero compromise on Dum-Pukht perfection."
+                        : `Our central cloud kitchen operates daily from ${kitchenStatus.openingTime} to ${kitchenStatus.closingTime}. Active scheduled subscribers continue receiving their daily meals right on time!`}
+                  </p>
+                </div>
+
+                {/* 4 Telemetry Metrics Grid */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pt-2">
+                  <div className="rounded-2xl border-2 border-black bg-[#FFF8EE] p-4 shadow-[3px_3px_0_#000] flex flex-col justify-between">
+                    <div className="flex items-center justify-between text-zinc-600 mb-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider">Operating Shift</span>
+                      <Clock size={16} className="text-[#E5A00D]" />
+                    </div>
+                    <div>
+                      <span className="font-outfit font-black text-base sm:text-lg text-black block leading-tight">
+                        {kitchenStatus.openingTime} &ndash; {kitchenStatus.closingTime}
+                      </span>
+                      <span className="text-[11px] font-semibold text-zinc-500 mt-0.5 block">Daily Dum Timings</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border-2 border-black bg-[#FFF8EE] p-4 shadow-[3px_3px_0_#000] flex flex-col justify-between">
+                    <div className="flex items-center justify-between text-zinc-600 mb-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider">Est. Prep Time</span>
+                      <Flame size={16} className="text-amber-600" />
+                    </div>
+                    <div>
+                      <span className="font-outfit font-black text-base sm:text-lg text-black block leading-tight">
+                        {kitchenStatus.estimatedPrepTime || "25 - 35 mins"}
+                      </span>
+                      <span className="text-[11px] font-semibold text-zinc-500 mt-0.5 block">Clay Pot Dum Simmer</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border-2 border-black bg-[#FFF8EE] p-4 shadow-[3px_3px_0_#000] flex flex-col justify-between">
+                    <div className="flex items-center justify-between text-zinc-600 mb-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider">Service Radius</span>
+                      <MapPin size={16} className="text-emerald-600" />
+                    </div>
+                    <div>
+                      <span className="font-outfit font-black text-base sm:text-lg text-black block leading-tight">
+                        ~{kitchenStatus.deliveryRadiusKm || 20} KM Radius
+                      </span>
+                      <span className="text-[11px] font-semibold text-zinc-500 mt-0.5 block">GPS Thermal Bag Delivery</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border-2 border-black bg-[#FFF8EE] p-4 shadow-[3px_3px_0_#000] flex flex-col justify-between">
+                    <div className="flex items-center justify-between text-zinc-600 mb-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider">Kitchen Status</span>
+                      <ShieldCheck size={16} className="text-black" />
+                    </div>
+                    <div>
+                      <span className={`font-outfit font-black text-base sm:text-lg block leading-tight ${
+                        kitchenStatus.kitchenStatus === "OPEN" && !kitchenStatus.isOrderingPaused
+                          ? "text-emerald-700"
+                          : kitchenStatus.kitchenStatus === "TEMPORARILY_UNAVAILABLE" || kitchenStatus.isOrderingPaused
+                            ? "text-amber-700"
+                            : "text-rose-700"
+                      }`}>
+                        {kitchenStatus.kitchenStatus === "OPEN" && !kitchenStatus.isOrderingPaused
+                          ? "Open & Cooking"
+                          : kitchenStatus.kitchenStatus === "TEMPORARILY_UNAVAILABLE" || kitchenStatus.isOrderingPaused
+                            ? "Paused Temporarily"
+                            : "Closed for Today"}
+                      </span>
+                      <span className="text-[11px] font-semibold text-zinc-500 mt-0.5 block">Live Telemetry</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* 2. Official Kitchen Notice Broadcast (if active) */}
+            {kitchenStatus.isNoticeBannerActive && kitchenStatus.noticeBannerText && (
+              <section className="rounded-3xl border-3 border-black bg-[#FFF8EE] p-5 sm:p-6 shadow-[5px_5px_0_#000] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-[#E5A00D] border-2 border-black flex items-center justify-center shrink-0 shadow-[2px_2px_0_#000]">
+                    <Megaphone size={22} className="text-black" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-outfit font-black text-xs uppercase tracking-wider text-black">
+                        Active Kitchen Broadcast
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-black text-[#FFF8EE]">
+                        Live Notice
+                      </span>
+                    </div>
+                    <p className="text-sm font-bold text-black mt-1 leading-snug">
+                      {kitchenStatus.noticeBannerText}
+                    </p>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* 3. Three Core Pillars Grid */}
+            <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+              {/* Pillar 1: Clay Handi Dum Standards */}
+              <div className="rounded-3xl border-3 border-black bg-[#FFF8EE] p-6 sm:p-7 shadow-[5px_5px_0_#000] flex flex-col justify-between space-y-5">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-11 w-11 rounded-2xl bg-[#E5A00D] border-2 border-black flex items-center justify-center shadow-[2px_2px_0_#000]">
+                      <Flame size={20} className="text-black" />
+                    </div>
+                    <div>
+                      <h2 className="font-outfit font-black text-base uppercase tracking-wider text-black">
+                        Earthen Handi Dum
+                      </h2>
+                      <span className="text-[11px] font-bold text-zinc-500">Royal Dum-Pukht Craft</span>
+                    </div>
+                  </div>
+
+                  <ul className="space-y-2.5 text-xs text-zinc-800 font-semibold">
+                    <li className="flex items-start gap-2.5">
+                      <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                      <span>100% natural, unlacquered clay pots (zero aluminum or teflon)</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                      <span>Sealed with whole-wheat dough to lock pure spice aromas</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                      <span>Zero artificial food coloring, zero MSG, artisanal cold-pressed oils</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                      <span>Individually simmered per order &mdash; never bulk re-heated</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="pt-2 border-t-2 border-black/10 text-[11px] font-bold text-amber-800 flex items-center gap-1.5">
+                  <Sparkles size={13} />
+                  <span>Retains essential earthen minerals</span>
+                </div>
+              </div>
+
+              {/* Pillar 2: Central Hub & Dispatch Logistics */}
+              <div className="rounded-3xl border-3 border-black bg-white p-6 sm:p-7 shadow-[5px_5px_0_#000] flex flex-col justify-between space-y-5">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-11 w-11 rounded-2xl bg-[#FFF8EE] border-2 border-black text-[#E5A00D] flex items-center justify-center shadow-[2px_2px_0_#000]">
+                      <MapPin size={20} className="text-black" />
+                    </div>
+                    <div>
+                      <h2 className="font-outfit font-black text-base uppercase tracking-wider text-black">
+                        Central Hub Dispatch
+                      </h2>
+                      <span className="text-[11px] font-bold text-zinc-500">Express Thermal Corridor</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border-2 border-black/15 bg-zinc-50 p-3 space-y-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500 block">Hub Location</span>
+                    <p className="text-xs text-black font-bold leading-snug">
+                      {kitchenStatus.kitchenName || "The Q Bowl Cloud Kitchen, Bridge County Canteen Hub, Rajanagaram, Velugubanda, AP 533296"}
+                    </p>
+                  </div>
+
+                  <ul className="space-y-2.5 text-xs text-zinc-800 font-semibold">
+                    <li className="flex items-start gap-2.5">
+                      <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                      <span>Dispatched directly in insulated thermal rider bags</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                      <span>Tamper-proof seal ensures virgin kitchen-to-door delivery</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                      <span>Fast GPS rider routing to keep handis steaming hot</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="pt-2 border-t-2 border-black/10 text-[11px] font-bold text-emerald-800 flex items-center gap-1.5">
+                  <Check size={14} className="text-emerald-600" />
+                  <span>Covering ~{kitchenStatus.deliveryRadiusKm || 20} KM delivery perimeter</span>
+                </div>
+              </div>
+
+              {/* Pillar 3: Active Subscriber Protection */}
+              <div className="rounded-3xl border-3 border-black bg-emerald-50 p-6 sm:p-7 shadow-[5px_5px_0_#000] flex flex-col justify-between space-y-5">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-11 w-11 rounded-2xl bg-emerald-400 border-2 border-black flex items-center justify-center shadow-[2px_2px_0_#000]">
+                      <ShieldCheck size={22} className="text-black" />
+                    </div>
+                    <div>
+                      <h2 className="font-outfit font-black text-base uppercase tracking-wider text-black">
+                        Subscriber Protection
+                      </h2>
+                      <span className="text-[11px] font-bold text-emerald-800">VIP Guaranteed Allocation</span>
+                    </div>
+                  </div>
+
+                  <p className="text-xs font-bold text-emerald-950 leading-relaxed bg-white/70 border-2 border-emerald-300 rounded-2xl p-3.5 shadow-sm">
+                    {kitchenStatus.subscriberExemptionNote || "Active scheduled daily subscribers continue receiving their daily handi meals seamlessly without any interruption, even during peak rush pauses."}
+                  </p>
+
+                  <ul className="space-y-2 text-xs text-emerald-900 font-semibold">
+                    <li className="flex items-center gap-2">
+                      <Check size={14} className="text-emerald-700 shrink-0" />
+                      <span>Guaranteed daily chef prep slot reserved</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check size={14} className="text-emerald-700 shrink-0" />
+                      <span>Priority rider dispatch for lunch &amp; dinner</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check size={14} className="text-emerald-700 shrink-0" />
+                      <span>Never affected by temporary order pauses</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setShowKitchenModal(false);
+                    setShowKitchenPausedModal(false);
+                    setActiveTab("subscriptions");
+                  }}
+                  className="w-full py-2.5 rounded-2xl bg-black hover:bg-zinc-800 text-[#FFF8EE] font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[3px_3px_0_#000] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <CalendarCheck size={14} className="text-[#E5A00D]" />
+                  <span>View My Subscriptions</span>
+                </button>
+              </div>
+
+            </section>
+
+            {/* 4. Daily Shift Timings & Chef Quality Desk */}
+            <section className="rounded-3xl border-3 border-black bg-white p-6 sm:p-8 shadow-[5px_5px_0_#000] grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+              <div className="space-y-4">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF8EE] border-2 border-black text-[10px] font-black uppercase text-black">
+                  <Clock size={12} className="text-[#E5A00D]" />
+                  <span>Daily Handi Shifts</span>
+                </div>
+                <h3 className="font-outfit font-black text-xl sm:text-2xl uppercase tracking-tight text-black">
+                  Two Daily Dum Sessions
+                </h3>
+                <p className="text-xs sm:text-sm text-zinc-600 font-medium leading-relaxed">
+                  Our handi stoves are prepared fresh twice every single day. We seal fresh batches of earthenware pots to match peak dining hours with maximum crispness and aroma.
+                </p>
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div className="rounded-2xl border-2 border-black bg-[#FFF8EE] p-3.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 block">Lunch Dum Shift</span>
+                    <span className="font-outfit font-black text-sm text-black block mt-1">11:30 AM &ndash; 03:30 PM</span>
+                    <span className="text-[10px] font-bold text-zinc-500 block mt-0.5">Fresh Midday Dum</span>
+                  </div>
+                  <div className="rounded-2xl border-2 border-black bg-[#FFF8EE] p-3.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 block">Dinner Dum Shift</span>
+                    <span className="font-outfit font-black text-sm text-black block mt-1">06:30 PM &ndash; 10:30 PM</span>
+                    <span className="text-[10px] font-bold text-zinc-500 block mt-0.5">Evening Slow Ember Dum</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border-2 border-black bg-[#FFF8EE] p-5 sm:p-6 space-y-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-xl bg-black text-[#FFF8EE] flex items-center justify-center border-2 border-black">
+                    <ShieldCheck size={18} className="text-[#E5A00D]" />
+                  </div>
+                  <div>
+                    <h4 className="font-outfit font-black text-sm uppercase tracking-wider text-black">
+                      Chef's Quality Guarantee
+                    </h4>
+                    <span className="text-[10px] font-bold text-zinc-600">FSSAI Certified Cloud Kitchen</span>
+                  </div>
+                </div>
+
+                <p className="text-xs text-zinc-700 font-medium leading-relaxed">
+                  Every clay pot is individually inspected, sanitized, and sealed. No recycled earthenware, no chemical glazing. If you ever have specific dietary requirements or bulk handi queries, our master chef desk is always at your service.
+                </p>
+
+                <div className="flex items-center justify-between pt-2 border-t-2 border-black/10 text-xs font-bold text-black">
+                  <span className="flex items-center gap-1.5">
+                    <Phone size={14} className="text-[#E5A00D]" />
+                    <span>Kitchen Desk: +91 99887 76655</span>
+                  </span>
+                  <span className="px-2.5 py-1 rounded-full bg-emerald-200 text-emerald-950 font-black text-[10px] uppercase">
+                    100% Certified
+                  </span>
+                </div>
+              </div>
+            </section>
+
+            {/* 5. Bottom Neo-brutalist Action Bar */}
+            <section className="rounded-3xl border-3 border-black bg-black text-[#FFF8EE] p-6 sm:p-8 shadow-[6px_6px_0_#000] flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="space-y-1 text-center md:text-left">
+                <h3 className="font-outfit font-black text-lg sm:text-xl uppercase tracking-tight text-[#FFF8EE]">
+                  Craving Earthen Clay Handi Flavors?
+                </h3>
+                <p className="text-xs sm:text-sm text-zinc-300 font-medium">
+                  Experience healthy royal Indian slow-cooking with zero toxic metals and natural clay richness.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                <a
+                  href="#menu-section"
+                  onClick={() => {
+                    setShowKitchenModal(false);
+                    setShowKitchenPausedModal(false);
+                  }}
+                  className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-[#E5A00D] hover:bg-[#ffb515] text-black font-outfit font-black text-xs uppercase tracking-wider border-2 border-[#FFF8EE] shadow-[3px_3px_0_#FFF8EE] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer"
+                >
+                  <UtensilsCrossed size={16} />
+                  <span>Explore Handi Dishes</span>
+                </a>
+
+                <button
+                  onClick={() => {
+                    setShowKitchenModal(false);
+                    setShowKitchenPausedModal(false);
+                  }}
+                  className="flex-1 md:flex-initial px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 text-[#FFF8EE] font-outfit font-black text-xs uppercase tracking-wider border border-white/30 cursor-pointer transition-all text-center"
+                >
+                  Close
+                </button>
+              </div>
+            </section>
+
+          </main>
         </div>
       )}
 

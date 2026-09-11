@@ -94,14 +94,15 @@ export default function AdminKitchenPage() {
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (explicitSettings?: KitchenSettingsState) => {
+    const payload = explicitSettings || settings;
     try {
       setSaving(true);
       setSaveSuccess(false);
       const res = await fetch("/api/admin/kitchen/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (data.success) {
@@ -115,8 +116,16 @@ export default function AdminKitchenPage() {
     }
   };
 
+  const updateAndSave = (updater: (prev: KitchenSettingsState) => KitchenSettingsState) => {
+    setSettings((prev) => {
+      const next = updater(prev);
+      handleSave(next);
+      return next;
+    });
+  };
+
   const handlePresetNotice = (text: string, type: NoticeType = "INFO") => {
-    setSettings((prev) => ({
+    updateAndSave((prev) => ({
       ...prev,
       isNoticeBannerActive: true,
       noticeBannerText: text,
@@ -208,7 +217,7 @@ export default function AdminKitchenPage() {
               </button>
 
               <button
-                onClick={handleSave}
+                onClick={() => handleSave()}
                 disabled={saving}
                 className="px-5 py-2.5 rounded-xl bg-[#E5A00D] hover:bg-[#d4920b] text-black font-extrabold text-xs flex items-center gap-2 shadow-none border border-black/20 transition-all active:scale-95 disabled:opacity-50"
               >
@@ -258,7 +267,7 @@ export default function AdminKitchenPage() {
               {/* Option 1: OPEN */}
               <button
                 type="button"
-                onClick={() => setSettings((prev) => ({ ...prev, kitchenStatus: "OPEN", isOrderingPaused: false }))}
+                onClick={() => updateAndSave((prev) => ({ ...prev, kitchenStatus: "OPEN", isOrderingPaused: false }))}
                 className={`p-5 rounded-2xl border-2 text-left transition-all relative flex flex-col justify-between h-full ${
                   settings.kitchenStatus === "OPEN"
                     ? "bg-emerald-50/70 border-emerald-600 ring-2 ring-emerald-600/20"
@@ -286,7 +295,7 @@ export default function AdminKitchenPage() {
               {/* Option 2: CLOSED */}
               <button
                 type="button"
-                onClick={() => setSettings((prev) => ({ ...prev, kitchenStatus: "CLOSED", isOrderingPaused: true }))}
+                onClick={() => updateAndSave((prev) => ({ ...prev, kitchenStatus: "CLOSED", isOrderingPaused: true }))}
                 className={`p-5 rounded-2xl border-2 text-left transition-all relative flex flex-col justify-between h-full ${
                   settings.kitchenStatus === "CLOSED"
                     ? "bg-rose-50/70 border-rose-600 ring-2 ring-rose-600/20"
@@ -315,7 +324,7 @@ export default function AdminKitchenPage() {
               <button
                 type="button"
                 onClick={() =>
-                  setSettings((prev) => ({
+                  updateAndSave((prev) => ({
                     ...prev,
                     kitchenStatus: "CLOSED_TODAY",
                     isOrderingPaused: true,
@@ -352,7 +361,7 @@ export default function AdminKitchenPage() {
               <button
                 type="button"
                 onClick={() =>
-                  setSettings((prev) => ({
+                  updateAndSave((prev) => ({
                     ...prev,
                     kitchenStatus: "TEMPORARILY_UNAVAILABLE",
                     isOrderingPaused: true,
@@ -500,7 +509,7 @@ export default function AdminKitchenPage() {
                     <input
                       type="checkbox"
                       checked={settings.isNoticeBannerActive}
-                      onChange={(e) => setSettings((prev) => ({ ...prev, isNoticeBannerActive: e.target.checked }))}
+                      onChange={(e) => updateAndSave((prev) => ({ ...prev, isNoticeBannerActive: e.target.checked }))}
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black relative"></div>
@@ -522,7 +531,7 @@ export default function AdminKitchenPage() {
                       <button
                         key={item.type}
                         type="button"
-                        onClick={() => setSettings((prev) => ({ ...prev, noticeBannerType: item.type as NoticeType }))}
+                        onClick={() => updateAndSave((prev) => ({ ...prev, noticeBannerType: item.type as NoticeType }))}
                         className={`p-2.5 rounded-xl border text-xs font-extrabold transition-all text-center ${item.bg} ${
                           settings.noticeBannerType === item.type
                             ? "ring-2 ring-black font-black"

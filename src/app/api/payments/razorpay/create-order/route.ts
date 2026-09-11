@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
 
     let payableAmount = 0;
     let receiptId = "";
+    let subMetadata = "";
     let orderId: string | undefined = undefined;
     let subscriptionId: string | undefined = undefined;
     let breakdown: any = null;
@@ -148,7 +149,7 @@ export async function POST(req: NextRequest) {
       });
 
       payableAmount = breakdown.totalAmount;
-      receiptId = JSON.stringify({
+      subMetadata = JSON.stringify({
         packageId: packageId || null,
         mealId: mealId || null,
         addressId: addressId || null,
@@ -156,8 +157,8 @@ export async function POST(req: NextRequest) {
         mealsPerDay: mealsPerDay || 1,
         mealTiming: mealTiming || "LUNCH",
         deliveryDays: deliveryDays || ["MON", "TUE", "WED", "THU", "FRI"],
-        timestamp: Date.now(),
       });
+      receiptId = `sub_${Date.now()}`;
     } else {
       return NextResponse.json({ error: "Invalid payment purpose." }, { status: 400 });
     }
@@ -167,10 +168,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Call Razorpay API to create official Razorpay Order using verified amount
+    // Razorpay receipt parameter MUST NOT exceed 40 characters
     const razorpayOrder = await RazorpayService.createOrder({
       amountInRupees: payableAmount,
       currency: "INR",
-      receipt: receiptId,
+      receipt: receiptId.substring(0, 40),
       notes: {
         userId: session.userId,
         purpose,
@@ -178,14 +180,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Record pending payment in payments DB table
+    // Record pending payment in payments DB table (stores full JSON spec in our DB)
     await PaymentService.createPendingPayment({
       userId: session.userId,
       razorpayOrderId: razorpayOrder.orderId,
       amount: payableAmount,
       currency: razorpayOrder.currency,
       purpose,
-      receipt: receiptId,
+      receipt: purpose === "SUBSCRIPTION" ? subMetadata : receiptId,
       orderId,
       subscriptionId,
     });

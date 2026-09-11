@@ -108,6 +108,17 @@ export default function DeliveryDashboardPage() {
   // Navigation / View Tabs
   const [activeTab, setActiveTab] = useState<"home" | "orders" | "settings">("home");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  // Monitor page scroll to give navbar distinct visibility and backdrop
+  useEffect(() => {
+    function handleScroll() {
+      setIsScrolled(window.scrollY > 15);
+    }
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // Background Video Playlist (Delivery.mp4 -> Delivery2.mp4 -> Delivery.mp4 ...)
   const heroVideos = ["/Delivery.mp4", "/Delivery2.mp4"];
@@ -365,8 +376,14 @@ export default function DeliveryDashboardPage() {
   return (
     <div className="min-h-screen bg-[#f5e3cd] text-black font-sans flex flex-col">
 
-      {/* ── 1. Top Navbar (100% Transparent Navbar) ── */}
-      <header className="sticky top-0 z-40 w-full bg-transparent py-4 transition-all">
+      {/* ── 1. Top Navbar (Sticky Floating with Smooth Backdrop on Scroll) ── */}
+      <header
+        className={`sticky top-0 z-50 w-full transition-all duration-300 ${
+          isScrolled
+            ? "bg-[#f5e3cd]/95 backdrop-blur-md py-3 shadow-[0_4px_20px_rgba(0,0,0,0.08)] border-b-2 border-black/10"
+            : "bg-transparent py-4 border-b-2 border-transparent"
+        }`}
+      >
         <div className="w-full px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
 
           {/* Brand Logo (Exact Landing / Customer Dashboard Logo) */}

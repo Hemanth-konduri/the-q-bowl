@@ -83,8 +83,18 @@ export function CustomerNavbar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifOpen, setNotifOpen] = useState(false);
   const [loadingNotifs, setLoadingNotifs] = useState(false);
-
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  // Monitor page scroll to give navbar distinct visibility and backdrop
+  useEffect(() => {
+    function handleScroll() {
+      setIsScrolled(window.scrollY > 15);
+    }
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // Fetch user profile on mount
   useEffect(() => {
@@ -237,6 +247,24 @@ export function CustomerNavbar() {
   // Address modal state during checkout
   const [addressModalOpen, setAddressModalOpen] = useState(false);
   const [checkoutPending, setCheckoutPending] = useState(false);
+
+  // Kitchen operational state
+  const [kitchenClosed, setKitchenClosed] = useState(false);
+
+  useEffect(() => {
+    async function checkKitchenStatus() {
+      try {
+        const res = await fetch(`/api/kitchen/status?t=${Date.now()}`, { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          setKitchenClosed(data.kitchenStatus !== "OPEN" || Boolean(data.isOrderingPaused));
+        }
+      } catch (err) {}
+    }
+    checkKitchenStatus();
+    const interval = setInterval(checkKitchenStatus, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Listen for open-cart event
   useEffect(() => {
@@ -435,7 +463,14 @@ export function CustomerNavbar() {
     : "QB";
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-transparent py-4 transition-all" ref={containerRef}>
+    <header
+      className={`sticky top-0 z-50 w-full transition-all duration-300 ${
+        isScrolled
+          ? "bg-[#f5e3cd]/95 backdrop-blur-md py-3 shadow-[0_4px_20px_rgba(0,0,0,0.08)] border-b-2 border-black/10"
+          : "bg-transparent py-4 border-b-2 border-transparent"
+      }`}
+      ref={containerRef}
+    >
       <div className="w-full px-4 sm:px-8 lg:px-12 flex items-center justify-between gap-4 sm:gap-8">
         
         {/* 1. Website Logo (Left - Matching Landing Page) */}
@@ -758,6 +793,13 @@ export function CustomerNavbar() {
                     </div>
                   )}
 
+                  {kitchenClosed && (
+                    <div className="p-2.5 rounded-xl bg-red-50 border border-red-300 text-red-800 text-xs font-bold flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-red-500 animate-ping" />
+                      <span>Kitchen is closed / unavailable for orders</span>
+                    </div>
+                  )}
+
                       <div className="border-t-2 border-black/10 pt-3 flex items-center justify-between font-outfit text-sm font-black">
                         <span>Subtotal</span>
                         <span className="text-base text-black">₹{cartSubtotal}</span>
@@ -765,14 +807,20 @@ export function CustomerNavbar() {
 
                       <button
                         type="button"
+                        disabled={kitchenClosed}
                         onClick={() => {
+                          if (kitchenClosed) return;
                           setCartOpen(false);
                           router.push("/checkout");
                         }}
-                        className="w-full py-3 rounded-xl border-2 border-black bg-black text-[#E5A00D] font-outfit font-black text-xs uppercase tracking-wider shadow-[3px_3px_0_#E5A00D] hover:bg-zinc-900 transition-all flex items-center justify-center gap-2"
+                        className={`w-full py-3 rounded-xl border-2 font-outfit font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+                          kitchenClosed
+                            ? "bg-zinc-200 text-zinc-500 border-zinc-300 cursor-not-allowed shadow-none"
+                            : "border-black bg-black text-[#E5A00D] shadow-[3px_3px_0_#E5A00D] hover:bg-zinc-900 cursor-pointer"
+                        }`}
                       >
-                        <span>Proceed to Checkout (₹{cartSubtotal})</span>
-                        <ChevronRight size={15} />
+                        <span>{kitchenClosed ? "Kitchen Closed (Unavailable)" : `Proceed to Checkout (₹${cartSubtotal})`}</span>
+                        {!kitchenClosed && <ChevronRight size={15} />}
                       </button>
                 </div>
               )}

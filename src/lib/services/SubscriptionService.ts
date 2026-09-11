@@ -26,9 +26,9 @@ export class SubscriptionService {
     startDate?: string;
   }) {
     let mealCredits = 20;
-    let pricePerMeal = 149;
+    let pricePerMeal = 55; // Default standard subscription rate is ₹55/meal
     let discount = 0;
-    let deliveryFee = 0;
+    let deliveryFee = 0; // Subscriptions include free daily priority delivery
     let taxes = 0;
 
     // 1. Fetch Meal details & pricing from database
@@ -37,6 +37,7 @@ export class SubscriptionService {
         .select({
           id: foodItems.id,
           name: foodItems.name,
+          isVeg: foodItems.isVeg,
           standardPrice: foodItems.price,
           subPricePerMeal: subscriptionMealPricing.pricePerMeal,
           pricingIsActive: subscriptionMealPricing.isActive,
@@ -48,10 +49,11 @@ export class SubscriptionService {
 
       if (mealRows.length > 0) {
         const m = mealRows[0];
-        pricePerMeal =
-          m.subPricePerMeal && m.pricingIsActive
-            ? Number(m.subPricePerMeal)
-            : Math.round(Number(m.standardPrice) * 0.85);
+        if (m.subPricePerMeal && m.pricingIsActive) {
+          pricePerMeal = Number(m.subPricePerMeal);
+        } else {
+          pricePerMeal = 55; // Veg subscriber locked rate is ₹55/meal
+        }
       }
     }
 
@@ -76,29 +78,8 @@ export class SubscriptionService {
       discount = 0;
     }
 
-    // 3. Compute delivery fee if address ID is provided
-    if (params.addressId) {
-      try {
-        const addrRows = await db
-          .select()
-          .from(addresses)
-          .where(eq(addresses.id, params.addressId))
-          .limit(1);
-
-        if (addrRows.length > 0 && addrRows[0].latitude !== null && addrRows[0].longitude !== null) {
-          const { DeliveryZoneService } = await import("@/lib/services/DeliveryZoneService");
-          const zoneVal = await DeliveryZoneService.validateLocation(
-            addrRows[0].latitude,
-            addrRows[0].longitude
-          );
-          if (zoneVal.isWithinRadius) {
-            deliveryFee = zoneVal.deliveryFee;
-          }
-        }
-      } catch (e) {
-        console.warn("Delivery fee check failed during sub calculation:", e);
-      }
-    }
+    // 3. Subscriptions include free daily priority delivery (deliveryFee = 0)
+    deliveryFee = 0;
 
     // 4. Grand Total = (Price Per Meal × Meal Credits) - Discount + Delivery Fee + Taxes
     const subtotal = pricePerMeal * mealCredits;

@@ -12,16 +12,22 @@ import {
   Eye,
   X,
   User,
+  Phone,
   Plus,
   Edit2,
   Trash2,
   DollarSign,
   Sparkles,
   UserPlus,
+  MapPin,
+  Calendar,
+  Clock,
   CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  Tag,
+  AlertCircle,
+  Check,
+  ToggleLeft,
+  ToggleRight,
+  Power,
 } from "lucide-react";
 
 interface SubscriberRecord {
@@ -31,9 +37,9 @@ interface SubscriberRecord {
   userEmail: string;
   userPhone: string;
   mealName: string;
-  mealsRemaining: number;
-  totalMeals: number;
-  mealsUsed: number;
+  mealsRemaining: number; // Pending Meals
+  totalMeals: number; // Total Meals
+  mealsUsed: number; // Completed Meals
   mealsPerDay: number;
   mealTiming: string;
   dietaryPreference: string;
@@ -87,19 +93,10 @@ export default function AdminSubscriptionsPage() {
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const [foodCatalog, setFoodCatalog] = useState<FoodCatalogItem[]>([]);
 
-  // Toast Notification State
-  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
-
-  function showToast(type: "success" | "error", message: string) {
-    setToast({ type, message });
-    setTimeout(() => {
-      setToast(null);
-    }, 4000);
-  }
-
-  // Modals & Forms State
+  // Modal States
   const [selectedSub, setSelectedSub] = useState<SubscriberRecord | null>(null);
   const [updatingSubId, setUpdatingSubId] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Add Offline Subscriber Modal State
   const [showAddSubModal, setShowAddSubModal] = useState(false);
@@ -120,7 +117,6 @@ export default function AdminSubscriptionsPage() {
 
   // Meal Pricing Form State
   const [showPricingModal, setShowPricingModal] = useState(false);
-  const [savingPricing, setSavingPricing] = useState(false);
   const [pricingForm, setPricingForm] = useState({
     id: "",
     mealId: "",
@@ -130,7 +126,6 @@ export default function AdminSubscriptionsPage() {
 
   // Package Form State
   const [showPackageModal, setShowPackageModal] = useState(false);
-  const [savingPackage, setSavingPackage] = useState(false);
   const [packageForm, setPackageForm] = useState({
     id: "",
     name: "",
@@ -139,13 +134,6 @@ export default function AdminSubscriptionsPage() {
     isFeatured: false,
     isActive: true,
   });
-
-  // Delete Confirmation Modals
-  const [pricingToDelete, setPricingToDelete] = useState<MealPricing | null>(null);
-  const [deletingPricing, setDeletingPricing] = useState(false);
-
-  const [pkgToDelete, setPkgToDelete] = useState<CreditPackage | null>(null);
-  const [deletingPkg, setDeletingPkg] = useState(false);
 
   // 1. Fetch All Subscription Data
   async function fetchAllSubscriptionData(isManual = false) {
@@ -176,7 +164,6 @@ export default function AdminSubscriptionsPage() {
       }
     } catch (err) {
       console.error("Error loading subscription data:", err);
-      showToast("error", "Failed to load subscription data.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -190,10 +177,7 @@ export default function AdminSubscriptionsPage() {
   // 2. Add Offline Subscriber Handler
   async function handleCreateOfflineSubscriber(e: React.FormEvent) {
     e.preventDefault();
-    if (!newSubForm.fullName || !newSubForm.phone || !newSubForm.deliveryAddress) {
-      showToast("error", "Please fill in Name, Phone, and Delivery Address.");
-      return;
-    }
+    if (!newSubForm.fullName || !newSubForm.phone || !newSubForm.deliveryAddress) return;
 
     setSubmittingAddSub(true);
     try {
@@ -231,14 +215,14 @@ export default function AdminSubscriptionsPage() {
           status: "ACTIVE",
           pricePaid: "",
         });
-        showToast("success", "✓ Offline subscriber onboarded successfully!");
+        setToastMessage("Offline subscriber onboarded successfully!");
+        setTimeout(() => setToastMessage(null), 3500);
         fetchAllSubscriptionData();
       } else {
-        showToast("error", data.error || "Failed to add subscriber.");
+        alert(data.error || "Failed to add subscriber");
       }
     } catch (err) {
       console.error("Error adding subscriber:", err);
-      showToast("error", "Error adding offline subscriber.");
     } finally {
       setSubmittingAddSub(false);
     }
@@ -254,38 +238,25 @@ export default function AdminSubscriptionsPage() {
         body: JSON.stringify({ subscriptionId, status, addCredits }),
       });
       if (res.ok) {
-        showToast("success", "✓ Subscriber status updated!");
         await fetchAllSubscriptionData();
         if (selectedSub && selectedSub.id === subscriptionId) {
           const updatedSub = subscribers.find((s) => s.id === subscriptionId);
           if (updatedSub) setSelectedSub(updatedSub);
         }
-      } else {
-        showToast("error", "Failed to update subscriber.");
       }
     } catch (err) {
       console.error("Error updating subscriber:", err);
-      showToast("error", "Error updating subscriber status.");
     } finally {
       setUpdatingSubId(null);
     }
   }
 
-  // 4. Save Meal Pricing (Create or Edit)
+  // 4. Save Meal Pricing
   async function handleSavePricing(e: React.FormEvent) {
     e.preventDefault();
-    if (!pricingForm.mealId) {
-      showToast("error", "Please select a dish from the catalog.");
-      return;
-    }
-    if (!pricingForm.pricePerMeal || Number(pricingForm.pricePerMeal) <= 0) {
-      showToast("error", "Please enter a valid price per meal (greater than 0).");
-      return;
-    }
+    if (!pricingForm.mealId || !pricingForm.pricePerMeal) return;
 
-    setSavingPricing(true);
     try {
-      const isEdit = Boolean(pricingForm.id);
       const res = await fetch("/api/admin/subscriptions/pricing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -297,73 +268,85 @@ export default function AdminSubscriptionsPage() {
         }),
       });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (res.ok) {
         setShowPricingModal(false);
         setPricingForm({ id: "", mealId: "", pricePerMeal: "", isActive: true });
-        showToast(
-          "success",
-          isEdit ? "✓ Per-meal pricing rate updated!" : "✓ Per-meal pricing rate added!"
-        );
+        setToastMessage("Meal subscription pricing saved successfully!");
+        setTimeout(() => setToastMessage(null), 3500);
         fetchAllSubscriptionData();
       } else {
-        showToast("error", data.error || "Failed to save pricing rate.");
+        const data = await res.json();
+        alert(data.error || "Failed to save pricing");
       }
     } catch (err) {
       console.error("Error saving pricing:", err);
-      showToast("error", "Failed to save pricing rate.");
-    } finally {
-      setSavingPricing(false);
     }
   }
 
-  // Delete Meal Pricing Handler
-  async function handleConfirmDeletePricing() {
-    if (!pricingToDelete) return;
-    setDeletingPricing(true);
+  // 4b. Toggle Meal Pricing Active / Inactive
+  async function handleTogglePricingActive(pricing: MealPricing) {
+    const newStatus = !pricing.isActive;
+    try {
+      const res = await fetch("/api/admin/subscriptions/pricing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: pricing.id,
+          mealId: pricing.mealId,
+          pricePerMeal: pricing.pricePerMeal,
+          isActive: newStatus,
+        }),
+      });
+
+      if (res.ok) {
+        setToastMessage(`Pricing for ${pricing.mealName} ${newStatus ? "activated" : "deactivated"}!`);
+        setTimeout(() => setToastMessage(null), 3500);
+        fetchAllSubscriptionData();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to update pricing status");
+      }
+    } catch (err) {
+      console.error("Error toggling pricing status:", err);
+    }
+  }
+
+  // 4c. Delete Meal Pricing
+  async function handleDeletePricing(pricingId: string, mealName: string) {
+    if (!confirm(`Are you sure you want to delete the subscription pricing for "${mealName}"?`)) {
+      return;
+    }
 
     try {
-      const res = await fetch(`/api/admin/subscriptions/pricing?id=${pricingToDelete.id}`, {
+      const res = await fetch(`/api/admin/subscriptions/pricing?id=${pricingId}`, {
         method: "DELETE",
       });
 
       if (res.ok) {
-        setPricings((prev) => prev.filter((p) => p.id !== pricingToDelete.id));
-        showToast("success", `✓ Pricing rate for "${pricingToDelete.mealName}" deleted.`);
-        setPricingToDelete(null);
+        setToastMessage("Pricing deleted successfully!");
+        setTimeout(() => setToastMessage(null), 3500);
+        fetchAllSubscriptionData();
       } else {
-        const err = await res.json().catch(() => ({}));
-        showToast("error", err.error || "Failed to delete pricing rate.");
+        const data = await res.json();
+        alert(data.error || "Failed to delete pricing");
       }
     } catch (err) {
       console.error("Error deleting pricing:", err);
-      showToast("error", "Network error while deleting pricing rate.");
-    } font: {
-      setDeletingPricing(false);
     }
   }
 
-  // 5. Save Credit Package (Create or Edit)
+  // 5. Save Credit Package
   async function handleSavePackage(e: React.FormEvent) {
     e.preventDefault();
-    if (!packageForm.name.trim()) {
-      showToast("error", "Package name is required.");
-      return;
-    }
-    if (!packageForm.mealCredits || Number(packageForm.mealCredits) <= 0) {
-      showToast("error", "Meal credits count must be greater than 0.");
-      return;
-    }
+    if (!packageForm.name || !packageForm.mealCredits) return;
 
-    setSavingPackage(true);
     try {
-      const isEdit = Boolean(packageForm.id);
       const res = await fetch("/api/admin/subscriptions/packages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: packageForm.id || undefined,
-          name: packageForm.name.trim(),
+          name: packageForm.name,
           mealCredits: Number(packageForm.mealCredits),
           discount: Number(packageForm.discount) || 0,
           isFeatured: packageForm.isFeatured,
@@ -371,49 +354,72 @@ export default function AdminSubscriptionsPage() {
         }),
       });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (res.ok) {
         setShowPackageModal(false);
         setPackageForm({ id: "", name: "", mealCredits: "", discount: "", isFeatured: false, isActive: true });
-        showToast(
-          "success",
-          isEdit ? "✓ Credit package updated successfully!" : "✓ New credit package created!"
-        );
+        setToastMessage("Subscription package saved successfully!");
+        setTimeout(() => setToastMessage(null), 3500);
         fetchAllSubscriptionData();
       } else {
-        showToast("error", data.error || "Failed to save credit package.");
+        const data = await res.json();
+        alert(data.error || "Failed to save package");
       }
     } catch (err) {
       console.error("Error saving package:", err);
-      showToast("error", "Failed to save credit package.");
-    } finally {
-      setSavingPackage(false);
     }
   }
 
-  // Delete Credit Package Handler
-  async function handleConfirmDeletePackage() {
-    if (!pkgToDelete) return;
-    setDeletingPkg(true);
+  // 5b. Toggle Package Active / Inactive
+  async function handleTogglePackageActive(pkg: CreditPackage) {
+    const newStatus = !pkg.isActive;
+    try {
+      const res = await fetch("/api/admin/subscriptions/packages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: pkg.id,
+          name: pkg.name,
+          mealCredits: pkg.mealCredits,
+          discount: pkg.discount,
+          isFeatured: pkg.isFeatured,
+          isActive: newStatus,
+        }),
+      });
+
+      if (res.ok) {
+        setToastMessage(`Package "${pkg.name}" ${newStatus ? "activated" : "deactivated"}!`);
+        setTimeout(() => setToastMessage(null), 3500);
+        fetchAllSubscriptionData();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to update package status");
+      }
+    } catch (err) {
+      console.error("Error toggling package status:", err);
+    }
+  }
+
+  // 5c. Delete Credit Package
+  async function handleDeletePackage(packageId: string, packageName: string) {
+    if (!confirm(`Are you sure you want to delete the package "${packageName}"?`)) {
+      return;
+    }
 
     try {
-      const res = await fetch(`/api/admin/subscriptions/packages?id=${pkgToDelete.id}`, {
+      const res = await fetch(`/api/admin/subscriptions/packages?id=${packageId}`, {
         method: "DELETE",
       });
 
       if (res.ok) {
-        setPackages((prev) => prev.filter((p) => p.id !== pkgToDelete.id));
-        showToast("success", `✓ Credit package "${pkgToDelete.name}" deleted.`);
-        setPkgToDelete(null);
+        setToastMessage("Package deleted successfully!");
+        setTimeout(() => setToastMessage(null), 3500);
+        fetchAllSubscriptionData();
       } else {
-        const err = await res.json().catch(() => ({}));
-        showToast("error", err.error || "Failed to delete package.");
+        const data = await res.json();
+        alert(data.error || "Failed to delete package");
       }
     } catch (err) {
       console.error("Error deleting package:", err);
-      showToast("error", "Network error while deleting credit package.");
-    } finally {
-      setDeletingPkg(false);
     }
   }
 
@@ -445,24 +451,6 @@ export default function AdminSubscriptionsPage() {
       <div className="pl-64 flex flex-col min-h-screen bg-white">
         <AdminNavbar />
 
-        {/* ── Toast Notification Banner ── */}
-        {toast && (
-          <div
-            className={`fixed top-4 right-6 z-50 px-5 py-3 rounded-2xl shadow-xl border flex items-center gap-3 transition-all transform animate-in fade-in slide-in-from-top-4 ${
-              toast.type === "success"
-                ? "bg-emerald-950 border-emerald-500 text-emerald-100 font-bold"
-                : "bg-rose-950 border-rose-500 text-rose-100 font-bold"
-            }`}
-          >
-            {toast.type === "success" ? (
-              <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
-            ) : (
-              <XCircle size={18} className="text-rose-400 shrink-0" />
-            )}
-            <span className="text-sm">{toast.message}</span>
-          </div>
-        )}
-
         <main className="flex-1 p-8 space-y-8 bg-white">
           {/* Top Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
@@ -475,6 +463,13 @@ export default function AdminSubscriptionsPage() {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              {toastMessage && (
+                <div className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-bold animate-fadeIn">
+                  <Check className="w-4 h-4 text-emerald-600" />
+                  {toastMessage}
+                </div>
+              )}
+
               {/* Add Offline Subscriber Button */}
               <button
                 onClick={() => setShowAddSubModal(true)}
@@ -604,12 +599,7 @@ export default function AdminSubscriptionsPage() {
               {activeTab === "MEAL_PRICING" && (
                 <button
                   onClick={() => {
-                    setPricingForm({
-                      id: "",
-                      mealId: foodCatalog[0]?.id || "",
-                      pricePerMeal: "",
-                      isActive: true,
-                    });
+                    setPricingForm({ id: "", mealId: "", pricePerMeal: "", isActive: true });
                     setShowPricingModal(true);
                   }}
                   className="flex items-center gap-1.5 px-4 py-2 bg-black hover:bg-neutral-800 text-[#E5A00D] font-black text-xs rounded-xl shadow-none transition-colors"
@@ -621,14 +611,7 @@ export default function AdminSubscriptionsPage() {
               {activeTab === "PACKAGES" && (
                 <button
                   onClick={() => {
-                    setPackageForm({
-                      id: "",
-                      name: "",
-                      mealCredits: "",
-                      discount: "",
-                      isFeatured: false,
-                      isActive: true,
-                    });
+                    setPackageForm({ id: "", name: "", mealCredits: "", discount: "", isFeatured: false, isActive: true });
                     setShowPackageModal(true);
                   }}
                   className="flex items-center gap-1.5 px-4 py-2 bg-black hover:bg-neutral-800 text-[#E5A00D] font-black text-xs rounded-xl shadow-none transition-colors"
@@ -790,38 +773,46 @@ export default function AdminSubscriptionsPage() {
                     pricings.map((p) => (
                       <div
                         key={p.id}
-                        className="p-5 rounded-2xl border border-slate-200 bg-white space-y-3 shadow-none hover:border-[#E5A00D] transition-colors relative flex flex-col justify-between"
+                        className="p-5 rounded-2xl border border-slate-200 bg-white space-y-3 shadow-none hover:border-[#E5A00D] transition-colors relative"
                       >
-                        <div className="space-y-3">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <span className="text-[10px] font-black uppercase text-[#E5A00D] bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                                {p.categoryName || "Subscription Meal"}
-                              </span>
-                              <h4 className="font-black text-base text-black mt-1">{p.mealName}</h4>
-                            </div>
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                                p.isActive ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-500"
-                              }`}
-                            >
-                              {p.isActive ? "Active" : "Inactive"}
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <span className="text-[10px] font-black uppercase text-[#E5A00D] bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                              {p.categoryName || "Subscription Meal"}
                             </span>
+                            <h4 className="font-black text-base text-black mt-1">{p.mealName}</h4>
                           </div>
 
-                          <div className="bg-slate-50 p-3 rounded-xl flex items-center justify-between text-xs border border-slate-200">
-                            <div>
-                              <p className="text-slate-400 font-bold uppercase text-[10px]">Standard Price</p>
-                              <p className="font-extrabold text-slate-700">₹{p.standardPrice || "N/A"}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-slate-400 font-bold uppercase text-[10px]">Subscription Cost</p>
-                              <p className="font-black text-black text-lg">₹{p.pricePerMeal} <span className="text-xs font-semibold text-slate-500">/ meal</span></p>
-                            </div>
+                          {/* ON / OFF Interactive Toggle Switch */}
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleTogglePricingActive(p)}
+                              title={p.isActive ? "Click to Deactivate" : "Click to Activate"}
+                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border ${
+                                p.isActive
+                                  ? "bg-emerald-500 text-white border-emerald-600 shadow-sm hover:bg-emerald-600"
+                                  : "bg-slate-200 text-slate-600 border-slate-300 hover:bg-slate-300"
+                              }`}
+                            >
+                              <Power size={11} className={p.isActive ? "text-white" : "text-slate-500"} />
+                              <span>{p.isActive ? "ON" : "OFF"}</span>
+                            </button>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                        <div className="bg-slate-50 p-3 rounded-xl flex items-center justify-between text-xs border border-slate-200">
+                          <div>
+                            <p className="text-slate-400 font-bold uppercase text-[10px]">Standard Price</p>
+                            <p className="font-extrabold text-slate-700">₹{p.standardPrice || "N/A"}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-slate-400 font-bold uppercase text-[10px]">Subscription Cost</p>
+                            <p className="font-black text-black text-lg">₹{p.pricePerMeal} <span className="text-xs font-semibold text-slate-500">/ meal</span></p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-1">
                           <button
                             onClick={() => {
                               setPricingForm({
@@ -832,16 +823,16 @@ export default function AdminSubscriptionsPage() {
                               });
                               setShowPricingModal(true);
                             }}
-                            className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-black font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1"
+                            className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-black font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                           >
-                            <Edit2 size={14} /> Edit Rate
+                            <Edit2 size={13} /> Edit
                           </button>
-
                           <button
-                            onClick={() => setPricingToDelete(p)}
-                            className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl font-bold text-xs transition-colors flex items-center gap-1"
+                            onClick={() => handleDeletePricing(p.id, p.mealName)}
+                            className="p-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs rounded-xl border border-red-200 transition-colors flex items-center justify-center cursor-pointer"
+                            title="Delete Per-Meal Pricing"
                           >
-                            <Trash2 size={15} />
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       </div>
@@ -869,7 +860,7 @@ export default function AdminSubscriptionsPage() {
                         key={pkg.id}
                         className={`p-5 rounded-2xl border ${
                           pkg.isFeatured ? "border-[#E5A00D] bg-amber-50/30" : "border-slate-200 bg-white"
-                        } space-y-3 shadow-none relative flex flex-col justify-between`}
+                        } space-y-3 shadow-none relative`}
                       >
                         {pkg.isFeatured && (
                           <span className="absolute -top-3 right-4 px-2.5 py-0.5 bg-[#E5A00D] text-black font-black text-[10px] uppercase rounded-full shadow-none flex items-center gap-1 border border-black/20">
@@ -877,31 +868,39 @@ export default function AdminSubscriptionsPage() {
                           </span>
                         )}
 
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <h4 className="font-black text-lg text-black">{pkg.name}</h4>
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                                pkg.isActive ? "bg-black text-[#E5A00D]" : "bg-slate-100 text-slate-500"
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-black text-lg text-black">{pkg.name}</h4>
+
+                          {/* ON / OFF Interactive Toggle Switch */}
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleTogglePackageActive(pkg)}
+                              title={pkg.isActive ? "Click to Deactivate Plan" : "Click to Activate Plan"}
+                              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer border ${
+                                pkg.isActive
+                                  ? "bg-emerald-500 text-white border-emerald-600 shadow-sm hover:bg-emerald-600"
+                                  : "bg-slate-200 text-slate-600 border-slate-300 hover:bg-slate-300"
                               }`}
                             >
-                              {pkg.isActive ? "Active" : "Disabled"}
-                            </span>
-                          </div>
-
-                          <div className="space-y-1">
-                            <p className="text-3xl font-black text-black">
-                              {pkg.mealCredits} <span className="text-sm font-bold text-slate-500">Meal Credits</span>
-                            </p>
-                            {pkg.discount > 0 && (
-                              <p className="text-xs font-black text-emerald-800 bg-emerald-50 border border-emerald-200 inline-block px-2 py-0.5 rounded-md">
-                                Save ₹{pkg.discount} on Package
-                              </p>
-                            )}
+                              <Power size={11} className={pkg.isActive ? "text-white" : "text-slate-500"} />
+                              <span>{pkg.isActive ? "ACTIVE (ON)" : "INACTIVE (OFF)"}</span>
+                            </button>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
+                        <div className="space-y-1">
+                          <p className="text-3xl font-black text-black">
+                            {pkg.mealCredits} <span className="text-sm font-bold text-slate-500">Meal Credits</span>
+                          </p>
+                          {pkg.discount > 0 && (
+                            <p className="text-xs font-black text-emerald-800 bg-emerald-50 border border-emerald-200 inline-block px-2 py-0.5 rounded-md">
+                              Save ₹{pkg.discount} on Package
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-2">
                           <button
                             onClick={() => {
                               setPackageForm({
@@ -914,16 +913,16 @@ export default function AdminSubscriptionsPage() {
                               });
                               setShowPackageModal(true);
                             }}
-                            className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-black font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1"
+                            className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-black font-bold text-xs rounded-xl transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                           >
-                            <Edit2 size={14} /> Edit Package
+                            <Edit2 size={13} /> Edit
                           </button>
-
                           <button
-                            onClick={() => setPkgToDelete(pkg)}
-                            className="p-2 text-rose-600 hover:bg-rose-50 rounded-xl font-bold text-xs transition-colors flex items-center gap-1"
+                            onClick={() => handleDeletePackage(pkg.id, pkg.name)}
+                            className="p-2 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs rounded-xl border border-red-200 transition-colors flex items-center justify-center cursor-pointer"
+                            title="Delete Credit Package"
                           >
-                            <Trash2 size={15} />
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       </div>
@@ -1158,288 +1157,7 @@ export default function AdminSubscriptionsPage() {
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════════════════ */}
-      {/* MODAL 2: ADD / EDIT PRE-MEAL PRICING MODAL                   */}
-      {/* ════════════════════════════════════════════════════════════ */}
-      {showPricingModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-6 animate-in fade-in zoom-in-95 border border-slate-100">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-              <h3 className="text-lg font-black text-black uppercase flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-[#E5A00D]" />
-                {pricingForm.id ? "Edit Pre-Meal Pricing Rate" : "Add Pre-Meal Pricing Rate"}
-              </h3>
-              <button
-                onClick={() => setShowPricingModal(false)}
-                className="p-1.5 rounded-full hover:bg-slate-100 text-slate-500 hover:text-black transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSavePricing} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-600 uppercase">Select Catalog Dish *</label>
-                <select
-                  required
-                  value={pricingForm.mealId}
-                  onChange={(e) => setPricingForm((p) => ({ ...p, mealId: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold text-xs text-black outline-none focus:border-[#E5A00D]"
-                >
-                  <option value="">Select a Dish Item...</option>
-                  {foodCatalog.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name} (Standard Price: ₹{f.price})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-600 uppercase">
-                  Subscription Price Per Meal (₹) *
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  required
-                  placeholder="e.g. 120"
-                  value={pricingForm.pricePerMeal}
-                  onChange={(e) => setPricingForm((p) => ({ ...p, pricePerMeal: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold text-xs text-black outline-none focus:border-[#E5A00D]"
-                />
-              </div>
-
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700">Active Rate Status</span>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={pricingForm.isActive}
-                    onChange={(e) => setPricingForm((p) => ({ ...p, isActive: e.target.checked }))}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E5A00D]" />
-                </label>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setShowPricingModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold text-xs text-slate-700 rounded-xl transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingPricing}
-                  className="px-5 py-2 bg-[#E5A00D] hover:bg-amber-500 font-black text-xs text-black rounded-xl transition-colors shadow-none flex items-center gap-2"
-                >
-                  {savingPricing && <Loader2 size={14} className="animate-spin text-black" />}
-                  {pricingForm.id ? "Update Rate" : "Save Rate"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ════════════════════════════════════════════════════════════ */}
-      {/* MODAL 3: ADD / EDIT CREDIT PACKAGE MODAL                    */}
-      {/* ════════════════════════════════════════════════════════════ */}
-      {showPackageModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-6 animate-in fade-in zoom-in-95 border border-slate-100">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-              <h3 className="text-lg font-black text-black uppercase flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-[#E5A00D]" />
-                {packageForm.id ? "Edit Credit Package" : "Create Credit Package"}
-              </h3>
-              <button
-                onClick={() => setShowPackageModal(false)}
-                className="p-1.5 rounded-full hover:bg-slate-100 text-slate-500 hover:text-black transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSavePackage} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-600 uppercase">Package Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. 20 Meals Saver Plan"
-                  value={packageForm.name}
-                  onChange={(e) => setPackageForm((p) => ({ ...p, name: e.target.value }))}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold text-xs text-black outline-none focus:border-[#E5A00D]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-600 uppercase">Meal Credits *</label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    placeholder="e.g. 20"
-                    value={packageForm.mealCredits}
-                    onChange={(e) => setPackageForm((p) => ({ ...p, mealCredits: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold text-xs text-black outline-none focus:border-[#E5A00D]"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-600 uppercase">Discount Savings (₹)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="e.g. 150"
-                    value={packageForm.discount}
-                    onChange={(e) => setPackageForm((p) => ({ ...p, discount: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold text-xs text-black outline-none focus:border-[#E5A00D]"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-slate-100 space-y-3">
-                <label className="flex items-center gap-2 text-xs font-bold cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={packageForm.isFeatured}
-                    onChange={(e) => setPackageForm((p) => ({ ...p, isFeatured: e.target.checked }))}
-                    className="accent-[#E5A00D] w-4 h-4 rounded"
-                  />
-                  <span className="text-slate-800">Mark as Popular / Featured Tier</span>
-                </label>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-700">Active Package Status</span>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={packageForm.isActive}
-                      onChange={(e) => setPackageForm((p) => ({ ...p, isActive: e.target.checked }))}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E5A00D]" />
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => setShowPackageModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold text-xs text-slate-700 rounded-xl transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingPackage}
-                  className="px-5 py-2 bg-[#E5A00D] hover:bg-amber-500 font-black text-xs text-black rounded-xl transition-colors shadow-none flex items-center gap-2"
-                >
-                  {savingPackage && <Loader2 size={14} className="animate-spin text-black" />}
-                  {packageForm.id ? "Update Package" : "Create Package"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ════════════════════════════════════════════════════════════ */}
-      {/* MODAL 4: CONFIRM DELETE PRICING RATE                        */}
-      {/* ════════════════════════════════════════════════════════════ */}
-      {pricingToDelete && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 border border-slate-100">
-            <div className="flex items-center gap-3 text-rose-600">
-              <div className="h-12 w-12 rounded-2xl bg-rose-100 flex items-center justify-center shrink-0">
-                <AlertTriangle size={24} className="text-rose-600" />
-              </div>
-              <div>
-                <h3 className="font-black text-lg text-black leading-tight">Delete Pricing Rate?</h3>
-                <p className="text-xs font-bold text-slate-500">Meal: &quot;{pricingToDelete.mealName}&quot;</p>
-              </div>
-            </div>
-
-            <p className="text-xs font-bold text-slate-600 bg-rose-50 border border-rose-200 p-3 rounded-xl">
-              Delete per-meal pricing rate of ₹{pricingToDelete.pricePerMeal} for &quot;{pricingToDelete.mealName}&quot;?
-            </p>
-
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setPricingToDelete(null)}
-                disabled={deletingPricing}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold text-xs text-slate-700 rounded-xl transition-colors"
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                onClick={handleConfirmDeletePricing}
-                disabled={deletingPricing}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 font-black text-xs text-white rounded-xl transition-colors shadow-none flex items-center gap-2"
-              >
-                {deletingPricing && <Loader2 size={14} className="animate-spin text-white" />}
-                Delete Rate
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ════════════════════════════════════════════════════════════ */}
-      {/* MODAL 5: CONFIRM DELETE CREDIT PACKAGE                      */}
-      {/* ════════════════════════════════════════════════════════════ */}
-      {pkgToDelete && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 border border-slate-100">
-            <div className="flex items-center gap-3 text-rose-600">
-              <div className="h-12 w-12 rounded-2xl bg-rose-100 flex items-center justify-center shrink-0">
-                <AlertTriangle size={24} className="text-rose-600" />
-              </div>
-              <div>
-                <h3 className="font-black text-lg text-black leading-tight">Delete Credit Package?</h3>
-                <p className="text-xs font-bold text-slate-500">Package: &quot;{pkgToDelete.name}&quot;</p>
-              </div>
-            </div>
-
-            <p className="text-xs font-bold text-slate-600 bg-rose-50 border border-rose-200 p-3 rounded-xl">
-              Delete credit package &quot;{pkgToDelete.name}&quot; ({pkgToDelete.mealCredits} credits)? This action cannot be undone.
-            </p>
-
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setPkgToDelete(null)}
-                disabled={deletingPkg}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 font-bold text-xs text-slate-700 rounded-xl transition-colors"
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                onClick={handleConfirmDeletePackage}
-                disabled={deletingPkg}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 font-black text-xs text-white rounded-xl transition-colors shadow-none flex items-center gap-2"
-              >
-                {deletingPkg && <Loader2 size={14} className="animate-spin text-white" />}
-                Delete Package
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 6: VIEW SUBSCRIBER PROFILE DRAWER */}
+      {/* MODAL 2: VIEW SUBSCRIBER PROFILE DRAWER */}
       {selectedSub && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
           <div className="bg-white border-2 border-black w-full max-w-xl rounded-2xl shadow-none p-6 space-y-6 relative overflow-hidden text-slate-900 max-h-[90vh] overflow-y-auto">
@@ -1497,6 +1215,209 @@ export default function AdminSubscriptionsPage() {
                 <p className="text-2xl font-black text-amber-950 mt-0.5">{selectedSub.mealsRemaining}</p>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════ */}
+      {/* MODAL 3: MEAL PRICING FORM MODAL (Add / Edit)              */}
+      {/* ════════════════════════════════════════════════════════════ */}
+      {showPricingModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white border-2 border-black w-full max-w-md rounded-2xl p-6 space-y-6 relative overflow-hidden text-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+              <div>
+                <h3 className="text-lg font-black text-black uppercase tracking-tight flex items-center gap-2">
+                  <DollarSign className="w-5 h-5 text-[#E5A00D]" />
+                  {pricingForm.id ? "Edit Meal Subscription Cost" : "Add Meal Subscription Cost"}
+                </h3>
+                <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                  Configure discounted per-meal cost for subscriber billing.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowPricingModal(false)}
+                className="p-1.5 rounded-full hover:bg-slate-100 text-slate-500 hover:text-black transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePricing} className="space-y-4 text-xs font-bold">
+              <div>
+                <label className="text-slate-700 block mb-1">Select Food Item *</label>
+                <select
+                  required
+                  value={pricingForm.mealId}
+                  onChange={(e) => setPricingForm((prev) => ({ ...prev, mealId: e.target.value }))}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-black focus:bg-white focus:border-[#E5A00D] outline-none"
+                >
+                  <option value="">Select a meal from catalog...</option>
+                  {foodCatalog.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name} (Regular Price: ₹{f.price})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-slate-700 block mb-1">Subscription Price Per Meal (₹) *</label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  value={pricingForm.pricePerMeal}
+                  onChange={(e) => setPricingForm((prev) => ({ ...prev, pricePerMeal: e.target.value }))}
+                  placeholder="e.g. 55"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-black focus:bg-white focus:border-[#E5A00D] outline-none"
+                />
+                <p className="text-[11px] text-slate-500 mt-1 font-normal">
+                  Rate charged per meal to subscribers. E.g. ₹55 instead of standard ₹60.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="pricingIsActive"
+                  checked={pricingForm.isActive}
+                  onChange={(e) => setPricingForm((prev) => ({ ...prev, isActive: e.target.checked }))}
+                  className="h-4 w-4 rounded border-slate-300 text-[#E5A00D] focus:ring-[#E5A00D]"
+                />
+                <label htmlFor="pricingIsActive" className="text-slate-800 text-xs font-bold cursor-pointer">
+                  Active for subscribers
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setShowPricingModal(false)}
+                  className="px-4 py-2 border border-slate-300 rounded-xl text-slate-700 font-bold text-xs hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-[#E5A00D] hover:bg-[#d4920b] text-black font-black text-xs rounded-xl border border-black/20 cursor-pointer"
+                >
+                  {pricingForm.id ? "Update Pricing" : "Save Pricing"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════ */}
+      {/* MODAL 4: CREDIT PACKAGE FORM MODAL (Add / Edit)            */}
+      {/* ════════════════════════════════════════════════════════════ */}
+      {showPackageModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white border-2 border-black w-full max-w-md rounded-2xl p-6 space-y-6 relative overflow-hidden text-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+              <div>
+                <h3 className="text-lg font-black text-black uppercase tracking-tight flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-[#E5A00D]" />
+                  {packageForm.id ? "Edit Credit Package" : "Add Credit Package"}
+                </h3>
+                <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                  Package bundles e.g. 20, 30, or 60 meals with optional discounts.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowPackageModal(false)}
+                className="p-1.5 rounded-full hover:bg-slate-100 text-slate-500 hover:text-black transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePackage} className="space-y-4 text-xs font-bold">
+              <div>
+                <label className="text-slate-700 block mb-1">Package Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={packageForm.name}
+                  onChange={(e) => setPackageForm((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder="e.g. 30 Meals / Month"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-black focus:bg-white focus:border-[#E5A00D] outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-700 block mb-1">Meal Credits *</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={packageForm.mealCredits}
+                    onChange={(e) => setPackageForm((prev) => ({ ...prev, mealCredits: e.target.value }))}
+                    placeholder="e.g. 30"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-black focus:bg-white focus:border-[#E5A00D] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-slate-700 block mb-1">Discount Savings (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={packageForm.discount}
+                    onChange={(e) => setPackageForm((prev) => ({ ...prev, discount: e.target.value }))}
+                    placeholder="e.g. 150"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-bold text-black focus:bg-white focus:border-[#E5A00D] outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="pkgIsFeatured"
+                    checked={packageForm.isFeatured}
+                    onChange={(e) => setPackageForm((prev) => ({ ...prev, isFeatured: e.target.checked }))}
+                    className="h-4 w-4 rounded border-slate-300 text-[#E5A00D] focus:ring-[#E5A00D]"
+                  />
+                  <label htmlFor="pkgIsFeatured" className="text-slate-800 text-xs font-bold cursor-pointer">
+                    Highlight as Most Popular Tier
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="pkgIsActive"
+                    checked={packageForm.isActive}
+                    onChange={(e) => setPackageForm((prev) => ({ ...prev, isActive: e.target.checked }))}
+                    className="h-4 w-4 rounded border-slate-300 text-[#E5A00D] focus:ring-[#E5A00D]"
+                  />
+                  <label htmlFor="pkgIsActive" className="text-slate-800 text-xs font-bold cursor-pointer">
+                    Active (visible in customer store)
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setShowPackageModal(false)}
+                  className="px-4 py-2 border border-slate-300 rounded-xl text-slate-700 font-bold text-xs hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-[#E5A00D] hover:bg-[#d4920b] text-black font-black text-xs rounded-xl border border-black/20 cursor-pointer"
+                >
+                  {packageForm.id ? "Update Package" : "Save Package"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

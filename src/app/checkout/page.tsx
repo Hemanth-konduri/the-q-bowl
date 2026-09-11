@@ -115,6 +115,32 @@ export default function CheckoutPage() {
   const [orderSuccessMsg, setOrderSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Kitchen Status State
+  const [isKitchenClosed, setIsKitchenClosed] = useState<boolean>(false);
+  const [kitchenStatusMsg, setKitchenStatusMsg] = useState<string>("");
+
+  // Check Kitchen Status on Mount
+  useEffect(() => {
+    async function checkKitchenStatus() {
+      try {
+        const res = await fetch(`/api/kitchen/status?t=${Date.now()}`, { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          const closed = data.kitchenStatus !== "OPEN" || Boolean(data.isOrderingPaused);
+          setIsKitchenClosed(closed);
+          if (closed) {
+            setKitchenStatusMsg(
+              data.kitchenStatus === "TEMPORARILY_UNAVAILABLE" || data.isOrderingPaused
+                ? "The kitchen is temporarily unavailable and not accepting orders at this time."
+                : `The kitchen is currently closed. Operating hours: ${data.openingTime || "11:00 AM"} – ${data.closingTime || "11:00 PM"}.`
+            );
+          }
+        }
+      } catch (e) {}
+    }
+    checkKitchenStatus();
+  }, []);
+
   // Sync Cart Items from localStorage
   useEffect(() => {
     function loadCart() {
@@ -221,6 +247,10 @@ export default function CheckoutPage() {
 
   // Complete Order & Trigger Razorpay
   async function handleCompleteOrder() {
+    if (isKitchenClosed) {
+      setErrorMsg(kitchenStatusMsg || "The kitchen is currently closed or unavailable for new orders.");
+      return;
+    }
     if (cartItems.length === 0) {
       setErrorMsg("Your bowl is empty. Please add items to order.");
       return;
@@ -412,6 +442,30 @@ export default function CheckoutPage() {
             <p className="text-xs font-bold text-zinc-600 flex items-center justify-center gap-1.5">
               <Loader2 size={14} className="animate-spin text-[#E5A00D]" /> Redirecting to Live Kitchen Tracking...
             </p>
+          </div>
+        )}
+
+        {/* Kitchen Closed / Unavailable Warning Banner */}
+        {isKitchenClosed && (
+          <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-red-50 to-rose-50 border-2 border-red-300 text-red-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm animate-in fade-in">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                <AlertCircle size={20} />
+              </div>
+              <div>
+                <p className="font-outfit font-black text-sm uppercase text-red-950 flex items-center gap-1.5">
+                  <span>Kitchen Unavailable</span>
+                  <span className="h-2 w-2 rounded-full bg-red-500 animate-ping" />
+                </p>
+                <p className="text-xs text-red-900/80 font-medium mt-0.5">{kitchenStatusMsg}</p>
+              </div>
+            </div>
+            <Link
+              href="/dashboard"
+              className="px-4 py-2 rounded-xl bg-black text-white hover:bg-zinc-800 font-outfit font-black text-xs uppercase tracking-wider shrink-0 transition-all text-center"
+            >
+              Back to Dashboard
+            </Link>
           </div>
         )}
 
@@ -655,29 +709,40 @@ export default function CheckoutPage() {
               </div>
 
               {/* Primary Action Button */}
-              <button
-                type="button"
-                id="checkout-pay-btn"
-                disabled={isPlacingOrder || cartItems.length === 0}
-                onClick={handleCompleteOrder}
-                className="w-full py-3.5 rounded-xl border-2 border-black bg-black text-[#E5A00D] font-outfit font-black text-sm uppercase tracking-wider shadow-[3px_3px_0px_#E5A00D] hover:bg-zinc-900 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
-              >
-                {isPlacingOrder ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    <span>{paymentMethod === "COD" ? "Placing Order..." : "Opening Razorpay..."}</span>
-                  </>
-                ) : (
-                  <>
-                    <span>
-                      {paymentMethod === "COD"
-                        ? `Place COD Order (₹${grandTotal})`
-                        : `Pay ₹${grandTotal} with Razorpay`}
-                    </span>
-                    <ChevronRight size={16} />
-                  </>
-                )}
-              </button>
+              {isKitchenClosed ? (
+                <button
+                  type="button"
+                  disabled={true}
+                  className="w-full py-3.5 rounded-xl border-2 border-zinc-300 bg-zinc-200 text-zinc-500 font-outfit font-black text-sm uppercase tracking-wider cursor-not-allowed flex items-center justify-center gap-2 shadow-none"
+                >
+                  <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                  <span>Kitchen Closed (Cannot Place Order)</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  id="checkout-pay-btn"
+                  disabled={isPlacingOrder || cartItems.length === 0}
+                  onClick={handleCompleteOrder}
+                  className="w-full py-3.5 rounded-xl border-2 border-black bg-black text-[#E5A00D] font-outfit font-black text-sm uppercase tracking-wider shadow-[3px_3px_0px_#E5A00D] hover:bg-zinc-900 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  {isPlacingOrder ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>{paymentMethod === "COD" ? "Placing Order..." : "Opening Razorpay..."}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>
+                        {paymentMethod === "COD"
+                          ? `Place COD Order (₹${grandTotal})`
+                          : `Pay ₹${grandTotal} with Razorpay`}
+                      </span>
+                      <ChevronRight size={16} />
+                    </>
+                  )}
+                </button>
+              )}
 
               <div className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-zinc-400">
                 <Lock size={11} className="text-emerald-600" />

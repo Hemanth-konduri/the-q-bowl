@@ -247,3 +247,18 @@ html, body {
 .animate-bowl-5 {
   animation: floatBowl5 6.8s ease-in-out infinite;
 }
+
+@keyframes slideDownFromTop {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0.92;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-down-top {
+  animation: slideDownFromTop 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

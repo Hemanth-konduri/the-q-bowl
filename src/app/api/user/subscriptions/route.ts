@@ -89,7 +89,7 @@ export async function GET() {
         .limit(30);
     }
 
-    // 3. Fetch available preloaded meals catalog with subscription price
+    // 3. Fetch available preloaded meals catalog with active subscription price
     const availableMeals = await db
       .select({
         id: foodItems.id,
@@ -105,12 +105,12 @@ export async function GET() {
         pricePerMeal: subscriptionMealPricing.pricePerMeal,
         categoryName: categories.name,
       })
-      .from(foodItems)
-      .leftJoin(subscriptionMealPricing, eq(foodItems.id, subscriptionMealPricing.mealId))
+      .from(subscriptionMealPricing)
+      .innerJoin(foodItems, eq(subscriptionMealPricing.mealId, foodItems.id))
       .leftJoin(categories, eq(foodItems.categoryId, categories.id))
-      .where(eq(foodItems.isAvailable, true));
+      .where(and(eq(subscriptionMealPricing.isActive, true), eq(foodItems.isAvailable, true)));
 
-    const processedMeals = availableMeals.map((m) => ({
+    let processedMeals = availableMeals.map((m) => ({
       id: m.id,
       name: m.name,
       description: m.description,
@@ -120,9 +120,38 @@ export async function GET() {
       isVeg: m.isVeg,
       rating: m.rating,
       standardPrice: m.standardPrice,
-      pricePerMeal: m.pricePerMeal ? Number(m.pricePerMeal) : Math.round(Number(m.standardPrice) * 0.85),
+      pricePerMeal: m.pricePerMeal ? Number(m.pricePerMeal) : 55,
       categoryName: m.categoryName || "Artisan Bowls",
     }));
+
+    // Fallback: If no custom subscription meal pricing is active yet, pull directly from veg foodItems
+    if (processedMeals.length === 0) {
+      const fallbackVegItems = await db
+        .select({
+          id: foodItems.id,
+          name: foodItems.name,
+          description: foodItems.description,
+          imageUrl: foodItems.imageUrl,
+          calories: foodItems.calories,
+          protein: foodItems.protein,
+          isVeg: foodItems.isVeg,
+          rating: foodItems.rating,
+          standardPrice: foodItems.price,
+          categoryName: categories.name,
+        })
+        .from(foodItems)
+        .leftJoin(categories, eq(foodItems.categoryId, categories.id))
+        .where(and(eq(foodItems.isVeg, true), eq(foodItems.isAvailable, true)))
+        .limit(5);
+
+      if (fallbackVegItems.length > 0) {
+        processedMeals = fallbackVegItems.map((m) => ({
+          ...m,
+          pricePerMeal: 55,
+          categoryName: m.categoryName || "Veg Delights",
+        }));
+      }
+    }
 
     // 4. Fetch available meal packages
     const availablePackages = await db

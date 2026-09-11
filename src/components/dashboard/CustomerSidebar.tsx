@@ -11,6 +11,7 @@ import {
   Receipt,
   CalendarCheck,
   Settings,
+  ChefHat,
   ChevronLeft,
   ChevronRight,
   PanelLeftClose,
@@ -31,6 +32,7 @@ const navItems: NavItem[] = [
   { name: "Order History", icon: History, href: "/dashboard#history" },
   { name: "Bills & Invoices", icon: Receipt, href: "/dashboard#invoices" },
   { name: "Subscriptions", icon: CalendarCheck, href: "/dashboard#subscriptions" },
+  { name: "Kitchen Hub", icon: ChefHat, href: "/dashboard#kitchen" },
   { name: "Settings", icon: Settings, href: "/dashboard#settings" },
 ];
 
@@ -54,6 +56,8 @@ export function CustomerSidebar() {
           setActiveItem("Bills & Invoices");
         } else if (hash === "#subscriptions") {
           setActiveItem("Subscriptions");
+        } else if (hash === "#kitchen" || hash === "#kitchen-info") {
+          setActiveItem("Kitchen Hub");
         } else if (hash === "#settings") {
           setActiveItem("Settings");
         } else if (pathname === "/dashboard" && (!hash || hash === "#" || hash === "#menu-section")) {
