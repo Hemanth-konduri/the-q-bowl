@@ -188,25 +188,35 @@ export default function InteractiveMapPinPickerModal({
 
   // Initialize Map
   useEffect(() => {
-    if (!isOpen || !mapContainerRef.current) return;
+    let timerId: NodeJS.Timeout | null = null;
+    let animId: number | null = null;
 
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove();
-      mapInstanceRef.current = null;
-    }
+    timerId = setTimeout(() => {
+      if (!mapContainerRef.current) return;
 
-    const map = L.map(mapContainerRef.current, {
-      zoomControl: false,
-      attributionControl: false,
-    }).setView([kitchenCoords.lat, kitchenCoords.lng], 16);
+      if (mapInstanceRef.current) {
+        try {
+          mapInstanceRef.current.remove();
+        } catch {}
+        mapInstanceRef.current = null;
+      }
 
-    // Google Maps High-Res Tiles
-    const googleTiles = L.tileLayer(getGoogleTileUrl(mapLayerType), {
-      maxZoom: 20,
-      subdomains: ["mt0", "mt1", "mt2", "mt3"],
-      attribution: "&copy; Google Maps",
-    }).addTo(map);
-    tileLayerRef.current = googleTiles;
+      if ((mapContainerRef.current as any)._leaflet_id) {
+        delete (mapContainerRef.current as any)._leaflet_id;
+      }
+
+      const map = L.map(mapContainerRef.current, {
+        zoomControl: false,
+        attributionControl: false,
+      }).setView([kitchenCoords.lat, kitchenCoords.lng], 16);
+
+      // Google Maps High-Res Tiles
+      const googleTiles = L.tileLayer(getGoogleTileUrl(mapLayerType), {
+        maxZoom: 20,
+        subdomains: ["mt0", "mt1", "mt2", "mt3"],
+        attribution: "&copy; Google Maps",
+      }).addTo(map);
+      tileLayerRef.current = googleTiles;
 
     // Custom Icon Helpers
     const createKitchenIcon = () =>
@@ -308,15 +318,26 @@ export default function InteractiveMapPinPickerModal({
       updateActivePinPosition(lat, lng);
     });
 
-    mapInstanceRef.current = map;
+      mapInstanceRef.current = map;
+
+      animId = requestAnimationFrame(() => {
+        try {
+          map.invalidateSize();
+        } catch {}
+      });
+    }, 60);
 
     return () => {
-      try {
-        map.remove();
-      } catch {
-        // ignore
+      if (timerId) clearTimeout(timerId);
+      if (animId) cancelAnimationFrame(animId);
+      if (mapInstanceRef.current) {
+        try {
+          mapInstanceRef.current.remove();
+        } catch {
+          // ignore
+        }
+        mapInstanceRef.current = null;
       }
-      mapInstanceRef.current = null;
       kitchenMarkerRef.current = null;
       customerMarkerRef.current = null;
       riderMarkerRef.current = null;

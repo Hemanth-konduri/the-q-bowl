@@ -21,6 +21,12 @@ import {
   Plus,
   Minus,
   Smartphone,
+  Tag,
+  Gift,
+  Percent,
+  Check,
+  Sparkles,
+  Utensils,
 } from "lucide-react";
 import { AddressModal, AddressItem } from "@/components/dashboard/AddressModal";
 import { openRazorpayModal } from "@/lib/razorpay-client";
@@ -119,6 +125,58 @@ export default function CheckoutPage() {
   const [isKitchenClosed, setIsKitchenClosed] = useState<boolean>(false);
   const [kitchenStatusMsg, setKitchenStatusMsg] = useState<string>("");
 
+  // Coupon & Promotional Discounts State
+  interface AvailableCoupon {
+    id: string;
+    code: string;
+    displayName: string;
+    description: string | null;
+    discountType: "PERCENTAGE" | "FIXED";
+    discountValue: number;
+    minOrderAmount: number;
+    maxDiscount: number | null;
+    endDate: string | null;
+    formattedDiscount: string;
+  }
+  const [availableCoupons, setAvailableCoupons] = useState<AvailableCoupon[]>([]);
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
+  const [showCouponsModal, setShowCouponsModal] = useState(false);
+  const [couponInput, setCouponInput] = useState<string>("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    name: string;
+    discount: number;
+    offerId?: string;
+  } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+
+  // Fetch available active coupons
+  useEffect(() => {
+    async function fetchCoupons() {
+      try {
+        setLoadingCoupons(true);
+        const res = await fetch("/api/coupons");
+        if (res.ok) {
+          const data = await res.json();
+          setAvailableCoupons(data.coupons || []);
+        }
+      } catch (err) {
+        console.error("Failed to load checkout coupons:", err);
+      } finally {
+        setLoadingCoupons(false);
+      }
+    }
+    fetchCoupons();
+
+    // Check if customer clicked "Apply" from dashboard
+    const pendingCode = localStorage.getItem("qbowl_pending_coupon");
+    if (pendingCode) {
+      setCouponInput(pendingCode);
+      localStorage.removeItem("qbowl_pending_coupon");
+    }
+  }, []);
+
   // Check Kitchen Status on Mount
   useEffect(() => {
     async function checkKitchenStatus() {
@@ -140,22 +198,62 @@ export default function CheckoutPage() {
             );
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     }
     checkKitchenStatus();
   }, []);
 
-  // Sync Cart Items from localStorage
+  // Sync Cart Items from localStorage & enrich missing images
   useEffect(() => {
-    function loadCart() {
+    async function loadCart() {
       try {
         const detailsStr = localStorage.getItem("qbowl_cart_details");
         if (detailsStr) {
           const detailsMap = JSON.parse(detailsStr);
-          const list = Object.values(detailsMap) as CartItem[];
+          let list = Object.values(detailsMap) as CartItem[];
           setCartItems(list);
           if (list.length === 0) {
             router.push("/dashboard");
+            return;
+          }
+
+          // If any item is missing an image, try fetching meals catalog to populate it
+          const missingImage = list.some((item) => !item.image);
+          if (missingImage) {
+            try {
+              const res = await fetch("/api/meals");
+              if (res.ok) {
+                const data = await res.json();
+                if (data.meals && Array.isArray(data.meals)) {
+                  let updated = false;
+                  list = list.map((cartItem) => {
+                    if (cartItem.image) return cartItem;
+                    const match = data.meals.find((m: any) => m.id === cartItem.id);
+                    let img = match?.imageUrl;
+                    if (!img) {
+                      if (cartItem.name?.toLowerCase().includes("biryani")) img = "/biryani_handi_slider.jpg";
+                      else if (cartItem.name?.toLowerCase().includes("burger")) img = "/truffle_burger.jpg";
+                      else if (cartItem.name?.toLowerCase().includes("pizza")) img = "/margherita_pizza.jpg";
+                      else if (cartItem.isVeg) img = "/paneer_bowl_new.png";
+                      else img = "/chicken_dum_biryani.png";
+                    }
+                    if (img) {
+                      updated = true;
+                      detailsMap[cartItem.id] = { ...cartItem, image: img };
+                      return { ...cartItem, image: img };
+                    }
+                    return cartItem;
+                  });
+
+                  if (updated) {
+                    localStorage.setItem("qbowl_cart_details", JSON.stringify(detailsMap));
+                    setCartItems([...list]);
+                  }
+                }
+              }
+            } catch (err) {
+              console.error("Failed to enrich cart images:", err);
+            }
           }
         } else {
           setCartItems([]);
@@ -247,7 +345,60 @@ export default function CheckoutPage() {
 
   // Computations
   const subtotal = cartItems.reduce((acc, i) => acc + i.price * i.quantity, 0);
-  const grandTotal = subtotal;
+  const discountAmount = appliedCoupon ? appliedCoupon.discount : 0;
+  const grandTotal = Math.max(0, subtotal - discountAmount);
+
+  // Validate & Apply Coupon Code
+  async function handleApplyCoupon(codeToApply?: string) {
+    const code = (codeToApply || couponInput).trim();
+    if (!code) {
+      setCouponError("Please enter a coupon code");
+      return;
+    }
+    if (subtotal <= 0) {
+      setCouponError("Cart is empty");
+      return;
+    }
+
+    setIsValidatingCoupon(true);
+    setCouponError(null);
+
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, subtotal }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.valid) {
+        setCouponError(data.error || "Invalid coupon code");
+        setAppliedCoupon(null);
+      } else {
+        setAppliedCoupon({
+          code: data.code,
+          name: data.name || data.code,
+          discount: data.discount,
+          offerId: data.offerId,
+        });
+        setCouponInput(data.code);
+        setCouponError(null);
+        setShowCouponsModal(false);
+      }
+    } catch (err: any) {
+      console.error("Coupon application error:", err);
+      setCouponError("Failed to apply coupon. Please try again.");
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  }
+
+  function handleRemoveCoupon() {
+    setAppliedCoupon(null);
+    setCouponInput("");
+    setCouponError(null);
+  }
 
   // Complete Order & Trigger Razorpay
   async function handleCompleteOrder() {
@@ -279,7 +430,8 @@ export default function CheckoutPage() {
         const payload = {
           addressId: selectedAddressId,
           paymentMethod: "COD",
-          notes: "Placed via Checkout Page (Cash on Delivery)",
+          couponCode: appliedCoupon?.code || undefined,
+          notes: appliedCoupon ? `Coupon: ${appliedCoupon.code}. Placed via Checkout Page (Cash on Delivery)` : "Placed via Checkout Page (Cash on Delivery)",
           items: cartItemsPayload,
         };
 
@@ -304,8 +456,8 @@ export default function CheckoutPage() {
         paymentMethod === "UPI"
           ? "upi"
           : paymentMethod === "CARD"
-          ? "card"
-          : "netbanking";
+            ? "card"
+            : "netbanking";
 
       const createOrderRes = await fetch("/api/payments/razorpay/create-order", {
         method: "POST",
@@ -313,7 +465,8 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           purpose: "ORDER",
           addressId: selectedAddressId,
-          notes: `The Q Bowl Order via ${paymentMethod} (${selectedUpiApp})`,
+          couponCode: appliedCoupon?.code || undefined,
+          notes: `The Q Bowl Order via ${paymentMethod} (${selectedUpiApp})${appliedCoupon ? ` [Promo: ${appliedCoupon.code}]` : ""}`,
           items: cartItemsPayload,
         }),
       });
@@ -567,11 +720,10 @@ export default function CheckoutPage() {
                     key={m.id}
                     type="button"
                     onClick={() => setPaymentMethod(m.id as PaymentMethodType)}
-                    className={`relative p-3 rounded-xl border-2 text-center flex flex-col items-center gap-1.5 transition-all ${
-                      paymentMethod === m.id
-                        ? "border-black bg-black text-[#E5A00D] shadow-[2px_2px_0px_#E5A00D]"
-                        : "border-zinc-200 bg-white text-zinc-600 hover:border-black/50"
-                    }`}
+                    className={`relative p-3 rounded-xl border-2 text-center flex flex-col items-center gap-1.5 transition-all ${paymentMethod === m.id
+                      ? "border-black bg-black text-[#E5A00D] shadow-[2px_2px_0px_#E5A00D]"
+                      : "border-zinc-200 bg-white text-zinc-600 hover:border-black/50"
+                      }`}
                   >
                     {m.badge && (
                       <span className="absolute -top-2 -right-1 text-[8px] font-black bg-[#E5A00D] text-black px-1 rounded border border-black">
@@ -597,11 +749,10 @@ export default function CheckoutPage() {
                         key={app.id}
                         type="button"
                         onClick={() => setSelectedUpiApp(app.id)}
-                        className={`p-2.5 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all ${
-                          selectedUpiApp === app.id
-                            ? "border-black bg-[#FFF8EE] shadow-[3px_3px_0px_#000000] scale-[1.02]"
-                            : "border-zinc-200 bg-white hover:border-black/50"
-                        }`}
+                        className={`p-2.5 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all ${selectedUpiApp === app.id
+                          ? "border-black bg-[#FFF8EE] shadow-[3px_3px_0px_#000000] scale-[1.02]"
+                          : "border-zinc-200 bg-white hover:border-black/50"
+                          }`}
                       >
                         {app.icon}
                         <span className="text-[10px] font-bold text-black truncate w-full text-center">
@@ -663,9 +814,31 @@ export default function CheckoutPage() {
               <div className="space-y-3 max-h-64 overflow-y-auto pr-1 divide-y divide-zinc-100">
                 {cartItems.map((item) => (
                   <div key={item.id} className="pt-2.5 first:pt-0 flex items-center justify-between gap-3 text-xs">
+                    {/* Food Thumbnail Image */}
+                    <div className="relative w-11 h-11 rounded-xl overflow-hidden border border-black/15 bg-[#FFF8EE] shrink-0 shadow-sm flex items-center justify-center">
+                      {item.image ? (
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            // If image fails to load, fallback to default bowl icon
+                            (e.target as HTMLElement).style.display = "none";
+                            const fallback = (e.target as HTMLElement).parentElement?.querySelector(".fallback-icon");
+                            if (fallback) fallback.classList.remove("hidden");
+                          }}
+                        />
+                      ) : null}
+                      <div className={`fallback-icon ${item.image ? "hidden" : ""} flex items-center justify-center w-full h-full text-[#E5A00D]`}>
+                        <Utensils size={18} />
+                      </div>
+                    </div>
+
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-black truncate">{item.name}</p>
-                      <p className="text-[10px] text-zinc-500 font-semibold">₹{item.price} each</p>
+                      <p className="text-[10px] text-zinc-500 font-semibold">
+                        ₹{item.price} each {item.specs ? `• ${item.specs}` : ""}
+                      </p>
                     </div>
 
                     {/* Quantity controls */}
@@ -696,12 +869,100 @@ export default function CheckoutPage() {
                 ))}
               </div>
 
+              {/* Apply Coupon / Promo Code Card */}
+              <div className="border-t-2 border-black/10 pt-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wider text-black flex items-center gap-1.5">
+                    <Tag size={14} className="text-[#E5A00D]" />
+                    <span>Have a Coupon?</span>
+                  </span>
+                  {availableCoupons.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowCouponsModal(true)}
+                      className="text-[11px] font-black text-black hover:text-[#E5A00D] underline underline-offset-2 flex items-center gap-0.5"
+                    >
+                      <Sparkles size={12} className="text-amber-500" />
+                      <span>View Offers ({availableCoupons.length})</span>
+                    </button>
+                  )}
+                </div>
+
+                {appliedCoupon ? (
+                  <div className="p-3 bg-emerald-50 border-2 border-emerald-500 rounded-xl flex items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-bold text-[10px]">
+                        ✓
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono font-black text-emerald-900">{appliedCoupon.code}</span>
+                          <span className="text-[10px] font-bold text-emerald-700">Applied</span>
+                        </div>
+                        <span className="text-[10px] font-bold text-emerald-700">
+                          You saved ₹{appliedCoupon.discount} on this bowl!
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      className="p-1 rounded-lg hover:bg-emerald-100 text-red-600 font-black text-xs transition-colors"
+                      title="Remove coupon"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          value={couponInput}
+                          onChange={(e) => {
+                            setCouponInput(e.target.value.toUpperCase());
+                            setCouponError(null);
+                          }}
+                          placeholder="Enter Promo Code"
+                          className="w-full px-3 py-2 bg-[#FFF8EE] border-2 border-black rounded-xl text-xs font-mono font-black uppercase text-black placeholder:font-sans placeholder:font-medium placeholder:text-zinc-400 focus:outline-none focus:bg-white transition-colors"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isValidatingCoupon || !couponInput.trim()}
+                        onClick={() => handleApplyCoupon()}
+                        className="px-4 py-2 bg-black text-[#E5A00D] hover:bg-neutral-800 font-outfit font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[2px_2px_0px_#E5A00D] disabled:opacity-40 transition-all shrink-0 flex items-center gap-1"
+                      >
+                        {isValidatingCoupon ? <Loader2 size={13} className="animate-spin" /> : "Apply"}
+                      </button>
+                    </div>
+
+                    {couponError && (
+                      <p className="text-[11px] font-bold text-red-600 flex items-center gap-1 animate-in fade-in">
+                        <AlertCircle size={12} className="shrink-0" />
+                        <span>{couponError}</span>
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Pricing Breakdown */}
               <div className="border-t-2 border-black/10 pt-3 space-y-2 text-xs font-semibold text-zinc-600">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
                   <span className="font-bold text-black">₹{subtotal}</span>
                 </div>
+                {appliedCoupon && (
+                  <div className="flex justify-between text-emerald-600 font-bold animate-in fade-in">
+                    <span className="flex items-center gap-1">
+                      <Tag size={12} />
+                      <span>Coupon Discount ({appliedCoupon.code})</span>
+                    </span>
+                    <span>-₹{appliedCoupon.discount}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span>Delivery Fee</span>
                   <span className="text-emerald-600 font-bold">FREE</span>
@@ -770,6 +1031,117 @@ export default function CheckoutPage() {
             setAddressModalOpen(false);
           }}
         />
+      )}
+
+      {/* Available Coupons Drawer / Modal */}
+      {showCouponsModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white border-2 border-black w-full max-w-md rounded-3xl p-6 space-y-4 relative shadow-[8px_8px_0px_#000000] max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between border-b-2 border-black/10 pb-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-[#E5A00D] border border-black flex items-center justify-center text-black font-black">
+                  <Tag size={16} />
+                </div>
+                <div>
+                  <h3 className="font-outfit font-black text-sm uppercase text-black">
+                    Available Coupons ({availableCoupons.length})
+                  </h3>
+                  <p className="text-[10px] text-zinc-500 font-bold">1-Click Apply to your order</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCouponsModal(false)}
+                className="p-1 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-black transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto space-y-3 flex-1 pr-1">
+              {availableCoupons.length === 0 ? (
+                <div className="text-center py-8 text-xs font-bold text-zinc-500">
+                  No promotional coupons available at the moment.
+                </div>
+              ) : (
+                availableCoupons.map((coupon) => {
+                  const meetsMinOrder = subtotal >= coupon.minOrderAmount;
+                  const isCurrent = appliedCoupon?.code === coupon.code;
+
+                  return (
+                    <div
+                      key={coupon.id}
+                      className={`p-4 rounded-2xl border-2 transition-all flex flex-col justify-between gap-3 ${isCurrent
+                        ? "border-emerald-500 bg-emerald-50 shadow-[2px_2px_0px_#10B981]"
+                        : "border-black bg-white hover:bg-[#FFF8EE] shadow-[2px_2px_0px_#000000]"
+                        }`}
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono font-black text-xs bg-black text-[#E5A00D] px-2.5 py-1 rounded-lg border border-amber-400">
+                            {coupon.code}
+                          </span>
+                          <span className="text-[11px] font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">
+                            {coupon.formattedDiscount}
+                          </span>
+                        </div>
+
+                        <p className="text-xs font-black text-black">{coupon.displayName}</p>
+                        {coupon.description && (
+                          <p className="text-[11px] text-zinc-600 font-medium leading-tight">
+                            {coupon.description}
+                          </p>
+                        )}
+
+                        <div className="flex items-center gap-3 text-[10px] font-bold text-zinc-500 pt-1">
+                          {coupon.minOrderAmount > 0 && (
+                            <span>Min Order: ₹{coupon.minOrderAmount}</span>
+                          )}
+                          {coupon.maxDiscount && <span>Max Cap: ₹{coupon.maxDiscount}</span>}
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-black/10 flex items-center justify-between">
+                        {!meetsMinOrder ? (
+                          <span className="text-[10px] font-bold text-amber-800">
+                            Add ₹{coupon.minOrderAmount - subtotal} more to unlock
+                          </span>
+                        ) : isCurrent ? (
+                          <span className="text-[11px] font-black text-emerald-700 flex items-center gap-1">
+                            <Check size={13} /> Applied
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-emerald-700">Eligible for your cart!</span>
+                        )}
+
+                        {isCurrent ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleRemoveCoupon();
+                              setShowCouponsModal(false);
+                            }}
+                            className="px-3 py-1 rounded-xl text-xs font-black text-red-600 hover:bg-red-50 border border-red-200"
+                          >
+                            Remove
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={!meetsMinOrder || isValidatingCoupon}
+                            onClick={() => handleApplyCoupon(coupon.code)}
+                            className="px-3 py-1.5 rounded-xl bg-black hover:bg-neutral-800 text-[#E5A00D] font-outfit font-black text-xs uppercase tracking-wider border border-black shadow-[2px_2px_0px_#E5A00D] disabled:opacity-40 disabled:pointer-events-none transition-all"
+                          >
+                            Apply Code
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

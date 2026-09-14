@@ -12,6 +12,7 @@ import {
   CalendarCheck,
   Settings,
   ChefHat,
+  Tag,
   ChevronLeft,
   ChevronRight,
   PanelLeftClose,
@@ -48,6 +49,8 @@ export function CustomerSidebar() {
         const hash = window.location.hash;
         if (hash === "#favourites") {
           setActiveItem("Favourites");
+        } else if (hash === "#coupons" || hash === "#offers") {
+          setActiveItem("Coupons & Offers");
         } else if (hash === "#active-order" || hash === "#orders") {
           setActiveItem("Order (Live Tracking)");
         } else if (hash === "#history") {
@@ -225,7 +228,7 @@ export function CustomerSidebar() {
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeItem === item.name;
-          const shortName = item.name === "Order (Live Tracking)" ? "Live Order" : item.name === "Order History" ? "History" : item.name === "Bills & Invoices" ? "Bills" : item.name;
+          const shortName = item.name === "Order (Live Tracking)" ? "Live Order" : item.name === "Coupons & Offers" ? "Coupons" : item.name === "Order History" ? "History" : item.name === "Bills & Invoices" ? "Bills" : item.name;
 
           return (
             <a

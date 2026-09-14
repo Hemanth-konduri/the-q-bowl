@@ -54,6 +54,9 @@ import {
   Zap,
   Sun,
   Moon,
+  Tag,
+  Gift,
+  Percent,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { AddressModal, AddressItem } from "./AddressModal";
@@ -538,11 +541,47 @@ export function CustomerDashboardView() {
   }, []);
 
   // Active Sidebar / Hash View Tab State
-  const [activeTab, setActiveTab] = useState<"home" | "active-order" | "history" | "invoices" | "subscriptions" | "settings">("home");
+  const [activeTab, setActiveTab] = useState<"home" | "active-order" | "coupons" | "history" | "invoices" | "subscriptions" | "settings">("home");
   const [userOrders, setUserOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [invoiceModalOrder, setInvoiceModalOrder] = useState<any | null>(null);
+
+  // ── Coupons & Offers State ──
+  interface CustomerCoupon {
+    id: string;
+    code: string;
+    displayName: string;
+    description: string | null;
+    discountType: "PERCENTAGE" | "FIXED";
+    discountValue: number;
+    minOrderAmount: number;
+    maxDiscount: number | null;
+    endDate: string | null;
+    campaignType: string;
+    formattedDiscount: string;
+  }
+  const [availableCoupons, setAvailableCoupons] = useState<CustomerCoupon[]>([]);
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
+
+  async function loadCoupons() {
+    try {
+      setLoadingCoupons(true);
+      const res = await fetch("/api/coupons");
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableCoupons(data.coupons || []);
+      }
+    } catch (err) {
+      console.error("Failed to load coupons:", err);
+    } finally {
+      setLoadingCoupons(false);
+    }
+  }
+
+  useEffect(() => {
+    loadCoupons();
+  }, []);
 
   // ── Subscription State ──
   const [dbSubPackages, setDbSubPackages] = useState<any[]>([]);
@@ -790,6 +829,9 @@ export function CustomerDashboardView() {
       if (hash === "#favourites") {
         setActiveTab("home");
         setActiveCategory("Favourites");
+      } else if (hash === "#coupons" || hash === "#offers") {
+        setActiveTab("coupons");
+        loadCoupons();
       } else if (hash === "#active-order" || hash === "#orders") {
         setActiveTab("active-order");
         loadUserOrders();
@@ -2297,6 +2339,161 @@ export function CustomerDashboardView() {
             </div>
           )}
 
+        </div>
+      )}
+
+      {/* ── 0.35 Coupons & Offers Tab ── */}
+      {activeTab === "coupons" && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Header Card */}
+          <div className="rounded-3xl border-3 border-black bg-white p-6 sm:p-8 shadow-[6px_6px_0_#000] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="h-14 w-14 rounded-2xl bg-[#E5A00D] border-2 border-black flex items-center justify-center shadow-[3px_3px_0_#000]">
+                <Tag size={28} className="text-black" />
+              </div>
+              <div>
+                <h1 className="font-outfit text-2xl sm:text-3xl font-black uppercase tracking-tight text-black">
+                  Coupons &amp; Promotional Offers
+                </h1>
+                <p className="text-xs font-bold text-zinc-600 mt-1">
+                  Exclusive chef promo codes and special occasion discounts for your orders
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <button
+                onClick={() => loadCoupons()}
+                disabled={loadingCoupons}
+                className="px-3 py-2 bg-[#FFF8EE] hover:bg-[#E5A00D] text-black font-bold text-xs rounded-xl border-2 border-black shadow-[2px_2px_0px_#000000] flex items-center gap-1.5 transition-all"
+              >
+                <RefreshCw size={14} className={loadingCoupons ? "animate-spin text-[#E5A00D]" : ""} />
+                <span>Refresh</span>
+              </button>
+              <Link
+                href="/checkout"
+                className="px-4 py-2 bg-black text-[#E5A00D] font-outfit font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[2px_2px_0px_#E5A00D] flex items-center gap-1 hover:bg-neutral-900 transition-all"
+              >
+                <span>Go to Checkout</span>
+                <ChevronRight size={14} />
+              </Link>
+            </div>
+          </div>
+
+          {/* Coupons Grid */}
+          {loadingCoupons ? (
+            <div className="p-16 text-center bg-white border-3 border-black rounded-3xl space-y-3 shadow-[6px_6px_0_#000]">
+              <Loader2 className="w-8 h-8 text-[#E5A00D] animate-spin mx-auto" />
+              <p className="text-xs font-black text-black uppercase tracking-wider">Fetching Available Coupons...</p>
+            </div>
+          ) : availableCoupons.length === 0 ? (
+            <div className="p-16 text-center bg-white border-3 border-black rounded-3xl space-y-4 shadow-[6px_6px_0_#000]">
+              <div className="w-16 h-16 rounded-2xl bg-[#FFF8EE] border-2 border-black flex items-center justify-center mx-auto text-zinc-400">
+                <Tag size={32} />
+              </div>
+              <h3 className="font-outfit text-xl font-black uppercase text-black">No Active Coupons At The Moment</h3>
+              <p className="text-xs text-zinc-600 max-w-md mx-auto font-medium">
+                Our chefs are preparing fresh promotional discounts. Please check back soon or explore our everyday value meal combos!
+              </p>
+              <button
+                onClick={() => {
+                  setActiveTab("home");
+                  window.location.hash = "";
+                }}
+                className="px-5 py-2.5 bg-black text-[#E5A00D] font-outfit font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[3px_3px_0_#E5A00D]"
+              >
+                Browse Daily Menu
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {availableCoupons.map((coupon) => (
+                <div
+                  key={coupon.id}
+                  className="bg-white rounded-3xl border-3 border-black p-5 shadow-[5px_5px_0_#000] flex flex-col justify-between space-y-4 hover:shadow-[7px_7px_0_#000] hover:-translate-y-0.5 transition-all relative overflow-hidden group"
+                >
+                  {/* Decorative Corner Ribbon */}
+                  <div className="absolute -top-1 -right-1">
+                    <span className="inline-block px-3 py-1 bg-[#E5A00D] text-black font-outfit font-black text-[10px] uppercase tracking-wider rounded-bl-2xl border-l-2 border-b-2 border-black shadow-sm">
+                      {coupon.formattedDiscount}
+                    </span>
+                  </div>
+
+                  <div className="space-y-3 pt-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-black text-[#E5A00D] flex items-center justify-center font-bold shrink-0 border border-black">
+                        <Gift size={15} />
+                      </div>
+                      <div className="min-w-0 pr-16">
+                        <h4 className="font-outfit font-black text-sm uppercase text-black truncate">
+                          {coupon.displayName}
+                        </h4>
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                          Verified Active
+                        </span>
+                      </div>
+                    </div>
+
+                    {coupon.description && (
+                      <p className="text-xs text-zinc-600 font-medium leading-relaxed">
+                        {coupon.description}
+                      </p>
+                    )}
+
+                    {/* Conditions Pill */}
+                    <div className="p-2.5 rounded-xl bg-[#FFF8EE] border border-black/10 space-y-1 text-[11px] font-bold text-zinc-700">
+                      {coupon.minOrderAmount > 0 && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-zinc-500 font-medium">Min Order:</span>
+                          <span className="font-mono text-black font-bold">₹{coupon.minOrderAmount}</span>
+                        </div>
+                      )}
+                      {coupon.maxDiscount && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-zinc-500 font-medium">Max Savings:</span>
+                          <span className="font-mono text-black font-bold">₹{coupon.maxDiscount}</span>
+                        </div>
+                      )}
+                      {coupon.endDate && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-zinc-500 font-medium">Valid Till:</span>
+                          <span className="text-zinc-800">{new Date(coupon.endDate).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions: Code Badge & Copy / Apply */}
+                  <div className="pt-3 border-t-2 border-black/10 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="px-3 py-1.5 rounded-xl bg-black text-[#E5A00D] font-mono font-black text-xs tracking-wider border border-amber-400">
+                        {coupon.code}
+                      </span>
+                      <button
+                        onClick={() => handleCopyPromo(coupon.code)}
+                        className="p-1.5 rounded-xl border border-black bg-[#FFF8EE] hover:bg-[#E5A00D] text-black transition-colors"
+                        title="Copy Promo Code"
+                      >
+                        {copiedCode === coupon.code ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        localStorage.setItem("qbowl_pending_coupon", coupon.code);
+                        window.dispatchEvent(new CustomEvent("qbowl-coupon-applied", { detail: { code: coupon.code } }));
+                        window.location.href = "/checkout";
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-black hover:bg-neutral-800 text-[#E5A00D] font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[2px_2px_0px_#E5A00D] flex items-center gap-1 transition-all"
+                    >
+                      <span>Apply</span>
+                      <ChevronRight size={13} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

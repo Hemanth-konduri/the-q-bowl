@@ -98,115 +98,141 @@ export default function DeliveryMapModal({
   useEffect(() => {
     if (!isOpen || !mapContainerRef.current) return;
 
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove();
-      mapInstanceRef.current = null;
-    }
+    let animId: number | null = null;
+    let timerId: NodeJS.Timeout | null = null;
 
-    const currentRiderLat = riderCoords?.lat || 17.0605;
-    const currentRiderLng = riderCoords?.lng || 81.8640;
+    // Give the DOM / modal time to mount and compute its dimensions
+    timerId = setTimeout(() => {
+      if (!mapContainerRef.current) return;
 
-    const map = L.map(mapContainerRef.current, {
-      zoomControl: false,
-      attributionControl: false,
-    }).setView([customerLat, customerLng], 15);
-
-    // Google Maps High-Resolution Tiles
-    const googleTiles = L.tileLayer(getGoogleTileUrl(mapLayerType), {
-      maxZoom: 20,
-      subdomains: ["mt0", "mt1", "mt2", "mt3"],
-      attribution: "&copy; Google Maps",
-    }).addTo(map);
-    tileLayerRef.current = googleTiles;
-
-    // Rider Icon
-    const riderIcon = L.divIcon({
-      className: "delivery-rider-pin",
-      html: `
-        <div style="position: relative; display: flex; align-items: center; justify-content: center;">
-          <div style="position: absolute; width: 44px; height: 44px; background: rgba(66, 133, 244, 0.4); border-radius: 50%; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
-          <div style="width: 38px; height: 38px; background: #000; border: 3px solid #E5A00D; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.6); z-index: 10;">
-            <span style="font-size: 19px;">🛵</span>
-          </div>
-        </div>
-      `,
-      iconSize: [44, 44],
-      iconAnchor: [22, 22],
-    });
-
-    // Customer House Icon
-    const customerIcon = L.divIcon({
-      className: "customer-dest-pin",
-      html: `
-        <div style="position: relative; display: flex; flex-direction: column; align-items: center;">
-          <div style="width: 36px; height: 36px; background: #EA4335; border: 3px solid #FFF; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(234,67,53,0.6); z-index: 10;">
-            <span style="font-size: 17px;">🏠</span>
-          </div>
-          <div style="background: #1A73E8; color: #FFF; font-size: 10px; font-weight: 900; padding: 2px 8px; border-radius: 6px; margin-top: 3px; white-space: nowrap; border: 1.5px solid #FFF; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">
-            Customer Destination
-          </div>
-        </div>
-      `,
-      iconSize: [80, 56],
-      iconAnchor: [40, 28],
-    });
-
-    const mCustomer = L.marker([customerLat, customerLng], { icon: customerIcon })
-      .addTo(map)
-      .bindPopup(`<b>${customerName}</b><br>${customerAddress}`);
-
-    riderMarkerRef.current = L.marker([currentRiderLat, currentRiderLng], { icon: riderIcon })
-      .addTo(map)
-      .bindPopup("<b>You are here</b><br>Live Rider Location");
-
-    // Route lines in Google Blue Navigation style
-    L.polyline(
-      [
-        [currentRiderLat, currentRiderLng],
-        [customerLat, customerLng],
-      ],
-      {
-        color: "#1A73E8",
-        weight: 8,
-        opacity: 0.3,
+      if (mapInstanceRef.current) {
+        try {
+          mapInstanceRef.current.remove();
+        } catch {}
+        mapInstanceRef.current = null;
       }
-    ).addTo(map);
 
-    L.polyline(
-      [
-        [currentRiderLat, currentRiderLng],
-        [customerLat, customerLng],
-      ],
-      {
-        color: "#4285F4",
-        weight: 5,
-        opacity: 0.95,
-        dashArray: "8, 8",
+      if ((mapContainerRef.current as any)._leaflet_id) {
+        delete (mapContainerRef.current as any)._leaflet_id;
       }
-    ).addTo(map);
 
-    const group = L.featureGroup([mCustomer, riderMarkerRef.current]);
-    const bounds = group.getBounds();
-    if (bounds.isValid()) {
-      map.fitBounds(bounds.pad(0.3));
-    }
+      const currentRiderLat = riderCoords?.lat || 17.0605;
+      const currentRiderLng = riderCoords?.lng || 81.8640;
 
-    mapInstanceRef.current = map;
+      const map = L.map(mapContainerRef.current, {
+        zoomControl: false,
+        attributionControl: false,
+      }).setView([customerLat, customerLng], 15);
+
+      // Google Maps High-Resolution Tiles
+      const googleTiles = L.tileLayer(getGoogleTileUrl(mapLayerType), {
+        maxZoom: 20,
+        subdomains: ["mt0", "mt1", "mt2", "mt3"],
+        attribution: "&copy; Google Maps",
+      }).addTo(map);
+      tileLayerRef.current = googleTiles;
+
+      // Rider Icon
+      const riderIcon = L.divIcon({
+        className: "delivery-rider-pin",
+        html: `
+          <div style="position: relative; display: flex; align-items: center; justify-content: center;">
+            <div style="position: absolute; width: 44px; height: 44px; background: rgba(66, 133, 244, 0.4); border-radius: 50%; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+            <div style="width: 38px; height: 38px; background: #000; border: 3px solid #E5A00D; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(0,0,0,0.6); z-index: 10;">
+              <span style="font-size: 19px;">🛵</span>
+            </div>
+          </div>
+        `,
+        iconSize: [44, 44],
+        iconAnchor: [22, 22],
+      });
+
+      // Customer House Icon
+      const customerIcon = L.divIcon({
+        className: "customer-dest-pin",
+        html: `
+          <div style="position: relative; display: flex; flex-direction: column; align-items: center;">
+            <div style="width: 36px; height: 36px; background: #EA4335; border: 3px solid #FFF; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(234,67,53,0.6); z-index: 10;">
+              <span style="font-size: 17px;">🏠</span>
+            </div>
+            <div style="background: #1A73E8; color: #FFF; font-size: 10px; font-weight: 900; padding: 2px 8px; border-radius: 6px; margin-top: 3px; white-space: nowrap; border: 1.5px solid #FFF; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">
+              Customer Destination
+            </div>
+          </div>
+        `,
+        iconSize: [80, 56],
+        iconAnchor: [40, 28],
+      });
+
+      const mCustomer = L.marker([customerLat, customerLng], { icon: customerIcon })
+        .addTo(map)
+        .bindPopup(`<b>${customerName}</b><br>${customerAddress}`);
+
+      riderMarkerRef.current = L.marker([currentRiderLat, currentRiderLng], { icon: riderIcon })
+        .addTo(map)
+        .bindPopup("<b>You are here</b><br>Live Rider Location");
+
+      // Route lines in Google Blue Navigation style
+      L.polyline(
+        [
+          [currentRiderLat, currentRiderLng],
+          [customerLat, customerLng],
+        ],
+        {
+          color: "#1A73E8",
+          weight: 8,
+          opacity: 0.3,
+        }
+      ).addTo(map);
+
+      L.polyline(
+        [
+          [currentRiderLat, currentRiderLng],
+          [customerLat, customerLng],
+        ],
+        {
+          color: "#4285F4",
+          weight: 5,
+          opacity: 0.95,
+          dashArray: "8, 8",
+        }
+      ).addTo(map);
+
+      mapInstanceRef.current = map;
+
+      // Invalidate size and safely fitBounds after layout settles
+      animId = requestAnimationFrame(() => {
+        try {
+          map.invalidateSize();
+          const group = L.featureGroup([mCustomer, riderMarkerRef.current!]);
+          const bounds = group.getBounds();
+          if (bounds.isValid()) {
+            map.fitBounds(bounds.pad(0.3), { animate: false });
+          }
+        } catch (e) {
+          console.warn("Leaflet fitBounds safe catch:", e);
+        }
+      });
+    }, 60);
 
     return () => {
-      try {
-        map.remove();
-      } catch {
-        // ignore
+      if (timerId) clearTimeout(timerId);
+      if (animId) cancelAnimationFrame(animId);
+      if (mapInstanceRef.current) {
+        try {
+          mapInstanceRef.current.remove();
+        } catch {
+          // ignore
+        }
+        mapInstanceRef.current = null;
       }
-      mapInstanceRef.current = null;
       riderMarkerRef.current = null;
       tileLayerRef.current = null;
       if (mapContainerRef.current) {
         delete (mapContainerRef.current as any)._leaflet_id;
       }
     };
-  }, [isOpen, customerLat, customerLng, riderCoords, customerName, customerAddress]);
+  }, [isOpen, customerLat, customerLng, customerName, customerAddress]);
 
   if (!isOpen) return null;
 

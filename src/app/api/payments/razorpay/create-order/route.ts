@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     const customerUser = userRows[0] || null;
 
     const body = await req.json();
-    const { purpose = "ORDER", addressId, notes, packageId, mealId, mealCredits, mealsPerDay, mealTiming, deliveryDays } = body;
+    const { purpose = "ORDER", addressId, notes, packageId, mealId, mealCredits, mealsPerDay, mealTiming, deliveryDays, couponCode } = body;
 
     if (!addressId) {
       return NextResponse.json({ error: "Delivery address is required." }, { status: 400 });
@@ -126,6 +126,7 @@ export async function POST(req: NextRequest) {
         userId: session.userId,
         addressId,
         notes,
+        couponCode,
       });
 
       payableAmount = pendingOrder.total;

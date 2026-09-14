@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { carts, cartItems, foodItems, offers, users } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { jwtVerify } from "jose";
 import { getSession } from "@/lib/session";
@@ -210,10 +210,16 @@ export async function PUT(req: Request) {
         return NextResponse.json({ success: true, message: "Coupon removed" });
       }
 
+      const cleanCode = couponCode.trim().toUpperCase();
       const offerRows = await db
         .select()
         .from(offers)
-        .where(and(eq(offers.name, couponCode.trim().toUpperCase()), eq(offers.isActive, true)))
+        .where(
+          and(
+            or(eq(offers.name, cleanCode), eq(offers.code, cleanCode)),
+            eq(offers.isActive, true)
+          )
+        )
         .limit(1);
 
       if (offerRows.length === 0) {

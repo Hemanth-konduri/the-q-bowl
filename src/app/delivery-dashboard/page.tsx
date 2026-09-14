@@ -378,11 +378,10 @@ export default function DeliveryDashboardPage() {
 
       {/* ── 1. Top Navbar (Sticky Floating with Smooth Backdrop on Scroll) ── */}
       <header
-        className={`sticky top-0 z-50 w-full transition-all duration-300 ${
-          isScrolled
+        className={`sticky top-0 z-50 w-full transition-all duration-300 ${isScrolled
             ? "bg-[#f5e3cd]/95 backdrop-blur-md py-3 shadow-[0_4px_20px_rgba(0,0,0,0.08)] border-b-2 border-black/10"
             : "bg-transparent py-4 border-b-2 border-transparent"
-        }`}
+          }`}
       >
         <div className="w-full px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
 
@@ -419,8 +418,8 @@ export default function DeliveryDashboardPage() {
             <button
               onClick={() => setDutyStatus(dutyStatus === "ON_DUTY" ? "OFF_DUTY" : "ON_DUTY")}
               className={`hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-full border-2 border-black font-outfit text-xs font-black uppercase tracking-wider transition-all shadow-[2px_2px_0_#000] ${dutyStatus === "ON_DUTY"
-                  ? "bg-emerald-400 text-black hover:bg-emerald-300"
-                  : "bg-zinc-200 text-zinc-600 hover:bg-zinc-300"
+                ? "bg-emerald-400 text-black hover:bg-emerald-300"
+                : "bg-zinc-200 text-zinc-600 hover:bg-zinc-300"
                 }`}
             >
               <span className={`h-2.5 w-2.5 rounded-full ${dutyStatus === "ON_DUTY" ? "bg-emerald-950 animate-ping" : "bg-zinc-500"}`} />
@@ -490,8 +489,8 @@ export default function DeliveryDashboardPage() {
                       <button
                         onClick={() => setActiveTab(item.id as any)}
                         className={`flex items-center justify-center w-12 h-12 rounded-2xl border-2 transition-all duration-200 cursor-pointer ${isActive
-                            ? "bg-[#E5A00D] border-black text-black shadow-[2px_2px_0px_#000000] scale-105"
-                            : "bg-[#FFF8EE] border-transparent text-black/70 hover:text-black hover:bg-[#E5A00D] hover:border-black hover:shadow-[2px_2px_0px_#000000] hover:scale-110"
+                          ? "bg-[#E5A00D] border-black text-black shadow-[2px_2px_0px_#000000] scale-105"
+                          : "bg-[#FFF8EE] border-transparent text-black/70 hover:text-black hover:bg-[#E5A00D] hover:border-black hover:shadow-[2px_2px_0px_#000000] hover:scale-110"
                           }`}
                         aria-label={item.name}
                       >
@@ -546,8 +545,8 @@ export default function DeliveryDashboardPage() {
                 key={item.id}
                 onClick={() => setActiveTab(item.id as any)}
                 className={`flex flex-col items-center justify-center gap-0.5 py-1.5 px-3.5 rounded-2xl transition-all ${isActive
-                    ? "bg-[#E5A00D] text-black border-2 border-black shadow-[2px_2px_0_#000] scale-105"
-                    : "text-zinc-600 hover:text-black hover:bg-[#FFF8EE]"
+                  ? "bg-[#E5A00D] text-black border-2 border-black shadow-[2px_2px_0_#000] scale-105"
+                  : "text-zinc-600 hover:text-black hover:bg-[#FFF8EE]"
                   }`}
               >
                 <Icon size={20} className={isActive ? "text-black" : "text-zinc-600"} />
@@ -562,8 +561,8 @@ export default function DeliveryDashboardPage() {
         {/* ── Main Dashboard Content (Expanded Full Width, responsive padding) ── */}
         <main
           className={`flex-1 min-w-0 pb-12 transition-all duration-300 ${sidebarOpen
-              ? "pl-0 md:pl-16 lg:pl-20"
-              : "pl-0 md:pl-14 lg:pl-16"
+            ? "pl-0 md:pl-16 lg:pl-20"
+            : "pl-0 md:pl-14 lg:pl-16"
             }`}
         >
           <div className="space-y-8 w-full">
@@ -731,76 +730,85 @@ export default function DeliveryDashboardPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="divide-y divide-zinc-200/70 -mx-4 sm:-mx-8 px-4 sm:px-8">
                       {deliveries.map((item) => (
                         <div
                           key={item.id}
-                          className={`p-5 rounded-2xl border-2 border-black transition-all space-y-3 ${item.status === "DELIVERED"
-                              ? "bg-zinc-50 opacity-75"
-                              : "bg-[#FFF8EE] shadow-[3px_3px_0_#000]"
+                          className={`py-2.5 sm:py-3 transition-colors hover:bg-[#FFF8EE]/60 px-2 sm:px-3 -mx-2 sm:-mx-3 rounded-xl flex items-center justify-between gap-3 text-xs ${item.status === "DELIVERED" ? "opacity-60" : ""
                             }`}
                         >
-                          <div className="flex items-center justify-between gap-2 border-b-2 border-black/10 pb-2">
-                            <div className="flex items-center gap-2">
-                              <span className="font-outfit font-black text-sm uppercase text-black">
-                                {item.orderIdDisplay}
-                              </span>
-                              <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${item.status === "DELIVERED"
-                                  ? "bg-emerald-100 text-emerald-800 border-emerald-300"
-                                  : "bg-[#E5A00D] text-black border-black"
-                                }`}>
-                                {item.status.replace(/_/g, " ")}
-                              </span>
-                            </div>
-                            <span className="font-outfit font-black text-sm text-black">
-                              ₹{item.totalAmount}
+                          {/* 1. Order ID, Type & Status pill */}
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="font-outfit font-black text-xs sm:text-sm uppercase text-black tracking-tight">
+                              {item.orderIdDisplay}
+                            </span>
+                            <span
+                              className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${item.status === "DELIVERED"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-amber-100 text-amber-900 border border-amber-300/60"
+                                }`}
+                            >
+                              {item.status.replace(/_/g, " ")}
                             </span>
                           </div>
 
-                          <div className="space-y-1 text-xs">
-                            <p className="font-bold text-black flex items-center gap-1.5">
-                              <User size={13} className="text-slate-500" />
-                              <span>{item.customerName}</span>
-                            </p>
-                            <p className="font-mono font-bold text-slate-700 flex items-center gap-1.5">
-                              <Phone size={13} className="text-slate-500" />
-                              <a href={`tel:${item.customerPhone}`} className="hover:underline">{item.customerPhone}</a>
-                            </p>
-                            <p className="font-bold text-slate-800 flex items-start gap-1.5 pt-0.5">
-                              <MapPin size={13} className="text-rose-600 shrink-0 mt-0.5" />
-                              <span>{item.address.fullAddress || item.address.street}</span>
-                            </p>
-                            <p className="font-medium text-amber-900 bg-amber-50 p-2 rounded-xl border border-amber-200 mt-2">
-                              🍲 {item.mealName}
-                            </p>
+                          {/* 2. Amount */}
+                          <div className="shrink-0 font-outfit font-black text-xs sm:text-sm text-black">
+                            ₹{item.totalAmount}
                           </div>
 
-                          <div className="pt-2 flex items-center justify-between gap-2">
+                          {/* 3. Customer Name & Contact */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="font-black text-black">{item.customerName}</span>
+                            <span className="text-zinc-300">•</span>
+                            <a
+                              href={`tel:${item.customerPhone}`}
+                              className="font-mono text-zinc-600 hover:text-black hover:underline"
+                            >
+                              {item.customerPhone}
+                            </a>
+                          </div>
+
+                          {/* 4. Address */}
+                          <div className="flex-1 min-w-0 flex items-center gap-1 text-zinc-600 truncate" title={item.address.fullAddress || item.address.street}>
+                            <MapPin size={12} className="text-rose-500 shrink-0" />
+                            <span className="truncate">{item.address.fullAddress || item.address.street}</span>
+                          </div>
+
+                          {/* 5. Dish */}
+                          <div className="shrink-0 max-w-[200px] flex items-center gap-1 text-zinc-800 font-bold truncate" title={item.mealName}>
+                            <UtensilsCrossed size={12} className="text-[#E5A00D] shrink-0" />
+                            <span className="truncate">{item.mealName}</span>
+                          </div>
+
+                          {/* 6. Quick Action Buttons */}
+                          <div className="flex items-center gap-1.5 shrink-0">
                             <button
                               type="button"
                               onClick={() => setNavModalItem(item)}
-                              className="px-3 py-1.5 rounded-xl border-2 border-black bg-white hover:bg-black hover:text-white text-black font-outfit font-black text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-[2px_2px_0_#000]"
+                              className="px-2.5 py-1 rounded-lg border border-zinc-300 hover:border-black bg-white hover:bg-black hover:text-white text-black font-outfit font-bold text-[11px] uppercase tracking-wider transition-all flex items-center gap-1 shadow-sm"
                             >
-                              <Navigation size={13} className="text-[#E5A00D]" />
+                              <Navigation size={11} className="text-[#E5A00D]" />
                               <span>Live Map</span>
                             </button>
 
                             {item.status !== "DELIVERED" ? (
                               <button
+                                type="button"
                                 onClick={() => handleMarkDelivered(item)}
                                 disabled={completingDeliveryId === item.id}
-                                className="px-4 py-1.5 rounded-xl border-2 border-black bg-black text-[#E5A00D] hover:bg-[#E5A00D] hover:text-black font-outfit font-black text-xs uppercase tracking-wider transition-all shadow-[2px_2px_0_#000] disabled:opacity-50 flex items-center gap-1.5"
+                                className="px-3 py-1 rounded-lg bg-black text-[#E5A00D] hover:bg-[#E5A00D] hover:text-black font-outfit font-bold text-[11px] uppercase tracking-wider transition-all shadow-sm disabled:opacity-50 flex items-center gap-1"
                               >
                                 {completingDeliveryId === item.id ? (
-                                  <Loader2 size={12} className="animate-spin" />
+                                  <Loader2 size={11} className="animate-spin" />
                                 ) : (
-                                  <CheckCircle2 size={13} />
+                                  <CheckCircle2 size={11} />
                                 )}
-                                <span>Mark Delivered</span>
+                                <span>Delivered</span>
                               </button>
                             ) : (
-                              <span className="text-xs font-black uppercase text-emerald-700 flex items-center gap-1">
-                                <CheckCircle2 size={14} /> Completed
+                              <span className="text-[11px] font-bold uppercase text-emerald-700 flex items-center gap-1 px-1.5">
+                                <CheckCircle2 size={12} /> Done
                               </span>
                             )}
                           </div>
@@ -851,107 +859,97 @@ export default function DeliveryDashboardPage() {
                     <p className="text-xs text-zinc-500 font-medium">When orders are assigned to you by the kitchen dispatcher, they will be listed here with customer contact details and navigation routes.</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {deliveries.map((item) => (
-                      <div
-                        key={item.id}
-                        className="rounded-3xl border-3 border-black bg-white p-6 sm:p-8 shadow-[5px_5px_0_#000] space-y-5"
-                      >
-                        {/* Order Header */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-black/10 pb-4">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2.5 flex-wrap">
-                              <span className="font-outfit text-xl font-black text-black">
-                                {item.orderIdDisplay}
-                              </span>
-                              <span className={`px-3 py-1 rounded-full text-xs font-black uppercase border-2 border-black ${item.status === "DELIVERED"
-                                  ? "bg-emerald-300 text-black"
-                                  : "bg-[#E5A00D] text-black"
-                                }`}>
-                                {item.status.replace(/_/g, " ")}
-                              </span>
-                              <span className="px-2.5 py-0.5 rounded-lg bg-zinc-100 border border-zinc-300 text-[10px] font-black uppercase text-zinc-700">
+                  <div className="rounded-3xl border-3 border-black bg-white p-6 sm:p-8 shadow-[6px_6px_0_#000]">
+                    <div className="divide-y divide-zinc-200/70 -mx-4 sm:-mx-8 px-4 sm:px-8">
+                      {deliveries.map((item) => (
+                        <div
+                          key={item.id}
+                          className={`py-2.5 sm:py-3 transition-colors hover:bg-[#FFF8EE]/60 px-2 sm:px-3 -mx-2 sm:-mx-3 rounded-xl flex items-center justify-between gap-3 text-xs ${item.status === "DELIVERED" ? "opacity-60" : ""
+                            }`}
+                        >
+                          {/* 1. Order ID, Type & Status pill */}
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="font-outfit font-black text-xs sm:text-sm uppercase text-black tracking-tight">
+                              {item.orderIdDisplay}
+                            </span>
+                            {item.deliveryType && (
+                              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600">
                                 {item.deliveryType}
                               </span>
-                            </div>
-                            <p className="text-xs text-zinc-500 font-medium">
-                              Customer: <strong className="text-black">{item.customerName}</strong> • Phone: <a href={`tel:${item.customerPhone}`} className="text-amber-900 font-bold hover:underline">{item.customerPhone}</a>
-                            </p>
-                          </div>
-
-                          <div className="text-left sm:text-right">
-                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Order Value</span>
-                            <span className="font-outfit text-2xl font-black text-black">₹{item.totalAmount}</span>
-                          </div>
-                        </div>
-
-                        {/* Order Content & Drop-off info */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="p-4 rounded-2xl bg-[#FFF8EE] border-2 border-black space-y-2">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500 block">
-                              Ordered Items ({item.items.length || 1})
+                            )}
+                            <span
+                              className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${item.status === "DELIVERED"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-amber-100 text-amber-900 border border-amber-300/60"
+                                }`}
+                            >
+                              {item.status.replace(/_/g, " ")}
                             </span>
-                            <p className="font-outfit font-black text-sm text-black">
-                              {item.mealName}
-                            </p>
-                            {item.notes && (
-                              <p className="text-xs text-zinc-600 italic bg-white/70 p-2 rounded-xl border border-zinc-200">
-                                Note: {item.notes}
-                              </p>
+                          </div>
+
+                          {/* 2. Amount */}
+                          <div className="shrink-0 font-outfit font-black text-xs sm:text-sm text-black">
+                            ₹{item.totalAmount}
+                          </div>
+
+                          {/* 3. Customer Name & Contact */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="font-black text-black">{item.customerName}</span>
+                            <span className="text-zinc-300">•</span>
+                            <a
+                              href={`tel:${item.customerPhone}`}
+                              className="font-mono text-zinc-600 hover:text-black hover:underline"
+                            >
+                              {item.customerPhone}
+                            </a>
+                          </div>
+
+                          {/* 4. Address */}
+                          <div className="flex-1 min-w-0 flex items-center gap-1 text-zinc-600 truncate" title={item.address.fullAddress || item.address.street}>
+                            <MapPin size={12} className="text-rose-500 shrink-0" />
+                            <span className="truncate">{item.address.fullAddress || item.address.street}</span>
+                          </div>
+
+                          {/* 5. Dish */}
+                          <div className="shrink-0 max-w-[200px] flex items-center gap-1 text-zinc-800 font-bold truncate" title={item.mealName}>
+                            <UtensilsCrossed size={12} className="text-[#E5A00D] shrink-0" />
+                            <span className="truncate">{item.mealName}</span>
+                          </div>
+
+                          {/* 6. Quick Action Buttons */}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setNavModalItem(item)}
+                              className="px-2.5 py-1 rounded-lg border border-zinc-300 hover:border-black bg-white hover:bg-black hover:text-white text-black font-outfit font-bold text-[11px] uppercase tracking-wider transition-all flex items-center gap-1 shadow-sm"
+                            >
+                              <Navigation size={11} className="text-[#E5A00D]" />
+                              <span>Live Map</span>
+                            </button>
+
+                            {item.status !== "DELIVERED" ? (
+                              <button
+                                type="button"
+                                onClick={() => handleMarkDelivered(item)}
+                                disabled={completingDeliveryId === item.id}
+                                className="px-3 py-1 rounded-lg bg-black text-[#E5A00D] hover:bg-[#E5A00D] hover:text-black font-outfit font-bold text-[11px] uppercase tracking-wider transition-all shadow-sm disabled:opacity-50 flex items-center gap-1"
+                              >
+                                {completingDeliveryId === item.id ? (
+                                  <Loader2 size={11} className="animate-spin" />
+                                ) : (
+                                  <CheckCircle2 size={11} />
+                                )}
+                                <span>Delivered</span>
+                              </button>
+                            ) : (
+                              <span className="text-[11px] font-bold uppercase text-emerald-700 flex items-center gap-1 px-1.5">
+                                <CheckCircle2 size={12} /> Delivered
+                              </span>
                             )}
                           </div>
-
-                          <div className="p-4 rounded-2xl bg-[#FFF8EE] border-2 border-black space-y-2">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500 block">
-                              Delivery Destination
-                            </span>
-                            <p className="font-bold text-black text-xs">
-                              {item.address.fullAddress || item.address.street}
-                            </p>
-                            <p className="text-[11px] font-bold text-zinc-600">
-                              {[item.address.area, item.address.city, item.address.pincode].filter(Boolean).join(", ")}
-                            </p>
-                          </div>
                         </div>
-
-                        {/* Action Footer */}
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t-2 border-black/10">
-                          <button
-                            type="button"
-                            onClick={() => setNavModalItem(item)}
-                            className="w-full sm:w-auto px-5 py-2.5 rounded-xl border-2 border-black bg-[#FFF8EE] hover:bg-black hover:text-white font-outfit font-black text-xs uppercase tracking-wider text-black transition-all flex items-center justify-center gap-2 shadow-[2px_2px_0_#000]"
-                          >
-                            <Navigation size={14} className="text-[#E5A00D]" />
-                            <span>Open In-App Map</span>
-                          </button>
-
-                          {item.status !== "DELIVERED" ? (
-                            <button
-                              onClick={() => handleMarkDelivered(item)}
-                              disabled={completingDeliveryId === item.id}
-                              className="w-full sm:w-auto px-6 py-2.5 rounded-xl border-2 border-black bg-black text-[#E5A00D] hover:bg-[#E5A00D] hover:text-black font-outfit font-black text-xs uppercase tracking-wider transition-all shadow-[3px_3px_0_#000] disabled:opacity-50 flex items-center justify-center gap-2"
-                            >
-                              {completingDeliveryId === item.id ? (
-                                <>
-                                  <Loader2 size={14} className="animate-spin" />
-                                  <span>Updating status...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <CheckCircle2 size={15} />
-                                  <span>Mark Order As Delivered</span>
-                                </>
-                              )}
-                            </button>
-                          ) : (
-                            <span className="px-4 py-2 rounded-xl bg-emerald-100 border-2 border-emerald-400 font-outfit font-black text-xs uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
-                              <CheckCircle2 size={15} />
-                              <span>Delivered on {item.deliveredAt ? new Date(item.deliveredAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "Today"}</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1015,8 +1013,8 @@ export default function DeliveryDashboardPage() {
                   {passwordMsg.text && (
                     <div
                       className={`p-4 rounded-2xl border-2 flex items-center gap-2.5 text-xs font-bold animate-in fade-in duration-200 ${passwordMsg.type === "SUCCESS"
-                          ? "bg-emerald-50 border-emerald-500 text-emerald-900"
-                          : "bg-rose-50 border-rose-500 text-rose-900"
+                        ? "bg-emerald-50 border-emerald-500 text-emerald-900"
+                        : "bg-rose-50 border-rose-500 text-rose-900"
                         }`}
                     >
                       {passwordMsg.type === "SUCCESS" ? (

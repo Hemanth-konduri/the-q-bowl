@@ -240,18 +240,25 @@ export default function LiveTrackingMap({
       dashArray: "8, 8",
     }).addTo(map);
 
-    // Fit Bounds safely so both driver and customer are framed
-    const group = L.featureGroup([
-      kitchenMarkerRef.current,
-      customerMarkerRef.current,
-      driverMarkerRef.current,
-    ]);
-    const bounds = group.getBounds();
-    if (bounds.isValid()) {
-      map.fitBounds(bounds.pad(0.2));
-    }
-
     mapInstanceRef.current = map;
+
+    // Fit Bounds safely so both driver and customer are framed once layout computes
+    requestAnimationFrame(() => {
+      try {
+        map.invalidateSize();
+        const group = L.featureGroup([
+          kitchenMarkerRef.current!,
+          customerMarkerRef.current!,
+          driverMarkerRef.current!,
+        ]);
+        const bounds = group.getBounds();
+        if (bounds.isValid()) {
+          map.fitBounds(bounds.pad(0.2), { animate: false });
+        }
+      } catch (e) {
+        console.warn("LiveTrackingMap fitBounds safe catch:", e);
+      }
+    });
 
     return () => {
       try {

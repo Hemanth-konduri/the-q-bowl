@@ -21,6 +21,7 @@ export class OrderService {
     userId: string;
     addressId: string;
     notes?: string;
+    couponCode?: string;
   }) {
     // 1. Verify address
     const addrRows = await db
@@ -94,13 +95,34 @@ export class OrderService {
     // Server-computed Subtotal
     const subtotal = cItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
+    // Resolve offerId from couponCode or cartObj
+    let appliedOfferId: string | null = cartObj.offerId || null;
+    if (params.couponCode && params.couponCode.trim()) {
+      const cleanCode = params.couponCode.trim().toUpperCase();
+      const { or, and } = await import("drizzle-orm");
+      const foundOffers = await db
+        .select()
+        .from(offers)
+        .where(
+          and(
+            or(eq(offers.name, cleanCode), eq(offers.code, cleanCode)),
+            eq(offers.isActive, true)
+          )
+        )
+        .limit(1);
+
+      if (foundOffers.length > 0) {
+        appliedOfferId = foundOffers[0].id;
+      }
+    }
+
     // Server-computed Discount
     let discount = 0;
-    if (cartObj.offerId) {
+    if (appliedOfferId) {
       const offerRows = await db
         .select()
         .from(offers)
-        .where(eq(offers.id, cartObj.offerId))
+        .where(eq(offers.id, appliedOfferId))
         .limit(1);
 
       if (offerRows.length > 0) {
@@ -116,6 +138,7 @@ export class OrderService {
       }
     }
 
+    discount = Math.min(discount, subtotal);
     const deliveryFee = subtotal > 500 ? 0 : 49;
     const total = Math.max(0, subtotal + deliveryFee - discount);
 
@@ -126,6 +149,7 @@ export class OrderService {
       deliveryFee,
       discount,
       total,
+      appliedOfferId,
       addressId: params.addressId,
       notes: params.notes,
     };
@@ -138,6 +162,7 @@ export class OrderService {
     userId: string;
     addressId: string;
     notes?: string;
+    couponCode?: string;
   }) {
     const checkout = await this.calculateCartCheckout(params);
 
@@ -147,7 +172,7 @@ export class OrderService {
       id: orderId,
       userId: params.userId,
       addressId: params.addressId,
-      offerId: checkout.cart.offerId || null,
+      offerId: checkout.appliedOfferId || checkout.cart.offerId || null,
       type: "NORMAL",
       status: "PENDING",
       subtotal: checkout.subtotal,
@@ -224,6 +249,22 @@ export class OrderService {
       const cartId = userCartRows[0].id;
       await db.delete(cartItems).where(eq(cartItems.cartId, cartId));
       await db.update(carts).set({ offerId: null, notes: null }).where(eq(carts.id, cartId));
+    }
+
+    // Increment offer usageCount if order has an applied offer
+    if (ord.offerId) {
+      try {
+        const { sql } = await import("drizzle-orm");
+        await db
+          .update(offers)
+          .set({
+            usageCount: sql`${offers.usageCount} + 1`,
+            updatedAt: new Date(),
+          })
+          .where(eq(offers.id, ord.offerId));
+      } catch (offerErr) {
+        console.warn("Failed to increment coupon usageCount:", offerErr);
+      }
     }
 
     return ord;

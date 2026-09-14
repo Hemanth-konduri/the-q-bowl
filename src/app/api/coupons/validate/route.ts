@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { offers } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 
 export async function POST(req: Request) {
   try {
@@ -12,10 +12,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Coupon code is required" }, { status: 400 });
     }
 
+    const cleanCode = code.trim().toUpperCase();
+
     const offerRows = await db
       .select()
       .from(offers)
-      .where(and(eq(offers.name, code.trim().toUpperCase()), eq(offers.isActive, true)))
+      .where(
+        and(
+          or(eq(offers.name, cleanCode), eq(offers.code, cleanCode)),
+          eq(offers.isActive, true)
+        )
+      )
       .limit(1);
 
     if (offerRows.length === 0) {
@@ -23,6 +30,16 @@ export async function POST(req: Request) {
     }
 
     const offer = offerRows[0];
+
+    // Check validity date
+    if (offer.endDate && new Date(offer.endDate) <= new Date()) {
+      return NextResponse.json({ error: "This coupon code has expired" }, { status: 400 });
+    }
+
+    // Check usage limit
+    if (offer.usageLimit && offer.usageCount >= offer.usageLimit) {
+      return NextResponse.json({ error: "This coupon usage limit has been reached" }, { status: 400 });
+    }
 
     if (offer.minOrderAmount && subtotal < offer.minOrderAmount) {
       return NextResponse.json(
@@ -43,12 +60,16 @@ export async function POST(req: Request) {
       discount = offer.discountValue;
     }
 
+    // Discount cannot exceed subtotal
+    discount = Math.min(discount, subtotal);
+
     return NextResponse.json({
       valid: true,
       offerId: offer.id,
-      code: offer.name,
+      code: offer.code || offer.name,
+      name: offer.name,
       discount,
-      message: `Coupon '${offer.name}' applied! Saved ₹${discount}`,
+      message: `Coupon '${offer.code || offer.name}' applied! Saved ₹${discount}`,
     });
   } catch (error) {
     console.error("Coupon Validation Error:", error);

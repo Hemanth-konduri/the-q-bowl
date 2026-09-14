@@ -26,6 +26,7 @@ import {
   Banknote,
   ShieldCheck,
   ShieldAlert,
+  Tag,
 } from "lucide-react";
 import { AddressModal, AddressItem } from "./AddressModal";
 import { formatOrderId } from "@/lib/utils/orderIdFormatter";
@@ -806,6 +807,20 @@ export function CustomerNavbar() {
                       <div className="border-t-2 border-black/10 pt-3 flex items-center justify-between font-outfit text-sm font-black">
                         <span>Subtotal</span>
                         <span className="text-base text-black">₹{cartSubtotal}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] font-bold text-zinc-600 bg-[#FFF8EE] p-2 rounded-xl border border-black/10">
+                        <span className="flex items-center gap-1">
+                          <Tag size={12} className="text-[#E5A00D]" />
+                          <span>Have a promo coupon?</span>
+                        </span>
+                        <Link
+                          href="/dashboard#coupons"
+                          onClick={() => setCartOpen(false)}
+                          className="text-black hover:text-[#E5A00D] font-black underline uppercase"
+                        >
+                          View Offers
+                        </Link>
                       </div>
 
                       <button

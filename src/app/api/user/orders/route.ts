@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { addressId, deliverySlot, notes, paymentMethod, sessionKey = "guest-session" } = body;
+    const { addressId, deliverySlot, notes, paymentMethod, couponCode, sessionKey = "guest-session" } = body;
     let selectedAddressId = addressId;
 
     if (!selectedAddressId) {
@@ -287,9 +287,30 @@ export async function POST(req: NextRequest) {
 
     const subtotal = cItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
 
+    let appliedOfferId: string | null = cartObj.offerId || null;
+
+    if (couponCode && typeof couponCode === "string" && couponCode.trim()) {
+      const cleanCode = couponCode.trim().toUpperCase();
+      const { or } = await import("drizzle-orm");
+      const foundOffers = await db
+        .select()
+        .from(offers)
+        .where(
+          and(
+            or(eq(offers.name, cleanCode), eq(offers.code, cleanCode)),
+            eq(offers.isActive, true)
+          )
+        )
+        .limit(1);
+
+      if (foundOffers.length > 0) {
+        appliedOfferId = foundOffers[0].id;
+      }
+    }
+
     let discount = 0;
-    if (cartObj.offerId) {
-      const offerRows = await db.select().from(offers).where(eq(offers.id, cartObj.offerId)).limit(1);
+    if (appliedOfferId) {
+      const offerRows = await db.select().from(offers).where(eq(offers.id, appliedOfferId)).limit(1);
       if (offerRows.length > 0) {
         const off = offerRows[0];
         if (!off.minOrderAmount || subtotal >= off.minOrderAmount) {
@@ -303,6 +324,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    discount = Math.min(discount, subtotal);
     const deliveryFee = subtotal > 500 ? 0 : 49;
     const total = Math.max(0, subtotal + deliveryFee - discount);
 
@@ -313,7 +335,7 @@ export async function POST(req: NextRequest) {
       id: orderId,
       userId: session.userId,
       addressId: selectedAddressId,
-      offerId: cartObj.offerId || null,
+      offerId: appliedOfferId,
       type: "NORMAL",
       status: "PENDING",
       subtotal,
