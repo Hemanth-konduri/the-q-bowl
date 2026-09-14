@@ -28,6 +28,10 @@ import {
   ToggleLeft,
   ToggleRight,
   Power,
+  Send,
+  Sun,
+  Moon,
+  Rocket,
 } from "lucide-react";
 
 interface SubscriberRecord {
@@ -134,6 +138,49 @@ export default function AdminSubscriptionsPage() {
     isFeatured: false,
     isActive: true,
   });
+
+  // Release Order State
+  const [releasingSub, setReleasingSub] = useState<SubscriberRecord | null>(null);
+  const [releaseSlot, setReleaseSlot] = useState<"LUNCH" | "DINNER">("LUNCH");
+  const [submittingRelease, setSubmittingRelease] = useState(false);
+  const [batchReleasingSlot, setBatchReleasingSlot] = useState<"LUNCH" | "DINNER" | null>(null);
+
+  // Release Order Handler (Single or Batch)
+  async function handleReleaseOrder(mode: "SINGLE" | "BATCH", subId?: string, slot?: "LUNCH" | "DINNER") {
+    const targetSlot = slot || releaseSlot;
+    if (mode === "SINGLE") {
+      setSubmittingRelease(true);
+    } else {
+      setBatchReleasingSlot(targetSlot);
+    }
+
+    try {
+      const res = await fetch("/api/admin/subscriptions/release", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode,
+          subscriptionId: subId || releasingSub?.id,
+          mealSlot: targetSlot,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setToastMessage(`🚀 ${data.message}`);
+        setTimeout(() => setToastMessage(null), 4000);
+        setReleasingSub(null);
+        await fetchAllSubscriptionData();
+      } else {
+        alert(data.error || "Failed to release order.");
+      }
+    } catch (e: any) {
+      alert(e.message || "Failed to release order.");
+    } finally {
+      setSubmittingRelease(false);
+      setBatchReleasingSlot(null);
+    }
+  }
 
   // 1. Fetch All Subscription Data
   async function fetchAllSubscriptionData(isManual = false) {
@@ -624,6 +671,87 @@ export default function AdminSubscriptionsPage() {
             {/* TAB 1: SUBSCRIBERS LIST */}
             {activeTab === "SUBSCRIBERS" && (
               <div className="space-y-4">
+                {/* Kitchen Production Release Action Bar */}
+                {(() => {
+                  const lunchEligible = subscribers.filter(
+                    (s) => s.status === "ACTIVE" && s.mealsRemaining > 0 && (s.mealTiming === "LUNCH" || s.mealTiming === "BOTH")
+                  );
+                  const dinnerEligible = subscribers.filter(
+                    (s) => s.status === "ACTIVE" && s.mealsRemaining > 0 && (s.mealTiming === "DINNER" || s.mealTiming === "BOTH")
+                  );
+
+                  return (
+                    <div className="rounded-2xl border-2 border-black bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 p-4 shadow-[3px_3px_0_#000] flex flex-col md:flex-row md:items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-[#E5A00D] text-black border border-black flex items-center justify-center shrink-0 shadow-[1px_1px_0_#000]">
+                          <Rocket className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-outfit font-black text-xs uppercase tracking-wider text-black">
+                              Kitchen Production Release
+                            </span>
+                            <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-black text-[#E5A00D]">
+                              Live Daily Orders
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-zinc-600 font-medium">
+                            Release today's scheduled subscriber meals directly into the Kitchen &amp; Delivery queue
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+                        {/* Batch Release Lunch */}
+                        <button
+                          type="button"
+                          disabled={lunchEligible.length === 0 || batchReleasingSlot !== null}
+                          onClick={() => {
+                            if (confirm(`Release all ${lunchEligible.length} active Lunch subscription orders to the kitchen for today?`)) {
+                              handleReleaseOrder("BATCH", undefined, "LUNCH");
+                            }
+                          }}
+                          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-outfit font-black text-xs uppercase tracking-wider border-2 border-black transition-all ${
+                            lunchEligible.length > 0 && batchReleasingSlot === null
+                              ? "bg-[#E5A00D] text-black hover:bg-black hover:text-[#E5A00D] shadow-[2px_2px_0_#000] cursor-pointer active:translate-x-0.5 active:translate-y-0.5"
+                              : "bg-zinc-200 text-zinc-400 border-zinc-300 cursor-not-allowed shadow-none"
+                          }`}
+                        >
+                          {batchReleasingSlot === "LUNCH" ? (
+                            <Loader2 size={13} className="animate-spin" />
+                          ) : (
+                            <Sun size={14} />
+                          )}
+                          <span>Release Lunch ({lunchEligible.length})</span>
+                        </button>
+
+                        {/* Batch Release Dinner */}
+                        <button
+                          type="button"
+                          disabled={dinnerEligible.length === 0 || batchReleasingSlot !== null}
+                          onClick={() => {
+                            if (confirm(`Release all ${dinnerEligible.length} active Dinner subscription orders to the kitchen for today?`)) {
+                              handleReleaseOrder("BATCH", undefined, "DINNER");
+                            }
+                          }}
+                          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-outfit font-black text-xs uppercase tracking-wider border-2 border-black transition-all ${
+                            dinnerEligible.length > 0 && batchReleasingSlot === null
+                              ? "bg-black text-[#E5A00D] hover:bg-neutral-800 shadow-[2px_2px_0_#E5A00D] cursor-pointer active:translate-x-0.5 active:translate-y-0.5"
+                              : "bg-zinc-200 text-zinc-400 border-zinc-300 cursor-not-allowed shadow-none"
+                          }`}
+                        >
+                          {batchReleasingSlot === "DINNER" ? (
+                            <Loader2 size={13} className="animate-spin" />
+                          ) : (
+                            <Moon size={14} />
+                          )}
+                          <span>Release Dinner ({dinnerEligible.length})</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="relative w-full max-w-sm">
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -716,6 +844,31 @@ export default function AdminSubscriptionsPage() {
                                 {/* Actions */}
                                 <td className="py-4 pl-4 text-right">
                                   <div className="flex items-center justify-end gap-1.5">
+                                    {/* Individual Release Order Button */}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setReleaseSlot(sub.mealTiming === "DINNER" ? "DINNER" : "LUNCH");
+                                        setReleasingSub(sub);
+                                      }}
+                                      disabled={sub.status !== "ACTIVE" || sub.mealsRemaining <= 0}
+                                      title={
+                                        sub.status !== "ACTIVE"
+                                          ? "Plan is not active"
+                                          : sub.mealsRemaining <= 0
+                                          ? "No meals remaining"
+                                          : "Release today's meal order to kitchen"
+                                      }
+                                      className={`flex items-center gap-1 px-2.5 py-1.5 font-black text-xs rounded-xl transition-all ${
+                                        sub.status === "ACTIVE" && sub.mealsRemaining > 0
+                                          ? "bg-[#E5A00D] hover:bg-black hover:text-[#E5A00D] text-black shadow-xs cursor-pointer active:translate-x-0.5 active:translate-y-0.5"
+                                          : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                      }`}
+                                    >
+                                      <Send size={12} />
+                                      <span>Release</span>
+                                    </button>
+
                                     <button
                                       onClick={() => setSelectedSub(sub)}
                                       className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-black font-extrabold text-xs rounded-xl transition-colors"
@@ -1418,6 +1571,129 @@ export default function AdminSubscriptionsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* ── RELEASE ORDER CONFIRMATION MODAL ── */}
+      {releasingSub && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl border-2 border-black max-w-md w-full p-6 shadow-[6px_6px_0_#000] space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-[#E5A00D] text-black border border-black flex items-center justify-center font-bold">
+                  <Rocket size={16} />
+                </div>
+                <div>
+                  <h3 className="font-outfit font-black text-base uppercase text-black">
+                    Release Subscription Meal
+                  </h3>
+                  <p className="text-[11px] text-zinc-500 font-medium">
+                    Send today's order to Kitchen &amp; Delivery queue
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setReleasingSub(null)}
+                className="text-slate-400 hover:text-black transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Subscriber Info Card */}
+            <div className="bg-[#FFF8EE] border border-amber-200/80 rounded-2xl p-4 space-y-2 text-xs">
+              <div className="flex justify-between items-start">
+                <div>
+                  <span className="font-black text-black text-sm block">
+                    {releasingSub.userName || "Subscriber User"}
+                  </span>
+                  <span className="text-[11px] font-mono text-zinc-600 block">
+                    {releasingSub.userPhone}
+                  </span>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300 font-black text-[10px] uppercase">
+                  {releasingSub.mealsRemaining} Credits Left
+                </span>
+              </div>
+
+              <div className="pt-2 border-t border-amber-200/60 flex items-center justify-between text-[11px]">
+                <span className="text-zinc-600 font-medium">Meal Dish:</span>
+                <span className="font-bold text-black">{releasingSub.mealName || "Standard Bowl"}</span>
+              </div>
+
+              {releasingSub.deliveryAddress && (
+                <div className="flex items-start gap-1 text-[11px] text-zinc-600 pt-1">
+                  <MapPin size={13} className="text-amber-800 shrink-0 mt-0.5" />
+                  <span className="line-clamp-2">{releasingSub.deliveryAddress}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Session Selection */}
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-wider text-black block">
+                Select Meal Session for Today:
+              </label>
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setReleaseSlot("LUNCH")}
+                  className={`p-3 rounded-xl border-2 font-outfit font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+                    releaseSlot === "LUNCH"
+                      ? "border-black bg-[#E5A00D] text-black shadow-[2px_2px_0_#000]"
+                      : "border-slate-200 bg-slate-50 text-slate-700 hover:border-black"
+                  }`}
+                >
+                  <Sun size={15} />
+                  <span>Lunch (12:00 PM)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setReleaseSlot("DINNER")}
+                  className={`p-3 rounded-xl border-2 font-outfit font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+                    releaseSlot === "DINNER"
+                      ? "border-black bg-black text-[#E5A00D] shadow-[2px_2px_0_#E5A00D]"
+                      : "border-slate-200 bg-slate-50 text-slate-700 hover:border-black"
+                  }`}
+                >
+                  <Moon size={15} />
+                  <span>Dinner (7:30 PM)</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-[11px] text-slate-600 font-medium">
+              💡 Releasing this order will deduct <strong>1 meal credit</strong> from the subscriber and place this meal into the <strong>Kitchen &amp; Delivery dashboard</strong>.
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setReleasingSub(null)}
+                className="px-4 py-2 border border-slate-300 rounded-xl text-slate-700 font-bold text-xs hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={submittingRelease}
+                onClick={() => handleReleaseOrder("SINGLE")}
+                className="px-5 py-2.5 bg-black hover:bg-neutral-800 text-[#E5A00D] font-outfit font-black text-xs uppercase tracking-wider rounded-xl border border-black transition-all flex items-center gap-2 shadow-[2px_2px_0_#E5A00D]"
+              >
+                {submittingRelease ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    <span>Releasing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Rocket size={14} />
+                    <span>Confirm &amp; Release 🚀</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

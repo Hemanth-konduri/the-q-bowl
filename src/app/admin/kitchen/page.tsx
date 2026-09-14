@@ -552,6 +552,13 @@ export default function AdminKitchenPage() {
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
+                      onClick={() => handlePresetNotice("Kitchen is open and serving fresh homemade bowls! Pre-orders welcome.", "SUCCESS")}
+                      className="px-3 py-1.5 rounded-lg border border-emerald-300 hover:border-emerald-600 bg-emerald-50 text-xs font-bold text-emerald-900"
+                    >
+                      "Kitchen is open & serving fresh bowls"
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => handlePresetNotice("Kitchen closed today due to routine maintenance.", "ALERT")}
                       className="px-3 py-1.5 rounded-lg border border-slate-200 hover:border-black bg-slate-50 text-xs font-bold text-slate-800"
                     >

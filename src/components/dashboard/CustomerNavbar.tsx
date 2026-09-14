@@ -257,7 +257,10 @@ export function CustomerNavbar() {
         const res = await fetch(`/api/kitchen/status?t=${Date.now()}`, { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
-          setKitchenClosed(data.kitchenStatus !== "OPEN" || Boolean(data.isOrderingPaused));
+          const status = data.settings?.kitchenStatus || data.kitchenStatus || "OPEN";
+          const isPaused = Boolean(data.settings?.isOrderingPaused ?? data.isOrderingPaused);
+          const isClosed = (typeof data.isOpenNow === "boolean") ? !data.isOpenNow : (status !== "OPEN" || isPaused);
+          setKitchenClosed(isClosed);
         }
       } catch (err) {}
     }

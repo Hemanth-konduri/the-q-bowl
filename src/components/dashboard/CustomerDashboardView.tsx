@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Copy,
   Check,
   Plus,
@@ -51,6 +52,8 @@ import {
   Play,
   Pause,
   Zap,
+  Sun,
+  Moon,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { AddressModal, AddressItem } from "./AddressModal";
@@ -278,6 +281,7 @@ export function CustomerDashboardView() {
     mealName?: string;
     planDescription?: string;
     preferredDeliveryTime?: string;
+    mealTiming?: string;
   }
 
   interface DashboardDelivery {
@@ -1022,62 +1026,149 @@ export function CustomerDashboardView() {
   return (
     <div className="space-y-8 w-full">
 
-      {/* ── LIVE KITCHEN ANNOUNCEMENT BANNER (Broadcast from Admin Kitchen) ── */}
-      {kitchenStatus.isNoticeBannerActive && !dismissedNotice && kitchenStatus.noticeBannerText && (
-        <div
-          className={`relative overflow-hidden rounded-2xl border-2 border-black p-3.5 sm:p-4 shadow-[4px_4px_0_#000] flex items-center justify-between gap-3 transition-all animate-in fade-in duration-300 ${kitchenStatus.noticeBannerType === "ALERT"
-              ? "bg-rose-100 text-rose-950"
-              : kitchenStatus.noticeBannerType === "WARNING"
-                ? "bg-amber-100 text-amber-950"
-                : kitchenStatus.noticeBannerType === "SUCCESS"
-                  ? "bg-emerald-100 text-emerald-950"
-                  : "bg-[#FFF8EE] text-black"
-            }`}
-        >
-          <div className="flex items-center gap-3 min-w-0">
+      {/* ── TOP NOTIFICATION BANNERS (Kitchen Broadcast & Meal Feedback) ── */}
+      {((kitchenStatus.isNoticeBannerActive && !dismissedNotice && kitchenStatus.noticeBannerText) || (activeTab === "home" && pendingHomeFeedback)) && (
+        <div className="space-y-2 w-full">
+          {/* Kitchen Broadcast Banner */}
+          {kitchenStatus.isNoticeBannerActive && !dismissedNotice && kitchenStatus.noticeBannerText && (
             <div
-              className={`h-9 w-9 rounded-xl border-2 border-black flex items-center justify-center shrink-0 shadow-[2px_2px_0_#000] ${kitchenStatus.noticeBannerType === "ALERT"
-                  ? "bg-rose-500 text-white"
+              className={`w-full rounded-2xl sm:rounded-full shadow-sm px-3.5 py-2 sm:py-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 text-xs animate-in fade-in slide-in-from-top-2 border transition-all ${
+                kitchenStatus.noticeBannerType === "ALERT"
+                  ? "bg-gradient-to-r from-rose-50/95 via-red-50/90 to-rose-50/95 border-rose-200/80 text-rose-950"
                   : kitchenStatus.noticeBannerType === "WARNING"
-                    ? "bg-amber-500 text-black"
+                    ? "bg-gradient-to-r from-amber-50/95 via-orange-50/90 to-amber-50/95 border-amber-200/80 text-amber-950"
                     : kitchenStatus.noticeBannerType === "SUCCESS"
-                      ? "bg-emerald-500 text-white"
-                      : "bg-[#E5A00D] text-black"
-                }`}
+                      ? "bg-gradient-to-r from-emerald-50/95 via-teal-50/90 to-emerald-50/95 border-emerald-200/80 text-emerald-950"
+                      : "bg-gradient-to-r from-amber-50/95 via-orange-50/90 to-amber-50/95 border-amber-200/80 text-zinc-900"
+              }`}
             >
-              <Megaphone size={18} />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-outfit text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-black text-[#E5A00D]">
-                  Kitchen Broadcast
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <span
+                  className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full shadow-xs ${
+                    kitchenStatus.noticeBannerType === "ALERT"
+                      ? "bg-rose-500 text-white"
+                      : kitchenStatus.noticeBannerType === "WARNING"
+                        ? "bg-amber-500 text-black"
+                        : kitchenStatus.noticeBannerType === "SUCCESS"
+                          ? "bg-emerald-600 text-white"
+                          : "bg-[#E5A00D] text-black"
+                  }`}
+                >
+                  <Megaphone className="h-3.5 w-3.5" />
                 </span>
-                <span className="hidden xs:inline-flex items-center gap-1 text-[10px] font-bold text-zinc-600">
-                  <Clock size={11} /> Live Update
-                </span>
+                <div className="min-w-0 flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                  <span className="font-outfit text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-black text-[#E5A00D] shrink-0">
+                    Notice
+                  </span>
+                  <span className="font-bold truncate text-xs">
+                    {kitchenStatus.noticeBannerText}
+                  </span>
+                </div>
               </div>
-              <p className="text-xs sm:text-sm font-black mt-0.5 leading-snug line-clamp-2 sm:line-clamp-none">
-                {kitchenStatus.noticeBannerText}
-              </p>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => setShowKitchenModal(true)}
-              className="hidden sm:flex items-center gap-1 text-[11px] font-black uppercase text-black underline hover:text-[#E5A00D] transition-colors cursor-pointer"
-            >
-              <ChefHat size={14} />
-              <span>Kitchen Info</span>
-            </button>
-            <button
-              onClick={() => setDismissedNotice(true)}
-              title="Dismiss announcement"
-              className="h-8 w-8 rounded-xl border border-black/20 hover:border-black flex items-center justify-center text-black/60 hover:text-black transition-colors cursor-pointer"
-            >
-              <X size={16} />
-            </button>
-          </div>
+              <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-auto">
+                <button
+                  type="button"
+                  onClick={() => setShowKitchenModal(true)}
+                  className="text-[11px] font-bold underline underline-offset-2 hover:opacity-80 transition-opacity flex items-center gap-1 cursor-pointer"
+                >
+                  <ChefHat size={13} />
+                  <span>Kitchen Info</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setDismissedNotice(true)}
+                  title="Dismiss announcement"
+                  className="p-1 text-zinc-400 hover:text-zinc-700 transition-colors rounded-full hover:bg-black/5 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Pending Order Feedback Banner (Sleek One-Line Popup View) */}
+          {activeTab === "home" && pendingHomeFeedback && (
+            <div className="w-full rounded-2xl sm:rounded-full bg-gradient-to-r from-amber-50/95 via-orange-50/90 to-amber-50/95 border border-amber-200/80 shadow-sm px-3.5 py-2 sm:py-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 text-xs animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#E5A00D] text-black font-black shadow-xs">
+                  <Star className="h-3.5 w-3.5 fill-black text-black" />
+                </span>
+                <div className="min-w-0">
+                  <span className="font-bold text-zinc-900 truncate block sm:inline">
+                    How was your recent meal?{" "}
+                    <span className="text-zinc-600 font-semibold truncate">
+                      ({pendingHomeFeedback.foodItemName})
+                    </span>
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-auto">
+                <div className="flex items-center gap-0.5" title="Click stars to rate">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => {
+                        setFeedbackOverallRating(star);
+                        setFeedbackFoodRating(star);
+                        setFeedbackDeliveryRating(star);
+                        setFeedbackOrderId(pendingHomeFeedback.orderId);
+                        setFeedbackFoodName(pendingHomeFeedback.foodItemName);
+                        setFeedbackDate(pendingHomeFeedback.deliveryDate);
+                        setFeedbackModalOpen(true);
+                      }}
+                      className="p-1 hover:scale-125 transition-transform text-zinc-300 hover:text-amber-400"
+                    >
+                      <Star
+                        className={`w-4 h-4 ${
+                          star <= feedbackOverallRating
+                            ? "fill-amber-400 text-amber-500"
+                            : "text-zinc-300"
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFeedbackOrderId(pendingHomeFeedback.orderId);
+                    setFeedbackFoodName(pendingHomeFeedback.foodItemName);
+                    setFeedbackDate(pendingHomeFeedback.deliveryDate);
+                    setFeedbackModalOpen(true);
+                  }}
+                  className="text-[11px] font-bold text-amber-900 hover:text-black underline underline-offset-2"
+                >
+                  Write Review
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setComplaintOrderId(pendingHomeFeedback.orderId);
+                    setComplaintModalOpen(true);
+                  }}
+                  className="text-[11px] font-semibold text-red-600 hover:text-red-800"
+                  title="Report an issue"
+                >
+                  Issue?
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPendingHomeFeedback(null)}
+                  className="p-1 text-zinc-400 hover:text-zinc-700 transition-colors rounded-full hover:bg-black/5"
+                  title="Dismiss"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1807,11 +1898,22 @@ export function CustomerDashboardView() {
                   <div className="h-12 w-12 rounded-2xl bg-[#E5A00D] text-black font-black flex items-center justify-center border-2 border-black shadow-[2px_2px_0_#000] shrink-0">
                     <Sparkles size={22} />
                   </div>
-                  <div>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-300 block">
-                      Active Member Pass
-                    </span>
-                    <h3 className="font-outfit text-xl sm:text-2xl font-black uppercase text-white">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-emerald-300 block">
+                        Active Member Pass
+                      </span>
+                      {activeSubRecord.mealTiming && (
+                        <span className="text-[9px] font-black uppercase tracking-wider bg-white/20 text-white px-2 py-0.5 rounded-full border border-white/20">
+                          {activeSubRecord.mealTiming === "BOTH"
+                            ? "Lunch & Dinner (2/day)"
+                            : activeSubRecord.mealTiming === "DINNER"
+                            ? "Dinner (7:30 PM)"
+                            : "Lunch (12:00 PM)"}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="font-outfit text-xl sm:text-2xl font-black uppercase text-white mt-0.5">
                       {activeSubRecord.packageName || "Full Veg Meal Subscription"}
                     </h3>
                   </div>
@@ -1892,6 +1994,47 @@ export function CustomerDashboardView() {
               </p>
             </div>
 
+            {/* ── Step 1: Sleek Compact Delivery Session Dropdown ── */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white rounded-2xl border border-zinc-200/90 p-3 sm:px-4 sm:py-2.5 shadow-xs">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-800">
+                  <Clock size={16} />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-outfit font-black text-xs uppercase tracking-wider text-zinc-900">
+                      Daily Delivery Session
+                    </span>
+                    <span className="text-[10px] font-bold text-amber-900 bg-amber-50 border border-amber-300 px-2 py-0.2 rounded-full hidden xs:inline-block">
+                      {subMealTiming === "BOTH" ? "2 Meals / Day" : "1 Meal / Day"}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-zinc-500 font-medium">
+                    When do you want your fresh homestyle handi bowls delivered?
+                  </p>
+                </div>
+              </div>
+
+              {/* Compact Session Dropdown */}
+              <div className="relative shrink-0 w-full sm:w-auto">
+                <select
+                  value={subMealTiming}
+                  onChange={(e) => setSubMealTiming(e.target.value as "LUNCH" | "DINNER" | "BOTH")}
+                  className="w-full sm:w-auto appearance-none pl-9 pr-9 py-2 rounded-xl border border-zinc-300/80 bg-zinc-50 hover:bg-zinc-100 font-outfit font-black text-xs uppercase tracking-wider text-zinc-900 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#E5A00D] transition-colors"
+                >
+                  <option value="LUNCH">☀️ Lunch Only (12:00 PM – 1:00 PM)</option>
+                  <option value="DINNER">🌙 Dinner Only (7:30 PM – 8:30 PM)</option>
+                  <option value="BOTH">🍽️ Both (Lunch + Dinner • 2/Day)</option>
+                </select>
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-amber-700">
+                  {subMealTiming === "DINNER" ? <Moon size={14} /> : subMealTiming === "BOTH" ? <UtensilsCrossed size={14} /> : <Sun size={14} />}
+                </div>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+                  <ChevronDown size={14} />
+                </div>
+              </div>
+            </div>
+
             {/* If no plans are active */}
             {dbSubPackages.length === 0 ? (
               <div className="rounded-3xl border-3 border-black bg-[#FFF8EE] p-8 text-center space-y-3 shadow-[5px_5px_0_#000]">
@@ -1913,6 +2056,8 @@ export function CustomerDashboardView() {
                   const discountSavings = pkg.discount > 0 ? pkg.discount : Math.max(0, regularTotal - (mealRate * pkg.mealCredits));
                   const finalTotal = Math.max(0, (mealRate * pkg.mealCredits) - (pkg.discount || 0));
                   const isSelected = selectedSubPlan === pkg.id;
+
+                  const durationDays = subMealTiming === "BOTH" ? Math.round(pkg.mealCredits / 2) : pkg.mealCredits;
 
                   return (
                     <div
@@ -1948,11 +2093,11 @@ export function CustomerDashboardView() {
                             {pkg.name}
                           </h3>
                           <p className="text-xs text-zinc-600 font-medium mt-1">
-                            {pkg.mealCredits >= 60
-                              ? "2 meals daily (Lunch + Dinner) for 30 days."
-                              : pkg.mealCredits >= 30
-                              ? "1 wholesome meal every single day of the month."
-                              : "Ideal for regular lunches or weekday dining."}
+                            {subMealTiming === "BOTH"
+                              ? `2 meals daily (Lunch + Dinner) for ${durationDays} days.`
+                              : subMealTiming === "DINNER"
+                              ? `1 hot dinner delivered daily at 7:30 PM for ${durationDays} days.`
+                              : `1 wholesome lunch delivered daily at 12:00 PM for ${durationDays} days.`}
                           </p>
                         </div>
 
@@ -2196,147 +2341,6 @@ export function CustomerDashboardView() {
       {/* ── HOME / DISHES SECTION (Only when activeTab is "home") ── */}
       {activeTab === "home" && (
         <>
-          {/* ── 0.5 Pending Order Feedback Card (Auto-appears for unreviewed delivered orders) ── */}
-          {pendingHomeFeedback && (
-            <div className="rounded-3xl border-3 border-black bg-[#FFF8EE] shadow-[6px_6px_0_#000] p-6 sm:p-8 relative overflow-hidden transition-all hover:shadow-[8px_8px_0_#000] space-y-6 mb-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-black/10 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-[#E5A00D] border-2 border-black flex items-center justify-center text-black font-black shadow-[3px_3px_0_#000]">
-                    <Star className="w-6 h-6 fill-black text-black" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="bg-black text-[#E5A00D] px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border border-black shadow-[2px_2px_0_#000]">
-                        Post-Delivery Review
-                      </span>
-                      <span className="text-[11px] font-mono font-bold text-zinc-500">
-                        {pendingHomeFeedback.deliveryDate}
-                      </span>
-                    </div>
-                    <h4 className="font-outfit text-xl sm:text-2xl font-black uppercase text-black mt-0.5">
-                      How was your recent meal?
-                    </h4>
-                    <p className="text-xs font-semibold text-zinc-600">
-                      {pendingHomeFeedback.foodItemName} ({formatOrderId(pendingHomeFeedback.orderId)})
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setPendingHomeFeedback(null)}
-                  className="text-xs font-bold text-zinc-400 hover:text-black self-start sm:self-center"
-                >
-                  Dismiss ✕
-                </button>
-              </div>
-
-              <form onSubmit={(e) => handleSubmitFeedback(e, pendingHomeFeedback.orderId)} className="space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-white p-4 rounded-2xl border-2 border-black shadow-[3px_3px_0_#000]">
-                  {/* Overall Rating */}
-                  <div className="space-y-1 text-center sm:text-left">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-black block">Overall Experience</span>
-                    <div className="flex items-center justify-center sm:justify-start gap-1">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          type="button"
-                          onClick={() => setFeedbackOverallRating(star)}
-                          className="p-1 hover:scale-110 transition-transform"
-                        >
-                          <Star
-                            className={`w-6 h-6 ${star <= feedbackOverallRating ? "fill-amber-400 text-amber-500" : "text-zinc-300"}`}
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Food Quality Rating */}
-                  <div className="space-y-1 text-center sm:text-left">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-black block">Food Quality</span>
-                    <div className="flex items-center justify-center sm:justify-start gap-1">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          type="button"
-                          onClick={() => setFeedbackFoodRating(star)}
-                          className="p-1 hover:scale-110 transition-transform"
-                        >
-                          <Star
-                            className={`w-6 h-6 ${star <= feedbackFoodRating ? "fill-amber-400 text-amber-500" : "text-zinc-300"}`}
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Delivery Experience Rating */}
-                  <div className="space-y-1 text-center sm:text-left">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-black block">Delivery Experience</span>
-                    <div className="flex items-center justify-center sm:justify-start gap-1">
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          key={star}
-                          type="button"
-                          onClick={() => setFeedbackDeliveryRating(star)}
-                          className="p-1 hover:scale-110 transition-transform"
-                        >
-                          <Star
-                            className={`w-6 h-6 ${star <= feedbackDeliveryRating ? "fill-amber-400 text-amber-500" : "text-zinc-300"}`}
-                          />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Review Comment Textarea */}
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-black mb-1">
-                    Written Review <span className="text-zinc-400 font-semibold">(Optional)</span>
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={feedbackComment}
-                    onChange={(e) => setFeedbackComment(e.target.value)}
-                    placeholder="Tell us about the taste, packaging, heat retention, or delivery speed..."
-                    className="w-full rounded-2xl border-2 border-black p-3 text-xs font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-[#E5A00D]"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between gap-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setComplaintOrderId(pendingHomeFeedback.orderId);
-                      setComplaintModalOpen(true);
-                    }}
-                    className="text-xs font-extrabold text-red-700 hover:text-black underline flex items-center gap-1"
-                  >
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    Report an Issue / Complaint
-                  </button>
-
-                  <button
-                    disabled={submittingFeedback}
-                    type="submit"
-                    className="px-6 py-2.5 rounded-xl bg-black text-[#FFF8EE] hover:bg-[#E5A00D] hover:text-black font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[3px_3px_0_#000] hover:shadow-none transition-all flex items-center gap-2"
-                  >
-                    {submittingFeedback ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Submitting...
-                      </>
-                    ) : (
-                      <>
-                        <span>Submit Review ✓</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
           {/* ── 1. Hero Offers & Discount Slider with Real Kitchen Background Images ── */}
           <div
             onMouseEnter={() => setIsSliderHovered(true)}
@@ -2936,41 +2940,36 @@ export function CustomerDashboardView() {
             )}
 
           {/* ── 4. Subscription Status & Recent Deliveries Section ── */}
-          <div className="pt-6 space-y-8">
+          <div className="pt-4 space-y-4">
             
             {/* Section Title */}
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 border-b-2 border-black/10 pb-4">
+            <div className="flex items-center justify-between gap-2 border-b border-zinc-200/80 pb-2.5">
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="bg-[#E5A00D] border-2 border-black px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider text-black shadow-[2px_2px_0_#000]">
-                    Dashboard Hub
-                  </span>
-                  <span className="text-[11px] font-mono font-bold text-zinc-500 uppercase tracking-widest">
-                    Real-Time Tracking
-                  </span>
-                </div>
-                <h3 className="font-outfit text-2xl sm:text-3xl font-black uppercase tracking-tight text-black mt-1">
+                <h3 className="font-outfit text-base sm:text-lg font-black uppercase tracking-tight text-zinc-900">
                   Subscription Status &amp; Deliveries
                 </h3>
-                <p className="text-xs text-zinc-600 font-medium mt-0.5">
-                  Manage your active meal plan balance, daily dispatches, and recent order history
+                <p className="text-[11px] text-zinc-500 font-medium">
+                  Active meal plan balance &amp; order history
                 </p>
               </div>
+
+              <Link
+                href="/subscriptions"
+                className="text-[11px] font-bold text-amber-900 hover:text-black underline underline-offset-2 flex items-center gap-0.5"
+              >
+                <span>Manage</span>
+                <ChevronRight size={12} />
+              </Link>
             </div>
 
-            {/* 1. Subscription Status Card Container */}
+            {/* 1. Subscription Status Card (Compact: Progress & Meals/Month Only) */}
             {loadingDashboardData ? (
-              <div className="rounded-3xl border-3 border-black bg-[#FFF8EE] shadow-[6px_6px_0_#000] p-6 sm:p-8 space-y-6 animate-pulse">
+              <div className="rounded-2xl border border-zinc-200 bg-white shadow-xs p-3.5 space-y-2 animate-pulse">
                 <div className="flex justify-between items-center">
-                  <div className="h-6 bg-zinc-200 rounded-lg w-48" />
-                  <div className="h-6 bg-zinc-200 rounded-full w-24" />
+                  <div className="h-4 bg-zinc-100 rounded w-36" />
+                  <div className="h-4 bg-zinc-100 rounded w-20" />
                 </div>
-                <div className="h-4 bg-zinc-200 rounded-full w-full" />
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="h-16 bg-zinc-200 rounded-2xl" />
-                  ))}
-                </div>
+                <div className="h-2 bg-zinc-100 rounded-full w-full" />
               </div>
             ) : activeSubscription ? (
               (() => {
@@ -2979,161 +2978,67 @@ export function CustomerDashboardView() {
                 const mealsConsumed = activeSubscription.mealsUsed ?? Math.max(0, totalMeals - mealsRemaining);
                 const progressPercent = Math.min(100, Math.max(0, Math.round((mealsConsumed / totalMeals) * 100)));
 
-                const isExpiringSoon = mealsRemaining <= 5 || activeSubscription.status === "EXPIRING_SOON";
-                const computedStatus = isExpiringSoon ? "EXPIRING SOON" : activeSubscription.status;
-
-                // Days remaining calculation
-                const expDateStr = activeSubscription.expectedEndDate || activeSubscription.endDate;
-                let daysRemaining: number | null = null;
-                if (expDateStr) {
-                  const diffMs = new Date(expDateStr).getTime() - new Date().getTime();
-                  daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-                }
-
-                const startDateFormatted = activeSubscription.startDate
-                  ? new Date(activeSubscription.startDate).toLocaleDateString("en-IN", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })
-                  : "N/A";
-
-                const endDateFormatted = expDateStr
-                  ? new Date(expDateStr).toLocaleDateString("en-IN", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })
-                  : "N/A";
-
                 return (
-                  <div className="rounded-3xl border-3 border-black bg-[#FFF8EE] shadow-[6px_6px_0_#000] p-6 sm:p-8 space-y-6 relative overflow-hidden transition-all hover:shadow-[8px_8px_0_#000]">
-                    {/* Header Row */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-black/10 pb-5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-2xl bg-[#E5A00D] border-2 border-black flex items-center justify-center text-black font-black shadow-[3px_3px_0_#000]">
-                          <UtensilsCrossed className="w-6 h-6" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-mono font-bold uppercase text-zinc-500">
-                              Active Subscription
-                            </span>
-                            {daysRemaining !== null && (
-                              <span className="bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-md text-[10px] font-bold">
-                                {daysRemaining} {daysRemaining === 1 ? "day" : "days"} left
-                              </span>
-                            )}
-                          </div>
-                          <h4 className="font-outfit text-xl sm:text-2xl font-black uppercase text-black">
-                            {activeSubscription.planName || activeSubscription.mealName || "Gourmet Meal Pass"}
-                          </h4>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider border-2 border-black shadow-[2px_2px_0_#000] ${
-                            isExpiringSoon
-                              ? "bg-amber-300 text-black"
-                              : "bg-emerald-400 text-black"
-                          }`}
-                        >
-                          <span className="h-2 w-2 rounded-full bg-black animate-ping" />
-                          {computedStatus}
+                  <div className="rounded-2xl border border-amber-200/80 bg-white shadow-xs p-3.5 sm:p-4 space-y-2.5 transition-all">
+                    {/* Compact Header: Plan Name & Progress Stats */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#E5A00D]/15 text-[#B47B00]">
+                          <UtensilsCrossed className="w-3.5 h-3.5" />
                         </span>
-
-                        <Link
-                          href="/subscriptions"
-                          className="px-4 py-2 rounded-xl bg-black text-[#FFF8EE] hover:bg-[#E5A00D] hover:text-black font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[2px_2px_0_#000] transition-all flex items-center gap-1.5"
-                        >
-                          <span>Manage</span>
-                          <ChevronRight size={14} />
-                        </Link>
+                        <h4 className="font-outfit text-sm sm:text-base font-black uppercase text-zinc-900 truncate">
+                          {activeSubscription.planName || activeSubscription.mealName || "20 Meals / Month"}
+                        </h4>
+                        {activeSubscription.mealTiming && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300/80 shrink-0">
+                            {activeSubscription.mealTiming === "BOTH"
+                              ? "Lunch & Dinner"
+                              : activeSubscription.mealTiming === "DINNER"
+                              ? "Dinner"
+                              : "Lunch"}
+                          </span>
+                        )}
                       </div>
+
+                      <span className="font-outfit text-xs font-black text-zinc-900 shrink-0">
+                        {mealsConsumed} of {totalMeals} Meals Used ({progressPercent}%)
+                      </span>
                     </div>
 
-                    {/* Progress Bar Section */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center text-xs font-bold uppercase tracking-wider">
-                        <span className="text-zinc-600 flex items-center gap-1.5">
-                          <Sparkles className="w-4 h-4 text-[#E5A00D]" />
-                          Meal Consumption Progress
-                        </span>
-                        <span className="font-outfit font-black text-black">
-                          {mealsConsumed} of {totalMeals} Meals Used ({progressPercent}%)
-                        </span>
-                      </div>
-                      <div className="h-4 w-full bg-zinc-200 rounded-full border-2 border-black overflow-hidden p-0.5 shadow-[inner_0_2px_4px_rgba(0,0,0,0.1)]">
-                        <div
-                          className="h-full bg-[#E5A00D] rounded-full transition-all duration-500 border border-black"
-                          style={{ width: `${progressPercent}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Metrics Grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
-                      <div className="bg-white p-4 rounded-2xl border-2 border-black shadow-[3px_3px_0_#000]">
-                        <span className="text-[10px] font-bold uppercase text-zinc-400 block">Meals Remaining</span>
-                        <span className="font-outfit text-2xl sm:text-3xl font-black text-emerald-700">
-                          {mealsRemaining}
-                        </span>
-                        <span className="text-[10px] font-semibold text-zinc-500 block mt-0.5">Ready for dispatch</span>
-                      </div>
-
-                      <div className="bg-white p-4 rounded-2xl border-2 border-black shadow-[3px_3px_0_#000]">
-                        <span className="text-[10px] font-bold uppercase text-zinc-400 block">Meals Consumed</span>
-                        <span className="font-outfit text-2xl sm:text-3xl font-black text-black">
-                          {mealsConsumed}
-                        </span>
-                        <span className="text-[10px] font-semibold text-zinc-500 block mt-0.5">Successfully delivered</span>
-                      </div>
-
-                      <div className="bg-white p-4 rounded-2xl border-2 border-black shadow-[3px_3px_0_#000]">
-                        <span className="text-[10px] font-bold uppercase text-zinc-400 block">Start Date</span>
-                        <span className="font-outfit text-sm sm:text-base font-black text-black mt-1 block">
-                          {startDateFormatted}
-                        </span>
-                        <span className="text-[10px] font-semibold text-zinc-500 block">Subscription activated</span>
-                      </div>
-
-                      <div className="bg-[#FFF8EE] p-4 rounded-2xl border-2 border-black shadow-[3px_3px_0_#000]">
-                        <span className="text-[10px] font-bold uppercase text-zinc-400 block">Expiry Date</span>
-                        <span className="font-outfit text-sm sm:text-base font-black text-black mt-1 block">
-                          {endDateFormatted}
-                        </span>
-                        <span className="text-[10px] font-semibold text-zinc-500 block">Plan validity end</span>
-                      </div>
+                    {/* Progress Bar */}
+                    <div className="h-2 w-full bg-zinc-100 rounded-full overflow-hidden border border-zinc-200/60 p-0.5">
+                      <div
+                        className="h-full bg-gradient-to-r from-amber-400 to-[#E5A00D] rounded-full transition-all duration-500"
+                        style={{ width: `${progressPercent}%` }}
+                      />
                     </div>
                   </div>
                 );
               })()
             ) : (
-              /* 2. No Active Subscription Empty State */
-              <div className="rounded-3xl border-3 border-black bg-white shadow-[6px_6px_0_#000] p-8 sm:p-12 text-center space-y-5">
-                <div className="w-16 h-16 rounded-3xl bg-[#FFF8EE] border-3 border-black mx-auto flex items-center justify-center text-black shadow-[4px_4px_0_#000]">
-                  <Package className="w-8 h-8 stroke-[2.5]" />
+              /* 2. Compact Empty State */
+              <div className="rounded-2xl border border-zinc-200 bg-white shadow-xs p-3.5 sm:p-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-50 border border-amber-200/80 text-amber-800">
+                    <Package className="w-3.5 h-3.5" />
+                  </span>
+                  <div className="min-w-0">
+                    <h4 className="font-outfit text-xs sm:text-sm font-black uppercase text-zinc-900 truncate">
+                      No Active Meal Subscription
+                    </h4>
+                    <p className="text-[11px] text-zinc-500 font-medium truncate">
+                      Subscribe for daily fresh handi meals &amp; save up to 35%.
+                    </p>
+                  </div>
                 </div>
 
-                <div className="max-w-md mx-auto space-y-2">
-                  <h4 className="font-outfit text-xl sm:text-2xl font-black uppercase text-black">
-                    You don&apos;t have an active meal subscription
-                  </h4>
-                  <p className="text-xs sm:text-sm text-zinc-600 font-medium leading-relaxed">
-                    Unlock flat savings of up to 35% with daily automated dispatches cooked fresh in authentic terracotta handis.
-                  </p>
-                </div>
-
-                <div className="pt-2">
-                  <Link
-                    href="/subscriptions"
-                    className="px-6 py-3.5 rounded-2xl bg-[#E5A00D] text-black hover:bg-black hover:text-[#E5A00D] font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[3px_3px_0_#000] hover:shadow-none transition-all inline-flex items-center gap-2"
-                  >
-                    <span>Browse Meal Plans</span>
-                    <ArrowRight size={16} />
-                  </Link>
-                </div>
+                <Link
+                  href="/subscriptions"
+                  className="px-3 py-1.5 rounded-lg bg-black text-[#E5A00D] hover:bg-zinc-800 font-outfit font-black text-[11px] uppercase tracking-wider transition-all inline-flex items-center gap-1 shrink-0 shadow-xs"
+                >
+                  <span>Browse Plans</span>
+                  <ArrowRight size={12} />
+                </Link>
               </div>
             )}
 

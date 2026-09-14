@@ -15,6 +15,10 @@ export async function GET() {
         {
           success: true,
           isOpenNow,
+          kitchenStatus: row.kitchenStatus || "OPEN",
+          isOrderingPaused: Boolean(row.isOrderingPaused),
+          openingTime: row.openingTime || "07:00 AM",
+          closingTime: row.closingTime || "10:30 PM",
           settings: {
             kitchenStatus: row.kitchenStatus || "OPEN",
             openingTime: row.openingTime || "07:00 AM",
@@ -45,10 +49,15 @@ export async function GET() {
     }
 
     const fallback = getKitchenSettings();
+    const fallbackIsOpenNow = fallback.kitchenStatus === "OPEN" && !fallback.isOrderingPaused;
     return NextResponse.json(
       {
         success: true,
-        isOpenNow: fallback.kitchenStatus === "OPEN" && !fallback.isOrderingPaused,
+        isOpenNow: fallbackIsOpenNow,
+        kitchenStatus: fallback.kitchenStatus || "OPEN",
+        isOrderingPaused: Boolean(fallback.isOrderingPaused),
+        openingTime: fallback.openingTime || "07:00 AM",
+        closingTime: fallback.closingTime || "10:30 PM",
         settings: fallback,
       },
       {
@@ -65,6 +74,8 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       isOpenNow: true,
+      kitchenStatus: fallback.kitchenStatus || "OPEN",
+      isOrderingPaused: Boolean(fallback.isOrderingPaused),
       settings: fallback,
     });
   }

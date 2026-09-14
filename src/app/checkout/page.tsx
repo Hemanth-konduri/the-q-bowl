@@ -126,13 +126,17 @@ export default function CheckoutPage() {
         const res = await fetch(`/api/kitchen/status?t=${Date.now()}`, { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
-          const closed = data.kitchenStatus !== "OPEN" || Boolean(data.isOrderingPaused);
+          const status = data.settings?.kitchenStatus || data.kitchenStatus || "OPEN";
+          const isPaused = Boolean(data.settings?.isOrderingPaused ?? data.isOrderingPaused);
+          const closed = (typeof data.isOpenNow === "boolean") ? !data.isOpenNow : (status !== "OPEN" || isPaused);
           setIsKitchenClosed(closed);
           if (closed) {
+            const openingTime = data.settings?.openingTime || data.openingTime || "11:00 AM";
+            const closingTime = data.settings?.closingTime || data.closingTime || "11:00 PM";
             setKitchenStatusMsg(
-              data.kitchenStatus === "TEMPORARILY_UNAVAILABLE" || data.isOrderingPaused
+              status === "TEMPORARILY_UNAVAILABLE" || isPaused
                 ? "The kitchen is temporarily unavailable and not accepting orders at this time."
-                : `The kitchen is currently closed. Operating hours: ${data.openingTime || "11:00 AM"} – ${data.closingTime || "11:00 PM"}.`
+                : `The kitchen is currently closed. Operating hours: ${openingTime} – ${closingTime}.`
             );
           }
         }
