@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -117,7 +117,8 @@ export default function CheckoutPage() {
   const [selectedUpiApp, setSelectedUpiApp] = useState<string>("phonepe");
 
   // Execution State
-  const [isPlacingOrder, setIsPlacingOrder] = useState<boolean>(false);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [orderSuccessMsg, setOrderSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -402,6 +403,8 @@ export default function CheckoutPage() {
 
   // Complete Order & Trigger Razorpay
   async function handleCompleteOrder() {
+    if (isSubmittingRef.current || isPlacingOrder) return;
+
     if (isKitchenClosed) {
       setErrorMsg(kitchenStatusMsg || "The kitchen is currently closed or unavailable for new orders.");
       return;
@@ -415,6 +418,7 @@ export default function CheckoutPage() {
       return;
     }
 
+    isSubmittingRef.current = true;
     setIsPlacingOrder(true);
     setErrorMsg(null);
 
@@ -491,14 +495,17 @@ export default function CheckoutPage() {
         userEmail: createOrderData.customer?.email || user?.email || "",
         userPhone: createOrderData.customer?.phone || user?.phone || "",
         onSuccess: (verifyResult) => {
+          isSubmittingRef.current = false;
           handleOrderSuccess(verifyResult.orderId || createOrderData.orderId);
         },
         onError: (errMsg) => {
+          isSubmittingRef.current = false;
           setIsPlacingOrder(false);
           setErrorMsg(errMsg || "Payment was cancelled or failed. Please retry.");
         },
       });
     } catch (err: any) {
+      isSubmittingRef.current = false;
       console.error("Checkout submission error:", err);
       setErrorMsg(err?.message || "Payment process could not be completed. Please retry.");
       setIsPlacingOrder(false);
@@ -508,7 +515,7 @@ export default function CheckoutPage() {
   function handleOrderSuccess(orderId: string) {
     setIsPlacingOrder(false);
     setErrorMsg(null);
-    setOrderSuccessMsg(`Order ${formatOrderId(orderId)} Confirmed! 🎉`);
+    setOrderSuccessMsg(`Order ${formatOrderId(orderId)} Placed! 🎉 Awaiting Kitchen Acceptance`);
 
     // Reset local cart
     localStorage.removeItem("qbowl_cart_items");

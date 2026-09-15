@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -39,12 +39,18 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
+  QrCode,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 
 const DeliveryMapModal = dynamic(() => import("@/components/delivery/DeliveryMapModal"), {
   ssr: false,
 });
+
+const DeliveryQrScannerModal = dynamic(
+  () => import("@/components/delivery/DeliveryQrScannerModal"),
+  { ssr: false }
+);
 
 const InteractiveMapPinPickerModal = dynamic(
   () => import("@/components/common/InteractiveMapPinPickerModal"),
@@ -123,10 +129,36 @@ export default function DeliveryDashboardPage() {
   // Background Video Playlist (Delivery.mp4 -> Delivery2.mp4 -> Delivery.mp4 ...)
   const heroVideos = ["/Delivery.mp4", "/Delivery2.mp4"];
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+  const heroVideoRef = useRef<HTMLVideoElement>(null);
 
   const handleVideoEnded = () => {
     setCurrentVideoIndex((prev) => (prev + 1) % heroVideos.length);
   };
+
+  // Safely manage video play promise to prevent AbortError when switching tabs or videos
+  useEffect(() => {
+    const video = heroVideoRef.current;
+    if (!video || activeTab !== "home") return;
+
+    let isMounted = true;
+    const playPromise = video.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((err) => {
+        if (err.name !== "AbortError" && isMounted) {
+          console.warn("Delivery hero video auto-play prevented:", err);
+        }
+      });
+    }
+
+    return () => {
+      isMounted = false;
+      if (video) {
+        try {
+          video.pause();
+        } catch (_) { }
+      }
+    };
+  }, [currentVideoIndex, activeTab]);
 
   // Change Password State
   const [currentPassword, setCurrentPassword] = useState("");
@@ -142,6 +174,10 @@ export default function DeliveryDashboardPage() {
 
   // In-App Turn-by-Turn Map Navigation State
   const [navModalItem, setNavModalItem] = useState<DeliveryItemRecord | null>(null);
+
+  // QR Delivery Scanner Modal State
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scannerTargetOrderId, setScannerTargetOrderId] = useState<string | undefined>(undefined);
 
   // Interactive Pin Picker Modal State
   const [isPinPickerOpen, setIsPinPickerOpen] = useState(false);
@@ -379,45 +415,58 @@ export default function DeliveryDashboardPage() {
       {/* ── 1. Top Navbar (Sticky Floating with Smooth Backdrop on Scroll) ── */}
       <header
         className={`sticky top-0 z-50 w-full transition-all duration-300 ${isScrolled
-            ? "bg-[#f5e3cd]/95 backdrop-blur-md py-3 shadow-[0_4px_20px_rgba(0,0,0,0.08)] border-b-2 border-black/10"
-            : "bg-transparent py-4 border-b-2 border-transparent"
+          ? "bg-[#f5e3cd]/95 backdrop-blur-md py-2.5 sm:py-3 shadow-[0_4px_20px_rgba(0,0,0,0.08)] border-b-2 border-black/10"
+          : "bg-transparent py-3 sm:py-4 border-b-2 border-transparent"
           }`}
       >
-        <div className="w-full px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+        <div className="w-full px-3 sm:px-6 lg:px-8 flex items-center justify-between gap-2 sm:gap-4">
 
           {/* Brand Logo (Exact Landing / Customer Dashboard Logo) */}
           <Link
             href="/"
-            className="flex items-center gap-2.5 sm:gap-3 shrink-0 group transition-transform duration-300 hover:scale-105"
+            className="flex items-center gap-2 sm:gap-3 shrink-0 group transition-transform duration-300 hover:scale-105 min-w-0"
           >
-            <div className="p-1.5 rounded-2xl border-2 bg-[#FFF8EE] border-black shadow-[3px_3px_0px_#000000]">
+            <div className="p-1 sm:p-1.5 rounded-xl sm:rounded-2xl border-2 bg-[#FFF8EE] border-black shadow-[2px_2px_0px_#000000] sm:shadow-[3px_3px_0px_#000000] shrink-0">
               <Image
                 src="/the_q_bowl_logo.png"
                 alt="The Q Bowl Logo"
                 width={48}
                 height={48}
                 priority
-                className="w-8 h-8 sm:w-10 sm:h-10 object-contain rounded-xl"
+                className="w-7 h-7 sm:w-10 sm:h-10 object-contain rounded-lg sm:rounded-xl"
               />
             </div>
-            <div className="flex flex-col">
-              <span className="font-outfit text-2xl sm:text-3xl font-black uppercase tracking-wider text-black text-stroke-small leading-tight">
+            <div className="flex flex-col min-w-0">
+              <span className="font-outfit text-lg sm:text-2xl lg:text-3xl font-black uppercase tracking-wide text-black drop-shadow-sm leading-tight truncate">
                 The Q BOWL
               </span>
-              <span className="text-[10px] font-black uppercase tracking-widest text-amber-900 flex items-center gap-1">
-                <Bike size={12} className="text-black" />
-                <span>Delivery Fleet Partner</span>
+              <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider sm:tracking-widest text-amber-900 flex items-center gap-1 truncate">
+                <Bike size={11} className="text-black shrink-0" />
+                <span className="hidden xs:inline">Delivery Partner</span>
+                <span className="xs:hidden">Partner</span>
               </span>
             </div>
           </Link>
 
           {/* Right Action Bar Controls */}
-          <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 lg:gap-3 shrink-0">
+
+            {/* Scan QR Pass Button */}
+            <button
+              onClick={() => {
+                setScannerTargetOrderId(undefined);
+                setIsScannerOpen(true);
+              }}
+              className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-full bg-[#E5A00D] hover:bg-black hover:text-[#E5A00D] text-black font-outfit font-black text-[11px] sm:text-xs uppercase tracking-wider border-2 border-black transition-all shadow-[2px_2px_0_#000] cursor-pointer shrink-0"
+            >
+              <QrCode size={14} className="stroke-[2.5]" />
+              <span>Scan QR</span>
+            </button>
 
             {/* Duty Status Toggle Pill */}
             <button
               onClick={() => setDutyStatus(dutyStatus === "ON_DUTY" ? "OFF_DUTY" : "ON_DUTY")}
-              className={`hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-full border-2 border-black font-outfit text-xs font-black uppercase tracking-wider transition-all shadow-[2px_2px_0_#000] ${dutyStatus === "ON_DUTY"
+              className={`hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-full border-2 border-black font-outfit text-xs font-black uppercase tracking-wider transition-all shadow-[2px_2px_0_#000] shrink-0 ${dutyStatus === "ON_DUTY"
                 ? "bg-emerald-400 text-black hover:bg-emerald-300"
                 : "bg-zinc-200 text-zinc-600 hover:bg-zinc-300"
                 }`}
@@ -427,8 +476,8 @@ export default function DeliveryDashboardPage() {
             </button>
 
             {/* Driver Profile Badge */}
-            <div className="flex items-center gap-2.5 bg-[#FFF8EE] border-2 border-black px-3.5 py-1.5 rounded-full shadow-[2px_2px_0_#000]">
-              <div className="h-7 w-7 rounded-full bg-[#E5A00D] border border-black text-black font-black text-xs flex items-center justify-center">
+            <div className="flex items-center gap-2 bg-[#FFF8EE] border-2 border-black p-1 sm:px-3.5 sm:py-1.5 rounded-full shadow-[2px_2px_0_#000] shrink-0">
+              <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-full bg-[#E5A00D] border border-black text-black font-black text-[10px] sm:text-xs flex items-center justify-center">
                 {initials}
               </div>
               <div className="hidden md:flex flex-col text-left pr-1">
@@ -440,7 +489,9 @@ export default function DeliveryDashboardPage() {
             {/* Logout Button */}
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-black text-[#FFF8EE] hover:bg-[#E5A00D] hover:text-black font-outfit font-black text-xs uppercase tracking-wider border-2 border-black transition-all shadow-[2px_2px_0_#000]"
+              className="flex items-center gap-1.5 p-2 sm:px-4 sm:py-2 rounded-full bg-black text-[#FFF8EE] hover:bg-[#E5A00D] hover:text-black font-outfit font-black text-xs uppercase tracking-wider border-2 border-black transition-all shadow-[2px_2px_0_#000] shrink-0"
+              title="Sign Out"
+              aria-label="Sign Out"
             >
               <LogOut size={14} />
               <span className="hidden sm:inline">Sign Out</span>
@@ -570,110 +621,123 @@ export default function DeliveryDashboardPage() {
             {/* ── TAB 1: OVERVIEW ── */}
             {activeTab === "home" && (
               <div className="space-y-8 animate-in fade-in duration-200 w-full">
-                {/* Hero Welcome Card with Full Wide Video Background */}
-                <div className="relative overflow-hidden rounded-3xl border-3 border-black bg-zinc-950 p-6 sm:p-10 lg:p-12 min-h-[420px] sm:min-h-[480px] shadow-[8px_8px_0_#000] text-white flex flex-col justify-between w-full">
+                {/* Hero Welcome Card with Round Rounded Corners (Compact Sleek Sizing) */}
+                <div className="relative overflow-hidden rounded-3xl md:rounded-[2.5rem] border-3 md:border-4 border-black bg-zinc-950 p-4 sm:p-6 lg:p-10 min-h-[170px] sm:min-h-[220px] lg:min-h-0 flex flex-col justify-center shadow-[4px_4px_0_#000] md:shadow-[8px_8px_0_#000] text-white select-none">
 
-                  {/* Full Background Video spanning entire width with automatic playlist switching */}
+                  {/* Dynamic Video Background playing Food1.mp4 -> Food5.mp4 */}
                   <video
-                    key={heroVideos[currentVideoIndex]}
+                    ref={heroVideoRef}
                     src={heroVideos[currentVideoIndex]}
                     autoPlay
                     muted
                     playsInline
                     onEnded={handleVideoEnded}
-                    className="absolute inset-0 w-full h-full object-cover object-center z-0 transition-opacity duration-700"
+                    className="absolute inset-0 w-full h-full object-cover object-center z-0 transition-opacity duration-1000"
                   />
 
-                  {/* Clean, Bright gradient overlay across the video to see full video crystal clearly */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/20 to-transparent z-0 pointer-events-none" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent z-0 pointer-events-none" />
+                  {/* Clean, Bright Gradient Overlays */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 lg:via-black/35 to-black/40 lg:to-transparent z-0 pointer-events-none" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-0 pointer-events-none" />
 
-                  <div className="relative z-10 max-w-3xl space-y-5">
-                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#E5A00D] border-2 border-black text-xs font-outfit font-black uppercase tracking-wider text-black shadow-[2px_2px_0_#000]">
-                      <Sparkles size={14} className="text-black" />
-                      <span>The Q-Bowl Kitchen Express Dispatch</span>
+                  {/* Ambient glow & accents */}
+                  <div className="absolute -right-20 -top-20 h-96 w-96 rounded-full bg-amber-400/20 blur-3xl pointer-events-none" />
+                  <div className="absolute -left-20 -bottom-20 h-96 w-96 rounded-full bg-black/20 blur-3xl pointer-events-none" />
+
+                  <div className="relative z-10 max-w-3xl space-y-2 sm:space-y-3.5 lg:space-y-5">
+                    {/* Top Tag & Status Badges */}
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-3">
+                      <span className="inline-flex items-center gap-1 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/20 text-amber-300 text-[9px] sm:text-xs font-black uppercase tracking-wider">
+                        <Sparkles size={11} className="text-amber-300 sm:w-3.5 sm:h-3.5" />
+                        <span>The Q-Bowl Kitchen Express Dispatch</span>
+                      </span>
+                      <span className="hidden sm:inline-flex items-center gap-1 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-emerald-400 text-black text-[9px] sm:text-xs font-black shadow-sm">
+                        <span className="h-1.5 w-1.5 sm:h-2 sm:w-2 rounded-full bg-emerald-950 animate-pulse" />
+                        <span>Live Route Active</span>
+                      </span>
                     </div>
 
-                    <div className="space-y-2">
-                      <h1 className="font-outfit text-3xl sm:text-5xl lg:text-7xl font-black uppercase tracking-tight text-white leading-none drop-shadow-lg">
-                        Welcome to, <span className="text-[#E5A00D] underline decoration-[#E5A00D] decoration-4">{deliveryBoyName}</span>!
+                    {/* Title & Written Description - Visible on Mobile and Large Screens */}
+                    <div className="space-y-1 sm:space-y-2 lg:space-y-2.5">
+                      <h1 className="font-outfit text-base sm:text-2xl lg:text-5xl font-black uppercase leading-tight tracking-tight text-white drop-shadow-md">
+                        Welcome to, <span className="text-[#E5A00D] underline decoration-[#E5A00D] decoration-2 sm:decoration-4">{deliveryBoyName}</span>!
                       </h1>
-                      <p className="font-outfit text-sm sm:text-base lg:text-lg font-bold text-zinc-100 pt-2 leading-relaxed max-w-2xl drop-shadow-md">
+                      <p className="text-[10px] sm:text-xs lg:text-base text-amber-100/90 font-medium leading-relaxed max-w-2xl">
                         You are authenticated as an official Delivery Partner for The Q-Bowl. Orders and subscriptions dispatched in your zone will be routed to your driver console.
                       </p>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3 pt-3">
-                      <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-black/90 backdrop-blur-sm text-[#FFF8EE] border-2 border-white/40 font-outfit font-black text-xs uppercase tracking-wider shadow-sm">
-                        <Clock size={15} className="text-[#E5A00D]" />
+                    {/* Metadata & Action Badges: Displayed on Large screens, hidden on mobile */}
+                    <div className="hidden sm:flex flex-wrap items-center gap-2 sm:gap-3 lg:gap-4 pt-1 sm:pt-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2.5 rounded-lg sm:rounded-2xl bg-black/70 backdrop-blur-md border border-amber-300/50 text-xs font-bold uppercase tracking-wider text-white shadow-md">
+                        <Clock size={13} className="text-[#E5A00D]" />
                         <span>Live Time: {currentTime}</span>
                       </div>
 
-                      <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FFF8EE] text-black border-2 border-black font-outfit font-black text-xs uppercase tracking-wider shadow-sm">
-                        <MapPin size={15} className="text-rose-600 shrink-0" />
-                        <span>Base Kitchen: {kitchenAddress}</span>
+                      <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2.5 rounded-lg sm:rounded-2xl bg-[#FFF8EE] text-black border-2 border-black font-outfit font-black text-xs uppercase tracking-wider shadow-[2px_2px_0_#000]">
+                        <MapPin size={13} className="text-rose-600 shrink-0" />
+                        <span className="truncate max-w-[200px] lg:max-w-none">Base Kitchen: {kitchenAddress}</span>
                       </div>
 
                       <button
                         type="button"
                         onClick={() => setIsPinPickerOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#E5A00D] hover:bg-black hover:text-[#E5A00D] text-black border-2 border-black font-outfit font-black text-xs uppercase tracking-wider shadow-[3px_3px_0_#000] transition-all cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-4 sm:px-5 lg:px-6 py-2 sm:py-2.5 lg:py-3.5 rounded-lg sm:rounded-2xl bg-[#E5A00D] text-black font-outfit font-black text-xs lg:text-sm uppercase tracking-wider hover:bg-[#ffb515] border-2 border-black shadow-[2px_2px_0_#000] sm:shadow-[3px_3px_0_#000] transition-all cursor-pointer"
                       >
-                        <MapPin size={15} />
-                        <span>📍 Pinpoint &amp; Adjust On Map</span>
+                        <MapPin size={14} className="shrink-0" />
+                        <span>📍 Pinpoint &amp; Adjust</span>
                       </button>
 
-                      <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-400 text-black border-2 border-black font-outfit font-black text-xs uppercase tracking-wider shadow-sm">
-                        <ShieldCheck size={15} className="text-emerald-950" />
-                        <span>Dispatch Status: Active</span>
+                      <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2.5 rounded-lg sm:rounded-2xl bg-emerald-400 text-black border-2 border-black font-outfit font-black text-xs uppercase tracking-wider shadow-sm">
+                        <ShieldCheck size={14} className="text-emerald-950 shrink-0" />
+                        <span>Dispatch: Active</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Driver Metrics Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                  <div className="p-5 rounded-3xl bg-white border-3 border-black shadow-[4px_4px_0_#000] flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <p className="text-[11px] font-black uppercase tracking-wider text-zinc-500">Today&apos;s Deliveries</p>
-                      <h3 className="text-3xl font-black text-black font-outfit">{deliverySummary.totalAssigned}</h3>
-                      <p className="text-[10px] font-bold text-zinc-400">Assigned drop-offs</p>
+                {/* Driver Metrics Cards: 2x2 Grid on Mobile, 4 Cols on Desktop */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
+                  <div className="p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-white border-2 sm:border-3 border-black shadow-[3px_3px_0_#000] sm:shadow-[4px_4px_0_#000] flex items-center justify-between gap-2">
+                    <div className="space-y-0.5 min-w-0">
+                      <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-zinc-500 truncate">Today&apos;s Deliveries</p>
+                      <h3 className="text-2xl sm:text-3xl font-black text-black font-outfit">{deliverySummary.totalAssigned}</h3>
+                      <p className="text-[9px] sm:text-[10px] font-bold text-zinc-400 truncate">Assigned drop-offs</p>
                     </div>
-                    <div className="h-12 w-12 rounded-2xl bg-[#FFF8EE] border-2 border-black flex items-center justify-center text-black shadow-[2px_2px_0_#000]">
-                      <Package size={22} className="text-[#E5A00D]" />
-                    </div>
-                  </div>
-
-                  <div className="p-5 rounded-3xl bg-white border-3 border-black shadow-[4px_4px_0_#000] flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <p className="text-[11px] font-black uppercase tracking-wider text-zinc-500">Delivered Drops</p>
-                      <h3 className="text-3xl font-black text-emerald-700 font-outfit">{deliverySummary.deliveredCount}</h3>
-                      <p className="text-[10px] font-bold text-emerald-600 font-semibold">{deliverySummary.remainingCount} pending route</p>
-                    </div>
-                    <div className="h-12 w-12 rounded-2xl bg-[#FFF8EE] border-2 border-black flex items-center justify-center text-black shadow-[2px_2px_0_#000]">
-                      <CheckCircle2 size={22} className="text-emerald-600" />
+                    <div className="h-9 w-9 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-[#FFF8EE] border sm:border-2 border-black flex items-center justify-center text-black shadow-[1.5px_1.5px_0_#000] sm:shadow-[2px_2px_0_#000] shrink-0">
+                      <Package size={18} className="text-[#E5A00D] sm:w-5 sm:h-5" />
                     </div>
                   </div>
 
-                  <div className="p-5 rounded-3xl bg-white border-3 border-black shadow-[4px_4px_0_#000] flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <p className="text-[11px] font-black uppercase tracking-wider text-zinc-500">Average ETA</p>
-                      <h3 className="text-3xl font-black text-black font-outfit">22 Min</h3>
-                      <p className="text-[10px] font-bold text-zinc-400">Hot dum transit time</p>
+                  <div className="p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-white border-2 sm:border-3 border-black shadow-[3px_3px_0_#000] sm:shadow-[4px_4px_0_#000] flex items-center justify-between gap-2">
+                    <div className="space-y-0.5 min-w-0">
+                      <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-zinc-500 truncate">Delivered Drops</p>
+                      <h3 className="text-2xl sm:text-3xl font-black text-emerald-700 font-outfit">{deliverySummary.deliveredCount}</h3>
+                      <p className="text-[9px] sm:text-[10px] font-bold text-emerald-600 font-semibold truncate">{deliverySummary.remainingCount} pending route</p>
                     </div>
-                    <div className="h-12 w-12 rounded-2xl bg-[#FFF8EE] border-2 border-black flex items-center justify-center text-black shadow-[2px_2px_0_#000]">
-                      <Flame size={22} className="text-rose-600" />
+                    <div className="h-9 w-9 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-[#FFF8EE] border sm:border-2 border-black flex items-center justify-center text-black shadow-[1.5px_1.5px_0_#000] sm:shadow-[2px_2px_0_#000] shrink-0">
+                      <CheckCircle2 size={18} className="text-emerald-600 sm:w-5 sm:h-5" />
                     </div>
                   </div>
 
-                  <div className="p-5 rounded-3xl bg-white border-3 border-black shadow-[4px_4px_0_#000] flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <p className="text-[11px] font-black uppercase tracking-wider text-zinc-500">Driver Phone</p>
-                      <h3 className="text-sm font-black text-black font-mono mt-1">{user?.phone || "+91 83285 34576"}</h3>
-                      <p className="text-[10px] font-bold text-zinc-400">Dispatch registered</p>
+                  <div className="p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-white border-2 sm:border-3 border-black shadow-[3px_3px_0_#000] sm:shadow-[4px_4px_0_#000] flex items-center justify-between gap-2">
+                    <div className="space-y-0.5 min-w-0">
+                      <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-zinc-500 truncate">Average ETA</p>
+                      <h3 className="text-2xl sm:text-3xl font-black text-black font-outfit">22 Min</h3>
+                      <p className="text-[9px] sm:text-[10px] font-bold text-zinc-400 truncate">Hot dum transit time</p>
                     </div>
-                    <div className="h-12 w-12 rounded-2xl bg-[#FFF8EE] border-2 border-black flex items-center justify-center text-black shadow-[2px_2px_0_#000]">
-                      <Phone size={22} className="text-black" />
+                    <div className="h-9 w-9 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-[#FFF8EE] border sm:border-2 border-black flex items-center justify-center text-black shadow-[1.5px_1.5px_0_#000] sm:shadow-[2px_2px_0_#000] shrink-0">
+                      <Flame size={18} className="text-rose-600 sm:w-5 sm:h-5" />
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-white border-2 sm:border-3 border-black shadow-[3px_3px_0_#000] sm:shadow-[4px_4px_0_#000] flex items-center justify-between gap-2">
+                    <div className="space-y-0.5 min-w-0">
+                      <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-zinc-500 truncate">Driver Phone</p>
+                      <h3 className="text-xs sm:text-sm font-black text-black font-mono mt-0.5 sm:mt-1 truncate">{user?.phone || "+91 83285 34576"}</h3>
+                      <p className="text-[9px] sm:text-[10px] font-bold text-zinc-400 truncate">Dispatch registered</p>
+                    </div>
+                    <div className="h-9 w-9 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl bg-[#FFF8EE] border sm:border-2 border-black flex items-center justify-center text-black shadow-[1.5px_1.5px_0_#000] sm:shadow-[2px_2px_0_#000] shrink-0">
+                      <Phone size={18} className="text-black sm:w-5 sm:h-5" />
                     </div>
                   </div>
                 </div>
@@ -730,85 +794,91 @@ export default function DeliveryDashboardPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="divide-y divide-zinc-200/70 -mx-4 sm:-mx-8 px-4 sm:px-8">
+                    <div className="space-y-3 sm:space-y-0 sm:divide-y sm:divide-zinc-200/70 sm:-mx-8 sm:px-8">
                       {deliveries.map((item) => (
                         <div
                           key={item.id}
-                          className={`py-2.5 sm:py-3 transition-colors hover:bg-[#FFF8EE]/60 px-2 sm:px-3 -mx-2 sm:-mx-3 rounded-xl flex items-center justify-between gap-3 text-xs ${item.status === "DELIVERED" ? "opacity-60" : ""
+                          className={`p-3.5 sm:py-3.5 sm:px-3 rounded-2xl sm:rounded-xl border-2 sm:border-0 border-black/10 transition-all hover:bg-[#FFF8EE] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-sm sm:shadow-none ${item.status === "DELIVERED" ? "bg-emerald-50/50 border-emerald-300" : "bg-white"
                             }`}
                         >
-                          {/* 1. Order ID, Type & Status pill */}
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className="font-outfit font-black text-xs sm:text-sm uppercase text-black tracking-tight">
-                              {item.orderIdDisplay}
-                            </span>
-                            <span
-                              className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${item.status === "DELIVERED"
-                                ? "bg-emerald-100 text-emerald-800"
-                                : "bg-amber-100 text-amber-900 border border-amber-300/60"
-                                }`}
-                            >
-                              {item.status.replace(/_/g, " ")}
+                          {/* Top Row on Mobile: Order ID, Amount, Status */}
+                          <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-3 shrink-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-outfit font-black text-sm uppercase text-black tracking-tight">
+                                {item.orderIdDisplay}
+                              </span>
+                              <span
+                                className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${item.status === "DELIVERED"
+                                    ? "bg-emerald-100 text-emerald-950 border-emerald-400"
+                                    : "bg-amber-100 text-amber-950 border-amber-400"
+                                  }`}
+                              >
+                                {item.status.replace(/_/g, " ")}
+                              </span>
+                            </div>
+
+                            <span className="sm:hidden font-outfit font-black text-sm text-black">
+                              ₹{item.totalAmount}
                             </span>
                           </div>
 
-                          {/* 2. Amount */}
-                          <div className="shrink-0 font-outfit font-black text-xs sm:text-sm text-black">
+                          {/* Desktop Amount */}
+                          <div className="hidden sm:block shrink-0 font-outfit font-black text-sm text-black">
                             ₹{item.totalAmount}
                           </div>
 
-                          {/* 3. Customer Name & Contact */}
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <span className="font-black text-black">{item.customerName}</span>
-                            <span className="text-zinc-300">•</span>
+                          {/* Customer Name & Contact */}
+                          <div className="flex items-center gap-2 shrink-0 bg-[#FFF8EE] sm:bg-transparent p-2 sm:p-0 rounded-xl sm:rounded-none border border-black/10 sm:border-0">
+                            <span className="font-black text-black text-xs">{item.customerName}</span>
+                            <span className="text-black font-black">•</span>
                             <a
                               href={`tel:${item.customerPhone}`}
-                              className="font-mono text-zinc-600 hover:text-black hover:underline"
+                              className="font-mono font-black text-black hover:text-[#E5A00D] underline decoration-black/40 hover:decoration-[#E5A00D] transition-colors flex items-center gap-1"
                             >
-                              {item.customerPhone}
+                              <Phone size={12} className="sm:hidden text-zinc-600" />
+                              <span>{item.customerPhone}</span>
                             </a>
                           </div>
 
-                          {/* 4. Address */}
-                          <div className="flex-1 min-w-0 flex items-center gap-1 text-zinc-600 truncate" title={item.address.fullAddress || item.address.street}>
-                            <MapPin size={12} className="text-rose-500 shrink-0" />
-                            <span className="truncate">{item.address.fullAddress || item.address.street}</span>
+                          {/* Address & Dish Info */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 flex-1 min-w-0">
+                            <div className="flex items-start sm:items-center gap-1.5 text-black font-bold" title={item.address.fullAddress || item.address.street}>
+                              <MapPin size={14} className="text-rose-600 shrink-0 stroke-[2.5] mt-0.5 sm:mt-0" />
+                              <span className="text-black font-bold line-clamp-2 sm:truncate">{item.address.fullAddress || item.address.street}</span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 text-black font-black" title={item.mealName}>
+                              <UtensilsCrossed size={14} className="text-black shrink-0 stroke-[2.5]" />
+                              <span className="truncate text-black font-black">{item.mealName}</span>
+                            </div>
                           </div>
 
-                          {/* 5. Dish */}
-                          <div className="shrink-0 max-w-[200px] flex items-center gap-1 text-zinc-800 font-bold truncate" title={item.mealName}>
-                            <UtensilsCrossed size={12} className="text-[#E5A00D] shrink-0" />
-                            <span className="truncate">{item.mealName}</span>
-                          </div>
-
-                          {/* 6. Quick Action Buttons */}
-                          <div className="flex items-center gap-1.5 shrink-0">
+                          {/* Action Buttons */}
+                          <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-black/5 justify-end">
                             <button
                               type="button"
                               onClick={() => setNavModalItem(item)}
-                              className="px-2.5 py-1 rounded-lg border border-zinc-300 hover:border-black bg-white hover:bg-black hover:text-white text-black font-outfit font-bold text-[11px] uppercase tracking-wider transition-all flex items-center gap-1 shadow-sm"
+                              className="flex-1 sm:flex-initial px-3 py-2 sm:py-1.5 rounded-xl sm:rounded-lg border-2 border-black bg-white hover:bg-black hover:text-white text-black font-outfit font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-[2px_2px_0_#000] cursor-pointer"
                             >
-                              <Navigation size={11} className="text-[#E5A00D]" />
+                              <Navigation size={13} className="text-black" />
                               <span>Live Map</span>
                             </button>
 
                             {item.status !== "DELIVERED" ? (
                               <button
                                 type="button"
-                                onClick={() => handleMarkDelivered(item)}
-                                disabled={completingDeliveryId === item.id}
-                                className="px-3 py-1 rounded-lg bg-black text-[#E5A00D] hover:bg-[#E5A00D] hover:text-black font-outfit font-bold text-[11px] uppercase tracking-wider transition-all shadow-sm disabled:opacity-50 flex items-center gap-1"
+                                onClick={() => {
+                                  setScannerTargetOrderId(item.orderId || item.id);
+                                  setIsScannerOpen(true);
+                                }}
+                                className="flex-1 sm:flex-initial px-3 py-2 sm:py-1.5 rounded-xl sm:rounded-lg bg-[#E5A00D] hover:bg-black hover:text-[#E5A00D] text-black font-outfit font-black text-xs uppercase tracking-wider border-2 border-black transition-all shadow-[2px_2px_0_#000] flex items-center justify-center gap-1.5 cursor-pointer"
                               >
-                                {completingDeliveryId === item.id ? (
-                                  <Loader2 size={11} className="animate-spin" />
-                                ) : (
-                                  <CheckCircle2 size={11} />
-                                )}
-                                <span>Delivered</span>
+                                <QrCode size={13} className="stroke-[2.5]" />
+                                <span>Scan QR</span>
                               </button>
                             ) : (
-                              <span className="text-[11px] font-bold uppercase text-emerald-700 flex items-center gap-1 px-1.5">
-                                <CheckCircle2 size={12} /> Done
+                              <span className="text-xs font-black uppercase text-emerald-950 bg-emerald-100 border border-emerald-400 px-3 py-1.5 sm:py-1 rounded-xl sm:rounded-lg flex items-center gap-1">
+                                <CheckCircle2 size={13} className="text-emerald-700 stroke-[2.5]" /> Delivered
                               </span>
                             )}
                           </div>
@@ -859,91 +929,97 @@ export default function DeliveryDashboardPage() {
                     <p className="text-xs text-zinc-500 font-medium">When orders are assigned to you by the kitchen dispatcher, they will be listed here with customer contact details and navigation routes.</p>
                   </div>
                 ) : (
-                  <div className="rounded-3xl border-3 border-black bg-white p-6 sm:p-8 shadow-[6px_6px_0_#000]">
-                    <div className="divide-y divide-zinc-200/70 -mx-4 sm:-mx-8 px-4 sm:px-8">
+                  <div className="rounded-3xl border-3 border-black bg-white p-4 sm:p-6 lg:p-8 shadow-[6px_6px_0_#000]">
+                    <div className="space-y-3 sm:space-y-0 sm:divide-y sm:divide-zinc-200/70 sm:-mx-8 sm:px-8">
                       {deliveries.map((item) => (
                         <div
                           key={item.id}
-                          className={`py-2.5 sm:py-3 transition-colors hover:bg-[#FFF8EE]/60 px-2 sm:px-3 -mx-2 sm:-mx-3 rounded-xl flex items-center justify-between gap-3 text-xs ${item.status === "DELIVERED" ? "opacity-60" : ""
+                          className={`p-3.5 sm:py-3.5 sm:px-3 rounded-2xl sm:rounded-xl border-2 sm:border-0 border-black/10 transition-all hover:bg-[#FFF8EE] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-sm sm:shadow-none ${item.status === "DELIVERED" ? "bg-emerald-50/50 border-emerald-300" : "bg-white"
                             }`}
                         >
-                          {/* 1. Order ID, Type & Status pill */}
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className="font-outfit font-black text-xs sm:text-sm uppercase text-black tracking-tight">
-                              {item.orderIdDisplay}
-                            </span>
-                            {item.deliveryType && (
-                              <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600">
-                                {item.deliveryType}
+                          {/* Top Row on Mobile: Order ID, Type, Status */}
+                          <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-3 shrink-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-outfit font-black text-sm uppercase text-black tracking-tight">
+                                {item.orderIdDisplay}
                               </span>
-                            )}
-                            <span
-                              className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${item.status === "DELIVERED"
-                                ? "bg-emerald-100 text-emerald-800"
-                                : "bg-amber-100 text-amber-900 border border-amber-300/60"
-                                }`}
-                            >
-                              {item.status.replace(/_/g, " ")}
+                              {item.deliveryType && (
+                                <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-zinc-100 text-black border border-black/20">
+                                  {item.deliveryType}
+                                </span>
+                              )}
+                              <span
+                                className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${item.status === "DELIVERED"
+                                    ? "bg-emerald-100 text-emerald-950 border-emerald-400"
+                                    : "bg-amber-100 text-amber-950 border-amber-400"
+                                  }`}
+                              >
+                                {item.status.replace(/_/g, " ")}
+                              </span>
+                            </div>
+
+                            <span className="sm:hidden font-outfit font-black text-sm text-black">
+                              ₹{item.totalAmount}
                             </span>
                           </div>
 
-                          {/* 2. Amount */}
-                          <div className="shrink-0 font-outfit font-black text-xs sm:text-sm text-black">
+                          {/* Desktop Amount */}
+                          <div className="hidden sm:block shrink-0 font-outfit font-black text-sm text-black">
                             ₹{item.totalAmount}
                           </div>
 
-                          {/* 3. Customer Name & Contact */}
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <span className="font-black text-black">{item.customerName}</span>
-                            <span className="text-zinc-300">•</span>
+                          {/* Customer Name & Contact */}
+                          <div className="flex items-center gap-2 shrink-0 bg-[#FFF8EE] sm:bg-transparent p-2 sm:p-0 rounded-xl sm:rounded-none border border-black/10 sm:border-0">
+                            <span className="font-black text-black text-xs">{item.customerName}</span>
+                            <span className="text-black font-black">•</span>
                             <a
                               href={`tel:${item.customerPhone}`}
-                              className="font-mono text-zinc-600 hover:text-black hover:underline"
+                              className="font-mono font-black text-black hover:text-[#E5A00D] underline decoration-black/40 hover:decoration-[#E5A00D] transition-colors flex items-center gap-1"
                             >
-                              {item.customerPhone}
+                              <Phone size={12} className="sm:hidden text-zinc-600" />
+                              <span>{item.customerPhone}</span>
                             </a>
                           </div>
 
-                          {/* 4. Address */}
-                          <div className="flex-1 min-w-0 flex items-center gap-1 text-zinc-600 truncate" title={item.address.fullAddress || item.address.street}>
-                            <MapPin size={12} className="text-rose-500 shrink-0" />
-                            <span className="truncate">{item.address.fullAddress || item.address.street}</span>
+                          {/* Address & Dish Info */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 flex-1 min-w-0">
+                            <div className="flex items-start sm:items-center gap-1.5 text-black font-bold" title={item.address.fullAddress || item.address.street}>
+                              <MapPin size={14} className="text-rose-600 shrink-0 stroke-[2.5] mt-0.5 sm:mt-0" />
+                              <span className="text-black font-bold line-clamp-2 sm:truncate">{item.address.fullAddress || item.address.street}</span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 text-black font-black" title={item.mealName}>
+                              <UtensilsCrossed size={14} className="text-black shrink-0 stroke-[2.5]" />
+                              <span className="truncate text-black font-black">{item.mealName}</span>
+                            </div>
                           </div>
 
-                          {/* 5. Dish */}
-                          <div className="shrink-0 max-w-[200px] flex items-center gap-1 text-zinc-800 font-bold truncate" title={item.mealName}>
-                            <UtensilsCrossed size={12} className="text-[#E5A00D] shrink-0" />
-                            <span className="truncate">{item.mealName}</span>
-                          </div>
-
-                          {/* 6. Quick Action Buttons */}
-                          <div className="flex items-center gap-1.5 shrink-0">
+                          {/* Action Buttons */}
+                          <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-black/5 justify-end">
                             <button
                               type="button"
                               onClick={() => setNavModalItem(item)}
-                              className="px-2.5 py-1 rounded-lg border border-zinc-300 hover:border-black bg-white hover:bg-black hover:text-white text-black font-outfit font-bold text-[11px] uppercase tracking-wider transition-all flex items-center gap-1 shadow-sm"
+                              className="flex-1 sm:flex-initial px-3 py-2 sm:py-1.5 rounded-xl sm:rounded-lg border-2 border-black bg-white hover:bg-black hover:text-white text-black font-outfit font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-[2px_2px_0_#000] cursor-pointer"
                             >
-                              <Navigation size={11} className="text-[#E5A00D]" />
+                              <Navigation size={13} className="text-black" />
                               <span>Live Map</span>
                             </button>
 
                             {item.status !== "DELIVERED" ? (
                               <button
                                 type="button"
-                                onClick={() => handleMarkDelivered(item)}
-                                disabled={completingDeliveryId === item.id}
-                                className="px-3 py-1 rounded-lg bg-black text-[#E5A00D] hover:bg-[#E5A00D] hover:text-black font-outfit font-bold text-[11px] uppercase tracking-wider transition-all shadow-sm disabled:opacity-50 flex items-center gap-1"
+                                onClick={() => {
+                                  setScannerTargetOrderId(item.orderId || item.id);
+                                  setIsScannerOpen(true);
+                                }}
+                                className="flex-1 sm:flex-initial px-3 py-2 sm:py-1.5 rounded-xl sm:rounded-lg bg-[#E5A00D] hover:bg-black hover:text-[#E5A00D] text-black font-outfit font-black text-xs uppercase tracking-wider border-2 border-black transition-all shadow-[2px_2px_0_#000] flex items-center justify-center gap-1.5 cursor-pointer"
                               >
-                                {completingDeliveryId === item.id ? (
-                                  <Loader2 size={11} className="animate-spin" />
-                                ) : (
-                                  <CheckCircle2 size={11} />
-                                )}
-                                <span>Delivered</span>
+                                <QrCode size={13} className="stroke-[2.5]" />
+                                <span>Scan QR</span>
                               </button>
                             ) : (
-                              <span className="text-[11px] font-bold uppercase text-emerald-700 flex items-center gap-1 px-1.5">
-                                <CheckCircle2 size={12} /> Delivered
+                              <span className="text-xs font-black uppercase text-emerald-950 bg-emerald-100 border border-emerald-400 px-3 py-1.5 sm:py-1 rounded-xl sm:rounded-lg flex items-center gap-1">
+                                <CheckCircle2 size={13} className="text-emerald-700 stroke-[2.5]" /> Delivered
                               </span>
                             )}
                           </div>
@@ -1134,6 +1210,21 @@ export default function DeliveryDashboardPage() {
           customerLng={navModalItem.address.longitude}
           orderIdDisplay={navModalItem.orderIdDisplay}
           mealName={navModalItem.mealName}
+        />
+      )}
+
+      {/* ── QR Delivery Scanner Modal ── */}
+      {isScannerOpen && (
+        <DeliveryQrScannerModal
+          isOpen={isScannerOpen}
+          onClose={() => {
+            setIsScannerOpen(false);
+            setScannerTargetOrderId(undefined);
+          }}
+          targetOrderId={scannerTargetOrderId}
+          onDeliveryConfirmed={() => {
+            loadAssignedDeliveries();
+          }}
         />
       )}
 

@@ -44,6 +44,9 @@ export async function GET(req: NextRequest) {
         discount: orders.discount,
         total: orders.total,
         notes: orders.notes,
+        qrToken: orders.qrToken,
+        qrGeneratedAt: orders.qrGeneratedAt,
+        qrStatus: orders.qrStatus,
         createdAt: orders.createdAt,
         updatedAt: orders.updatedAt,
         // Customer Details
@@ -62,6 +65,8 @@ export async function GET(req: NextRequest) {
         state: addresses.state,
         pincode: addresses.pincode,
         landmark: addresses.landmark,
+        recipientName: addresses.recipientName,
+        recipientPhone: addresses.recipientPhone,
       })
       .from(orders)
       .leftJoin(users, eq(orders.userId, users.id))
@@ -124,7 +129,8 @@ export async function GET(req: NextRequest) {
 
     const formattedOrders = orderList.map((o) => ({
       ...o,
-      userName: o.userName || o.userEmail || "Customer User",
+      userName: o.recipientName?.trim() || o.userName || o.userEmail || "Customer User",
+      userPhone: o.recipientPhone?.trim() || o.userPhone || "N/A",
       items: itemsByOrderId[o.id] || [],
       payment: paymentsByOrderId[o.id] || null,
       assignedPartner: assignedPartnerByOrderId[o.id] || null,
@@ -166,10 +172,45 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Order ID and status are required." }, { status: 400 });
     }
 
-    // 1. Update order status
+    // Fetch existing order to check previous state & QR code
+    const existingOrderRows = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.id, orderId))
+      .limit(1);
+
+    if (existingOrderRows.length === 0) {
+      return NextResponse.json({ error: "Order not found." }, { status: 404 });
+    }
+
+    const currentOrder = existingOrderRows[0];
+    const updatePayload: Record<string, any> = {
+      status: status as any,
+      updatedAt: new Date(),
+    };
+
+    // 1. QR Code Generation upon Admin Acceptance:
+    // When Admin accepts order (moves from PENDING -> PREPARING/CONFIRMED), generate unique QR token if not yet generated
+    const isAccepting = (status === "PREPARING" || status === "CONFIRMED" || status === "READY" || status === "OUT_FOR_DELIVERY") && !currentOrder.qrToken;
+    if (isAccepting) {
+      const crypto = await import("crypto");
+      const generatedQrToken = `QB-QR-${crypto.randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase()}`;
+      updatePayload.qrToken = generatedQrToken;
+      updatePayload.qrGeneratedAt = new Date();
+      updatePayload.qrStatus = "ACTIVE";
+    }
+
+    // If order is delivered or cancelled, update QR status
+    if (status === "DELIVERED") {
+      updatePayload.qrStatus = "USED";
+    } else if (status === "CANCELLED") {
+      updatePayload.qrStatus = "USED";
+    }
+
+    // Update order status & QR fields in DB
     await db
       .update(orders)
-      .set({ status: status as any, updatedAt: new Date() })
+      .set(updatePayload)
       .where(eq(orders.id, orderId));
 
     // 2. If assigning delivery partner or dispatching
@@ -220,7 +261,12 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, status });
+    return NextResponse.json({
+      success: true,
+      status,
+      qrToken: updatePayload.qrToken || currentOrder.qrToken,
+      qrStatus: updatePayload.qrStatus || currentOrder.qrStatus,
+    });
   } catch (error) {
     console.error("Error updating order status:", error);
     return NextResponse.json({ error: "Failed to update order status." }, { status: 500 });

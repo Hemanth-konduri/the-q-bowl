@@ -67,6 +67,13 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // ── Redirect active Customer session away from auth pages (/login & /register) ──
+  if (session && (session.role === "CUSTOMER" || !session.role)) {
+    if (pathname === "/login" || pathname === "/register") {
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
+  }
+
   // ── Registration and email verification pages ──
   if (pathname === "/register" || pathname === "/login" || pathname === "/verify-email") {
     return NextResponse.next();

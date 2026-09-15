@@ -9,7 +9,7 @@ import {
   foodItems,
   offers,
 } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { DeliveryZoneService } from "@/lib/services/DeliveryZoneService";
 
 export class OrderService {
@@ -139,7 +139,7 @@ export class OrderService {
     }
 
     discount = Math.min(discount, subtotal);
-    const deliveryFee = subtotal > 500 ? 0 : 49;
+    const deliveryFee = 0; // Free delivery - exact food price charged
     const total = Math.max(0, subtotal + deliveryFee - discount);
 
     return {
@@ -165,6 +165,23 @@ export class OrderService {
     couponCode?: string;
   }) {
     const checkout = await this.calculateCartCheckout(params);
+
+    // Clean up any unfulfilled PENDING orders for this user to avoid duplicate ghost orders
+    try {
+      const staleOrders = await db
+        .select({ id: orders.id })
+        .from(orders)
+        .where(and(eq(orders.userId, params.userId), eq(orders.status, "PENDING")));
+
+      if (staleOrders.length > 0) {
+        const staleIds = staleOrders.map((o) => o.id);
+        await db.delete(orderItems).where(inArray(orderItems.orderId, staleIds));
+        await db.delete(deliveryAssignments).where(inArray(deliveryAssignments.orderId, staleIds));
+        await db.delete(orders).where(inArray(orders.id, staleIds));
+      }
+    } catch (cleanErr) {
+      console.warn("Stale order cleanup warning:", cleanErr);
+    }
 
     const orderId = `ord-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
@@ -210,13 +227,12 @@ export class OrderService {
     if (ordRows.length === 0) return null;
 
     const ord = ordRows[0];
-    if (ord.status === "CONFIRMED") return ord;
 
-    // Update order status
+    // Note: Order remains PENDING until Admin explicitly accepts it in the admin console.
+    // Payment status is already recorded as SUCCESS in the payments table.
     await db
       .update(orders)
       .set({
-        status: "CONFIRMED",
         updatedAt: new Date(),
       })
       .where(eq(orders.id, orderId));

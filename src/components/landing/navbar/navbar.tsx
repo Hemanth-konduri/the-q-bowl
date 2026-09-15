@@ -54,17 +54,16 @@ export default function Navbar() {
       {/* 100% Transparent Floating Navbar with Smooth Color Theme Switch */}
       <header className="fixed top-0 left-0 w-full z-[990] py-4 bg-transparent transition-colors duration-500 pointer-events-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 flex items-center justify-between">
-          
+
           {/* Brand Logo & Icon with Smooth Theme Transition */}
           <Link
             href="/"
             className="flex items-center gap-2.5 sm:gap-3 shrink-0 group transition-transform duration-300 hover:scale-105"
           >
-            <div className={`p-1 rounded-xl border-2 transition-all duration-500 ${
-              isDarkSection
+            <div className={`p-1 rounded-xl border-2 transition-all duration-500 ${isDarkSection
                 ? "bg-[#E5A00D] border-[#E5A00D] shadow-[2px_2px_0px_#FFF8EE]"
                 : "bg-[#FFF8EE] border-black shadow-[2px_2px_0px_#000000]"
-            }`}>
+              }`}>
               <Image
                 src="/the_q_bowl_logo.png"
                 alt="The Q Bowl Logo"
@@ -75,9 +74,8 @@ export default function Navbar() {
               />
             </div>
             <span
-              className={`font-outfit text-2xl sm:text-4xl font-black uppercase tracking-wider transition-colors duration-500 ${
-                isDarkSection ? "text-[#E5A00D] text-stroke-white" : "text-black text-stroke-small"
-              }`}
+              className={`font-outfit text-2xl sm:text-4xl font-black uppercase tracking-wider transition-colors duration-500 ${isDarkSection ? "text-[#E5A00D] text-stroke-white" : "text-black text-stroke-small"
+                }`}
             >
               The Q BOWL
             </span>
@@ -85,15 +83,14 @@ export default function Navbar() {
 
           {/* Action Buttons Container */}
           <div className="flex items-center gap-2 sm:gap-3">
-            
+
             {/* Primary Order CTA Pill */}
             <Link
               href="#menu"
-              className={`font-outfit text-xs sm:text-sm font-extrabold uppercase tracking-wider px-4 py-2 sm:px-6 sm:py-2.5 rounded-full border-2 transition-all duration-500 flex items-center gap-1.5 shrink-0 ${
-                isDarkSection
+              className={`font-outfit text-xs sm:text-sm font-extrabold uppercase tracking-wider px-4 py-2 sm:px-6 sm:py-2.5 rounded-full border-2 transition-all duration-500 flex items-center gap-1.5 shrink-0 ${isDarkSection
                   ? "bg-[#E5A00D] text-black border-[#E5A00D] shadow-[2px_2px_0px_#FFF8EE] sm:shadow-[3px_3px_0px_#FFF8EE] hover:bg-white"
                   : "bg-black text-[#f5e3cd] border-black shadow-[2px_2px_0px_#000] sm:shadow-[3px_3px_0px_#000] hover:bg-zinc-900"
-              }`}
+                }`}
             >
               <Utensils className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-colors duration-500 ${isDarkSection ? "text-black" : "text-[#E5A00D]"}`} />
               <span>Order Now</span>
@@ -102,11 +99,10 @@ export default function Navbar() {
             {/* Menu Toggle Button */}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className={`flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2 rounded-full border-2 font-outfit text-xs sm:text-sm font-extrabold transition-all duration-500 shrink-0 ${
-                isDarkSection
+              className={`flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2 rounded-full border-2 font-outfit text-xs sm:text-sm font-extrabold transition-all duration-500 shrink-0 ${isDarkSection
                   ? "bg-[#FFF8EE] text-black border-[#E5A00D] shadow-[2px_2px_0px_#E5A00D] sm:shadow-[3px_3px_0px_#E5A00D] hover:bg-[#E5A00D]"
                   : "bg-[#FFF8EE] text-black border-black shadow-[2px_2px_0px_#000000] sm:shadow-[3px_3px_0px_#000000] hover:bg-black hover:text-white"
-              }`}
+                }`}
               aria-label="Toggle Navigation Menu"
             >
               <span className="uppercase font-bold">Menu</span>
@@ -124,7 +120,7 @@ export default function Navbar() {
       {/* Fullscreen Mobile & Desktop Navigation Overlay Drawer */}
       {menuOpen && (
         <div className="fixed inset-0 z-[9999] bg-black text-[#f5e3cd] flex flex-col justify-between p-6 sm:p-12 animate-in fade-in slide-in-from-top duration-300 overflow-y-auto">
-          
+
           {/* Drawer Header */}
           <div className="flex items-center justify-between border-b-2 border-[#E5A00D]/30 pb-6">
             <Link

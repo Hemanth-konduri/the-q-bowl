@@ -41,9 +41,11 @@ export async function GET() {
         id: subscriptionDeliveries.id,
         orderId: subscriptionDeliveries.subscriptionId,
         deliveryType: sql<string>`'SUBSCRIPTION'`,
-        customerName: users.name,
-        customerEmail: users.email,
-        customerPhone: users.phone,
+        userName: users.name,
+        userEmail: users.email,
+        userPhone: users.phone,
+        addressRecipientName: addresses.recipientName,
+        addressRecipientPhone: addresses.recipientPhone,
         mealName: foodItems.name,
         mealType: subscriptionDeliveries.mealType,
         status: subscriptionDeliveries.status,
@@ -78,9 +80,11 @@ export async function GET() {
         id: normalOrderDeliveries.id,
         orderId: normalOrderDeliveries.orderId,
         deliveryType: sql<string>`'NORMAL'`,
-        customerName: users.name,
-        customerEmail: users.email,
-        customerPhone: users.phone,
+        userName: users.name,
+        userEmail: users.email,
+        userPhone: users.phone,
+        addressRecipientName: addresses.recipientName,
+        addressRecipientPhone: addresses.recipientPhone,
         mealName: sql<string>`'Order Dishes'`,
         mealType: sql<string>`'LUNCH'`,
         status: normalOrderDeliveries.status,
@@ -124,6 +128,8 @@ export async function GET() {
     const allDeliveries = [
       ...subDeliveries.map((s) => ({
         ...s,
+        customerName: s.addressRecipientName?.trim() || s.userName || "Customer",
+        customerPhone: s.addressRecipientPhone?.trim() || s.userPhone || "N/A",
         items: [{ name: s.mealName || "Subscription Meal", quantity: 1, unitPrice: 0 }],
       })),
       ...normalDeliveries.map((n) => {
@@ -131,6 +137,8 @@ export async function GET() {
         const dishSummary = dishList.map((d) => `${d.quantity}x ${d.name}`).join(", ") || "Fresh Artisan Bowl";
         return {
           ...n,
+          customerName: n.addressRecipientName?.trim() || n.userName || "Customer",
+          customerPhone: n.addressRecipientPhone?.trim() || n.userPhone || "N/A",
           mealName: dishSummary,
           items: dishList,
         };
@@ -162,8 +170,8 @@ export async function GET() {
         orderIdDisplay: d.orderId ? formatOrderId(d.orderId) : `#DEL-${d.id.slice(-6).toUpperCase()}`,
         deliveryType: d.deliveryType || "NORMAL",
         customerName: d.customerName || "Customer",
-        customerPhone: d.customerPhone || "+918328534576",
-        customerEmail: d.customerEmail || "",
+        customerPhone: d.customerPhone || "N/A",
+        customerEmail: d.userEmail || "",
         mealName: d.mealName || "Artisan Bowl",
         mealType: (d.mealType || "LUNCH").toUpperCase(),
         items: d.items || [],

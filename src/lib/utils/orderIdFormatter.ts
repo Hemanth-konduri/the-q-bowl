@@ -9,7 +9,7 @@
 
 export function formatOrderId(orderId?: string | null): string {
   if (!orderId) return "#ORD-000000";
-  
+
   // If it's standard ord-timestamp-rand format
   if (orderId.startsWith("ord-")) {
     const parts = orderId.split("-");
@@ -23,7 +23,7 @@ export function formatOrderId(orderId?: string | null): string {
 
   // If already prefixed with #
   const cleanId = orderId.replace(/^#/, "");
-  
+
   // Clean alphanumeric suffix of 8 characters
   const suffix = cleanId.length > 8 ? cleanId.slice(-8) : cleanId;
   return `#ORD-${suffix.toUpperCase()}`;

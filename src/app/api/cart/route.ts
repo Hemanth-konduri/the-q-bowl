@@ -95,7 +95,7 @@ export async function GET(req: Request) {
       }
     }
 
-    const deliveryFee = subtotal > 0 ? (subtotal > 500 ? 0 : 49) : 0;
+    const deliveryFee = 0; // Free delivery - exact food price charged
     const total = Math.max(0, subtotal + deliveryFee - discount);
 
     return NextResponse.json({

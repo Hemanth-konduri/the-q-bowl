@@ -6,12 +6,10 @@ import { usePathname } from "next/navigation";
 import {
   Home,
   ShoppingBag,
-  Heart,
   History,
   Receipt,
   CalendarCheck,
   Settings,
-  ChefHat,
   Tag,
   ChevronLeft,
   ChevronRight,
@@ -29,11 +27,9 @@ interface NavItem {
 const navItems: NavItem[] = [
   { name: "Home", icon: Home, href: "/dashboard" },
   { name: "Order (Live Tracking)", icon: ShoppingBag, href: "/dashboard#active-order" },
-  { name: "Favourites", icon: Heart, href: "/dashboard#favourites" },
   { name: "Order History", icon: History, href: "/dashboard#history" },
   { name: "Bills & Invoices", icon: Receipt, href: "/dashboard#invoices" },
   { name: "Subscriptions", icon: CalendarCheck, href: "/dashboard#subscriptions" },
-  { name: "Kitchen Hub", icon: ChefHat, href: "/dashboard#kitchen" },
   { name: "Settings", icon: Settings, href: "/dashboard#settings" },
 ];
 

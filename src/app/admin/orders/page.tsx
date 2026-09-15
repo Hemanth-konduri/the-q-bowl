@@ -26,6 +26,7 @@ import {
   ChevronRight,
   Bike,
   Check,
+  QrCode,
 } from "lucide-react";
 
 interface OrderItem {
@@ -84,6 +85,11 @@ interface OrderRecord {
   // Items & Payment
   items: OrderItem[];
   payment?: PaymentInfo | null;
+  // QR & Delivery Verification
+  qrToken?: string | null;
+  qrGeneratedAt?: string | null;
+  qrStatus?: "NOT_GENERATED" | "ACTIVE" | "SCANNED" | "USED" | string | null;
+  deliveredAt?: string | null;
   assignedPartner?: {
     id: string;
     name: string;
@@ -488,6 +494,28 @@ export default function AdminOrdersPage() {
                                 {order.status}
                               </span>
 
+                              {/* QR Verification Status Badge */}
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span
+                                  className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md flex items-center gap-1 w-fit border ${
+                                    order.qrStatus === "USED" || order.status === "DELIVERED"
+                                      ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+                                      : order.qrStatus === "ACTIVE"
+                                      ? "bg-amber-50 text-amber-900 border-amber-300"
+                                      : "bg-zinc-100 text-zinc-500 border-zinc-200"
+                                  }`}
+                                >
+                                  <QrCode size={10} className="stroke-[2.5]" />
+                                  <span>
+                                    {order.qrStatus === "USED" || order.status === "DELIVERED"
+                                      ? "QR Used"
+                                      : order.qrStatus === "ACTIVE"
+                                      ? "QR Active"
+                                      : "QR Pending"}
+                                  </span>
+                                </span>
+                              </div>
+
                               {order.assignedPartner && (
                                 <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md flex items-center gap-1 w-fit border border-slate-200">
                                   <Bike size={11} className="text-black" />
@@ -641,6 +669,55 @@ export default function AdminOrdersPage() {
                   .filter(Boolean)
                   .join(", ")}
               </p>
+            </div>
+
+            {/* 2.5 QR Delivery Verification Audit */}
+            <div className="bg-[#FFF8EE] p-4 rounded-xl border-2 border-black space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-black uppercase tracking-wider flex items-center gap-1.5">
+                  <QrCode size={16} className="text-black" /> QR Verification Security Status
+                </span>
+                <span
+                  className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+                    selectedOrder.qrStatus === "USED" || selectedOrder.status === "DELIVERED"
+                      ? "bg-emerald-100 text-emerald-900 border-emerald-400"
+                      : selectedOrder.qrStatus === "ACTIVE"
+                      ? "bg-amber-200 text-amber-950 border-amber-400"
+                      : "bg-zinc-200 text-zinc-700 border-zinc-300"
+                  }`}
+                >
+                  {selectedOrder.qrStatus === "USED" || selectedOrder.status === "DELIVERED"
+                    ? "Verified & Handed Over"
+                    : selectedOrder.qrStatus === "ACTIVE"
+                    ? "Active Customer QR Pass"
+                    : "Not Generated (Pending Acceptance)"}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1">
+                <div>
+                  <p className="font-extrabold uppercase text-slate-400 text-[10px]">QR Pass State</p>
+                  <p className="font-mono font-bold text-black mt-0.5">
+                    {selectedOrder.qrStatus || (selectedOrder.status === "PENDING" ? "NOT_GENERATED" : "ACTIVE")}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-extrabold uppercase text-slate-400 text-[10px]">Assigned Delivery Fleet</p>
+                  <p className="font-bold text-slate-800 mt-0.5">
+                    {selectedOrder.assignedPartner?.name || "Not Assigned Yet"}
+                  </p>
+                </div>
+                <div>
+                  <p className="font-extrabold uppercase text-slate-400 text-[10px]">Delivered Timestamp</p>
+                  <p className="font-bold text-slate-800 mt-0.5">
+                    {selectedOrder.deliveredAt
+                      ? new Date(selectedOrder.deliveredAt).toLocaleString()
+                      : selectedOrder.status === "DELIVERED"
+                      ? "Confirmed"
+                      : "Pending Delivery"}
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* 3. Itemized Dish List */}

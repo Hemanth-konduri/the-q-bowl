@@ -8,7 +8,7 @@ import {
   orders,
   deliveryAssignments,
 } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, or, sql } from "drizzle-orm";
 
 export async function POST(req: Request) {
   try {
@@ -23,35 +23,68 @@ export async function POST(req: Request) {
     const now = new Date();
 
     if (deliveryType === "NORMAL") {
-      // 1. Mark Normal Order Delivery completed
-      await db
-        .update(normalOrderDeliveries)
-        .set({
-          status: "DELIVERED",
-          deliveredAt: now,
-          updatedAt: now,
-        })
-        .where(eq(normalOrderDeliveries.id, deliveryId));
+      // Check if deliveryId corresponds to normalOrderDeliveries.id or orders.id
+      let targetOrderId = deliveryId;
 
-      // 2. Fetch orderId & update order status
       const nRecord = await db
         .select()
         .from(normalOrderDeliveries)
-        .where(eq(normalOrderDeliveries.id, deliveryId))
+        .where(or(eq(normalOrderDeliveries.id, deliveryId), eq(normalOrderDeliveries.orderId, deliveryId)))
         .limit(1);
 
       if (nRecord.length > 0) {
+        targetOrderId = nRecord[0].orderId;
         await db
-          .update(orders)
-          .set({ status: "DELIVERED", updatedAt: now })
-          .where(eq(orders.id, nRecord[0].orderId));
+          .update(normalOrderDeliveries)
+          .set({
+            status: "DELIVERED",
+            deliveredAt: now,
+            updatedAt: now,
+          })
+          .where(eq(normalOrderDeliveries.id, nRecord[0].id));
       }
 
-      // 3. Update delivery assignment
+      // Fetch current QR token and update order
+      const orderRows = await db
+        .select({ qrToken: orders.qrToken })
+        .from(orders)
+        .where(eq(orders.id, targetOrderId))
+        .limit(1);
+
+      const currentQrToken = orderRows[0]?.qrToken || "VERIFIED_DELIVERY";
+
+      await db
+        .update(orders)
+        .set({
+          status: "DELIVERED",
+          qrStatus: "USED",
+          updatedAt: now,
+        })
+        .where(eq(orders.id, targetOrderId));
+
+      // 3. Log into deliveryVerificationRecords
+      try {
+        const crypto = await import("crypto");
+        const { deliveryVerificationRecords } = await import("@/db/schema");
+        await db.insert(deliveryVerificationRecords).values({
+          id: `verif-${crypto.randomUUID().slice(0, 8)}`,
+          orderId: targetOrderId,
+          deliveryPartnerId: partner.id,
+          qrTokenScanned: currentQrToken,
+          verificationResult: "SUCCESS",
+          scannedAt: now,
+          confirmedAt: now,
+          notes: `Delivery completed and verified by partner ${partner.fullName || partner.id}`,
+        });
+      } catch (auditErr) {
+        console.warn("Failed to write delivery verification audit:", auditErr);
+      }
+
+      // 4. Update delivery assignment
       await db
         .update(deliveryAssignments)
         .set({ status: "DELIVERED", updatedAt: now })
-        .where(eq(deliveryAssignments.orderId, nRecord[0]?.orderId || deliveryId));
+        .where(eq(deliveryAssignments.orderId, targetOrderId));
     } else {
       // 1. Mark Subscription Delivery completed
       const subDelList = await db

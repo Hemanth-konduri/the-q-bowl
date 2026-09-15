@@ -538,6 +538,10 @@ export const orders = pgTable("orders", {
   discount: real("discount").default(0).notNull(),
   total: real("total").notNull(),
   notes: text("notes"),
+  // QR Delivery Verification Fields
+  qrToken: text("qr_token").unique(),
+  qrGeneratedAt: timestamp("qr_generated_at"),
+  qrStatus: text("qr_status").default("NOT_GENERATED").notNull(), // 'NOT_GENERATED' | 'ACTIVE' | 'SCANNED' | 'USED'
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -752,6 +756,19 @@ export const complaintMessages = pgTable("complaint_messages", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-
-
-
+export const deliveryVerificationRecords = pgTable("delivery_verification_records", {
+  id: text("id").primaryKey(),
+  orderId: text("order_id")
+    .notNull()
+    .references(() => orders.id, { onDelete: "cascade" }),
+  deliveryPartnerId: text("delivery_partner_id")
+    .notNull()
+    .references(() => deliveryPartners.id, { onDelete: "cascade" }),
+  qrTokenScanned: text("qr_token_scanned").notNull(),
+  verificationResult: text("verification_result").notNull(), // 'SUCCESS' | 'INVALID_TOKEN' | 'UNAUTHORIZED_PARTNER' | 'ALREADY_DELIVERED'
+  scannedAt: timestamp("scanned_at").defaultNow().notNull(),
+  confirmedAt: timestamp("confirmed_at"),
+  ipAddress: text("ip_address"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AuthShell, fieldClassName, primaryButtonClassName } from "../components/auth-shell";
@@ -11,6 +11,38 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  // Auto sign-in if already logged in until data/cookies are cleared
+  useEffect(() => {
+    let isMounted = true;
+    async function checkExistingSession() {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (res.ok) {
+          const user = await res.json();
+          if (user?.id) {
+            if (user.role === "ADMIN") {
+              router.replace("/admin/dashboard");
+            } else if (user.role === "DELIVERY_STAFF") {
+              router.replace("/delivery-dashboard");
+            } else {
+              router.replace("/dashboard");
+            }
+            return;
+          }
+        }
+      } catch {
+        // Continue displaying login form if not authenticated
+      } finally {
+        if (isMounted) setCheckingSession(false);
+      }
+    }
+    checkExistingSession();
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -31,6 +63,25 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (checkingSession) {
+    return (
+      <div className="animate-in fade-in zoom-in-95 duration-300 w-full flex items-center justify-center min-h-[360px]">
+        <AuthShell
+          eyebrow="Please wait"
+          title="Verifying Session..."
+          description="Checking for your existing account session."
+        >
+          <div className="flex flex-col items-center justify-center py-10 space-y-3">
+            <div className="w-10 h-10 border-4 border-black border-t-[#E5A00D] rounded-full animate-spin" />
+            <p className="font-outfit text-xs font-bold uppercase tracking-wider text-black/70">
+              Signing you in automatically...
+            </p>
+          </div>
+        </AuthShell>
+      </div>
+    );
   }
 
   return (

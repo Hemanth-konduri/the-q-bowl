@@ -12,7 +12,7 @@ import {
   offers,
   payments,
 } from "@/db/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, inArray } from "drizzle-orm";
 import { getSession } from "@/lib/session";
 
 export async function GET() {
@@ -33,6 +33,9 @@ export async function GET() {
         discount: orders.discount,
         total: orders.total,
         notes: orders.notes,
+        qrToken: orders.qrToken,
+        qrGeneratedAt: orders.qrGeneratedAt,
+        qrStatus: orders.qrStatus,
         createdAt: orders.createdAt,
         addressLabel: addresses.label,
         addressString: addresses.address,
@@ -325,8 +328,25 @@ export async function POST(req: NextRequest) {
     }
 
     discount = Math.min(discount, subtotal);
-    const deliveryFee = subtotal > 500 ? 0 : 49;
+    const deliveryFee = 0; // Free delivery - exact food price charged
     const total = Math.max(0, subtotal + deliveryFee - discount);
+
+    // Clean up any stale unconfirmed PENDING orders for this user to avoid duplicate ghost orders
+    try {
+      const staleOrders = await db
+        .select({ id: orders.id })
+        .from(orders)
+        .where(and(eq(orders.userId, session.userId), eq(orders.status, "PENDING")));
+
+      if (staleOrders.length > 0) {
+        const staleIds = staleOrders.map((o) => o.id);
+        await db.delete(orderItems).where(inArray(orderItems.orderId, staleIds));
+        await db.delete(deliveryAssignments).where(inArray(deliveryAssignments.orderId, staleIds));
+        await db.delete(orders).where(inArray(orders.id, staleIds));
+      }
+    } catch (cleanErr) {
+      console.warn("Stale order cleanup warning:", cleanErr);
+    }
 
     const orderId = `ord-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
