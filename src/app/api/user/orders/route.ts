@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { db, withDbRetry } from "@/db";
 import {
   orders,
   orderItems,
@@ -22,136 +22,143 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Query customer's real orders from database
-    const userOrders = await db
-      .select({
-        id: orders.id,
-        type: orders.type,
-        status: orders.status,
-        subtotal: orders.subtotal,
-        deliveryFee: orders.deliveryFee,
-        discount: orders.discount,
-        total: orders.total,
-        notes: orders.notes,
-        qrToken: orders.qrToken,
-        qrGeneratedAt: orders.qrGeneratedAt,
-        qrStatus: orders.qrStatus,
-        createdAt: orders.createdAt,
-        addressLabel: addresses.label,
-        addressString: addresses.address,
-        area: addresses.area,
-        city: addresses.city,
-        pincode: addresses.pincode,
-        latitude: addresses.latitude,
-        longitude: addresses.longitude,
-      })
-      .from(orders)
-      .leftJoin(addresses, eq(orders.addressId, addresses.id))
-      .where(eq(orders.userId, session.userId))
-      .orderBy(desc(orders.createdAt));
+    // Query customer's real orders from database with connection retry resilience
+    const userOrders = await withDbRetry(async () => {
+      return await db
+        .select({
+          id: orders.id,
+          type: orders.type,
+          status: orders.status,
+          subtotal: orders.subtotal,
+          deliveryFee: orders.deliveryFee,
+          discount: orders.discount,
+          total: orders.total,
+          notes: orders.notes,
+          qrToken: orders.qrToken,
+          qrGeneratedAt: orders.qrGeneratedAt,
+          qrStatus: orders.qrStatus,
+          createdAt: orders.createdAt,
+          addressLabel: addresses.label,
+          addressString: addresses.address,
+          area: addresses.area,
+          city: addresses.city,
+          pincode: addresses.pincode,
+          latitude: addresses.latitude,
+          longitude: addresses.longitude,
+        })
+        .from(orders)
+        .leftJoin(addresses, eq(orders.addressId, addresses.id))
+        .where(eq(orders.userId, session.userId))
+        .orderBy(desc(orders.createdAt));
+    });
 
-    const ordersWithDetails = await Promise.all(
-      userOrders.map(async (ord) => {
-        // Fetch order items
-        const items = await db
-          .select()
-          .from(orderItems)
-          .where(eq(orderItems.orderId, ord.id));
+    if (!userOrders || userOrders.length === 0) {
+      return NextResponse.json({ orders: [] });
+    }
 
-        let deliveryInfo = null;
-        try {
-          // Fetch normal order delivery partner assignment details
-          const { normalOrderDeliveries, deliveryPartners } = await import("@/db/schema");
-          const partnerAssignment = await db
-            .select({
-              status: normalOrderDeliveries.status,
-              deliveredAt: normalOrderDeliveries.deliveredAt,
-              notes: normalOrderDeliveries.notes,
-              partnerId: deliveryPartners.id,
-              partnerName: deliveryPartners.fullName,
-              partnerPhone: deliveryPartners.phone,
-              partnerEmail: deliveryPartners.email,
-              currentLat: deliveryPartners.currentLat,
-              currentLng: deliveryPartners.currentLng,
-              lastLocationAt: deliveryPartners.lastLocationAt,
-            })
-            .from(normalOrderDeliveries)
-            .innerJoin(deliveryPartners, eq(normalOrderDeliveries.deliveryPartnerId, deliveryPartners.id))
-            .where(eq(normalOrderDeliveries.orderId, ord.id))
-            .limit(1);
+    const orderIds = userOrders.map((o) => o.id);
 
-          if (partnerAssignment.length > 0) {
-            const p = partnerAssignment[0];
-            deliveryInfo = {
-              status: p.status || "ASSIGNED",
-              staffName: p.partnerName || "Express Fleet Driver",
-              staffPhone: p.partnerPhone || "+91 83285 34576",
-              staffEmail: p.partnerEmail || "driver@qbowl.in",
-              currentLat: p.currentLat,
-              currentLng: p.currentLng,
-              lastLocationAt: p.lastLocationAt,
-              deliveredAt: p.deliveredAt,
-              notes: p.notes,
-            };
-          } else {
-            // Fallback check in deliveryAssignments
-            const legacyDelivery = await db
-              .select({
-                status: deliveryAssignments.status,
-                scheduledAt: deliveryAssignments.scheduledAt,
-                pickedUpAt: deliveryAssignments.pickedUpAt,
-                deliveredAt: deliveryAssignments.deliveredAt,
-                staffName: users.name,
-                staffPhone: users.phone,
-              })
-              .from(deliveryAssignments)
-              .leftJoin(users, eq(deliveryAssignments.staffId, users.id))
-              .where(eq(deliveryAssignments.orderId, ord.id))
-              .limit(1);
+    // Batch query order items in a single query
+    const allItems = await withDbRetry(async () => {
+      return await db
+        .select()
+        .from(orderItems)
+        .where(inArray(orderItems.orderId, orderIds));
+    });
 
-            if (legacyDelivery.length > 0 && legacyDelivery[0].staffName) {
-              deliveryInfo = legacyDelivery[0];
-            }
-          }
-        } catch (partnerErr) {
-          console.warn("Could not fetch driver assignment details for order:", ord.id, partnerErr);
-        }
+    const itemsByOrder = new Map<string, typeof allItems>();
+    for (const item of allItems) {
+      if (!itemsByOrder.has(item.orderId)) {
+        itemsByOrder.set(item.orderId, []);
+      }
+      itemsByOrder.get(item.orderId)!.push(item);
+    }
 
-        let paymentInfo = null;
-        try {
-          const payRows = await db
-            .select({
-              id: payments.id,
-              method: payments.method,
-              status: payments.status,
-              amount: payments.amount,
-              paidAt: payments.paidAt,
-              razorpayPaymentId: payments.razorpayPaymentId,
-            })
-            .from(payments)
-            .where(eq(payments.orderId, ord.id))
-            .limit(1);
+    // Batch query normal order deliveries
+    const { normalOrderDeliveries, deliveryPartners } = await import("@/db/schema");
+    let allPartnerDeliveries: any[] = [];
+    try {
+      allPartnerDeliveries = await withDbRetry(async () => {
+        return await db
+          .select({
+            orderId: normalOrderDeliveries.orderId,
+            status: normalOrderDeliveries.status,
+            deliveredAt: normalOrderDeliveries.deliveredAt,
+            notes: normalOrderDeliveries.notes,
+            partnerId: deliveryPartners.id,
+            partnerName: deliveryPartners.fullName,
+            partnerPhone: deliveryPartners.phone,
+            partnerEmail: deliveryPartners.email,
+            currentLat: deliveryPartners.currentLat,
+            currentLng: deliveryPartners.currentLng,
+            lastLocationAt: deliveryPartners.lastLocationAt,
+          })
+          .from(normalOrderDeliveries)
+          .innerJoin(deliveryPartners, eq(normalOrderDeliveries.deliveryPartnerId, deliveryPartners.id))
+          .where(inArray(normalOrderDeliveries.orderId, orderIds));
+      });
+    } catch (err) {
+      console.warn("Could not batch fetch partner deliveries:", err);
+    }
 
-          if (payRows.length > 0) {
-            paymentInfo = payRows[0];
-          }
-        } catch (payErr) {
-          console.warn("Could not fetch payment record for order:", ord.id, payErr);
-        }
+    const deliveryByOrder = new Map<string, any>();
+    for (const p of allPartnerDeliveries) {
+      if (!deliveryByOrder.has(p.orderId)) {
+        deliveryByOrder.set(p.orderId, {
+          status: p.status || "ASSIGNED",
+          staffName: p.partnerName || "Express Fleet Driver",
+          staffPhone: p.partnerPhone || "+91 83285 34576",
+          staffEmail: p.partnerEmail || "driver@qbowl.in",
+          currentLat: p.currentLat,
+          currentLng: p.currentLng,
+          lastLocationAt: p.lastLocationAt,
+          deliveredAt: p.deliveredAt,
+          notes: p.notes,
+        });
+      }
+    }
 
-        return {
-          ...ord,
-          items,
-          delivery: deliveryInfo,
-          payment: paymentInfo,
-        };
-      })
-    );
+    // Batch query payments
+    let allPayments: any[] = [];
+    try {
+      allPayments = await withDbRetry(async () => {
+        return await db
+          .select({
+            id: payments.id,
+            orderId: payments.orderId,
+            method: payments.method,
+            status: payments.status,
+            amount: payments.amount,
+            paidAt: payments.paidAt,
+            razorpayPaymentId: payments.razorpayPaymentId,
+          })
+          .from(payments)
+          .where(inArray(payments.orderId, orderIds));
+      });
+    } catch (err) {
+      console.warn("Could not batch fetch payments:", err);
+    }
+
+    const paymentByOrder = new Map<string, any>();
+    for (const pay of allPayments) {
+      if (pay.orderId && !paymentByOrder.has(pay.orderId)) {
+        paymentByOrder.set(pay.orderId, pay);
+      }
+    }
+
+    const ordersWithDetails = userOrders.map((ord) => {
+      return {
+        ...ord,
+        items: itemsByOrder.get(ord.id) || [],
+        delivery: deliveryByOrder.get(ord.id) || null,
+        payment: paymentByOrder.get(ord.id) || null,
+      };
+    });
 
     return NextResponse.json({ orders: ordersWithDetails });
   } catch (error) {
     console.error("Orders API error:", error);
-    return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to fetch orders", orders: [] }, { status: 500 });
   }
 }
 

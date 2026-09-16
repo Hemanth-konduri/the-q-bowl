@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/db";
+import { db, withDbRetry } from "@/db";
 import {
   users,
   subscriptions,
@@ -12,7 +12,7 @@ import {
   addresses,
   foodItems,
 } from "@/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { getSession } from "@/lib/session";
 
 export async function GET() {
@@ -91,25 +91,36 @@ export async function GET() {
       .limit(5);
 
     // 4. Fetch customer's real recent orders with order items
-    const userOrders = await db
-      .select()
-      .from(orders)
-      .where(eq(orders.userId, session.userId))
-      .orderBy(desc(orders.createdAt))
-      .limit(5);
+    const userOrders = await withDbRetry(async () => {
+      return await db
+        .select()
+        .from(orders)
+        .where(eq(orders.userId, session.userId))
+        .orderBy(desc(orders.createdAt))
+        .limit(5);
+    });
 
-    const ordersWithItems = await Promise.all(
-      userOrders.map(async (ord) => {
-        const items = await db
+    let ordersWithItems: any[] = [];
+    if (userOrders.length > 0) {
+      const orderIds = userOrders.map((o) => o.id);
+      const allItems = await withDbRetry(async () => {
+        return await db
           .select()
           .from(orderItems)
-          .where(eq(orderItems.orderId, ord.id));
-        return {
-          ...ord,
-          items,
-        };
-      })
-    );
+          .where(inArray(orderItems.orderId, orderIds));
+      });
+
+      const itemsMap = new Map<string, typeof allItems>();
+      for (const it of allItems) {
+        if (!itemsMap.has(it.orderId)) itemsMap.set(it.orderId, []);
+        itemsMap.get(it.orderId)!.push(it);
+      }
+
+      ordersWithItems = userOrders.map((ord) => ({
+        ...ord,
+        items: itemsMap.get(ord.id) || [],
+      }));
+    }
 
     // 5. Combine and format recent deliveries
     const formattedSubDeliveries = subDeliveries.map((sd) => ({

@@ -42,16 +42,16 @@ export default function DeliveryChecker() {
   return (
     <section id="delivery" className="py-24 bg-[#f5e3cd] text-black relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="gsap-reveal retro-card p-8 sm:p-12 bg-white max-w-4xl mx-auto">
+        <div className="gsap-reveal retro-card p-5 sm:p-12 bg-white max-w-4xl mx-auto">
           
-          <div className="grid md:grid-cols-12 gap-8 items-center">
+          <div className="grid md:grid-cols-12 gap-6 md:gap-8 items-center">
             
             {/* Left Header */}
-            <div className="md:col-span-6 space-y-3 text-center md:text-left">
-              <span className="font-mouse-memoirs text-2xl text-[#E5A00D] uppercase tracking-wider font-bold block">
+            <div className="md:col-span-6 space-y-2.5 sm:space-y-3 text-center md:text-left">
+              <span className="font-mouse-memoirs text-xl sm:text-2xl text-[#E5A00D] uppercase tracking-wider font-bold block">
                 INSTANT AREA LOOKUP
               </span>
-              <h3 className="font-outfit text-3xl sm:text-4xl font-extrabold text-black uppercase leading-none">
+              <h3 className="font-outfit text-2xl sm:text-4xl font-extrabold text-black uppercase leading-none">
                 CHECK DELIVERY ELIGIBILITY
               </h3>
               <p className="font-sans text-xs sm:text-sm text-black/80 leading-relaxed font-normal">
@@ -70,13 +70,13 @@ export default function DeliveryChecker() {
                       setQuery(e.target.value);
                       if (result) setResult(null);
                     }}
-                    placeholder="Enter pincode or locality (e.g. 500084, Gachibowli)"
-                    className="w-full pl-11 pr-28 py-3.5 rounded-2xl bg-[#FFF8EE] border-2 border-black text-black font-sans text-sm font-semibold placeholder-black/50 focus:outline-none focus:border-[#E5A00D]"
+                    placeholder="Enter pincode or locality (e.g. 500084)"
+                    className="w-full pl-9 sm:pl-11 pr-20 sm:pr-28 py-3 sm:py-3.5 rounded-2xl bg-[#FFF8EE] border-2 border-black text-black font-sans text-xs sm:text-sm font-semibold placeholder-black/50 focus:outline-none focus:border-[#E5A00D]"
                   />
-                  <MapPin className="w-5 h-5 text-black absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-black absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2" />
                   <button
                     type="submit"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 px-5 py-2 rounded-xl bg-black hover:bg-[#E5A00D] hover:text-black text-white font-outfit text-xs uppercase font-bold transition shadow-[2px_2px_0px_#000000]"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 px-3.5 py-1.5 sm:px-5 sm:py-2 rounded-xl bg-black hover:bg-[#E5A00D] hover:text-black text-white font-outfit text-[11px] sm:text-xs uppercase font-bold transition shadow-[2px_2px_0px_#000000]"
                   >
                     Check
                   </button>

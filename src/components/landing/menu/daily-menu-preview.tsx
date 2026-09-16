@@ -1,15 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Image, { StaticImageData } from "next/image";
-import { Clock, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-
-import heroDishImg from "../../../../public/hero_dish.png";
-import dumBiryaniImg from "../../../../public/dum_biryani_hero.png";
-import paneerImg from "../../../../public/paneer.png";
-import biryaniImg from "../../../../public/biryani.png";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -27,17 +23,48 @@ interface MenuItem {
 }
 
 export default function DailyMenuPreview() {
+  const router = useRouter();
   const sectionRef = useRef<HTMLElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
-  const controlsRef = useRef<HTMLDivElement>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
 
-  const [selectedDay, setSelectedDay] = useState<"today" | "tomorrow">("today");
-  const [isChanging, setIsChanging] = useState(false);
-
-  const [todayItems, setTodayItems] = useState<MenuItem[]>([]);
-  const [tomorrowItems, setTomorrowItems] = useState<MenuItem[]>([]);
+  const [items, setItems] = useState<MenuItem[]>([]);
   const [loadingMenu, setLoadingMenu] = useState(true);
+
+  const handleDishClick = async (dish: MenuItem) => {
+    const foodDetailData = {
+      id: dish.id,
+      name: dish.name,
+      category: dish.category,
+      tag: dish.isVeg ? "Veg" : "Non-Veg",
+      tagType: dish.isVeg ? "PURE VEG" : "NON-VEG",
+      rating: dish.rating,
+      calories: `${dish.calories} kcal`,
+      protein: dish.protein,
+      description: "Chef-crafted fresh culinary creation from our cloud kitchen.",
+      price: dish.price,
+      image: typeof dish.image === "string" ? dish.image : (dish.image as any)?.src || "/chicken_dum_biryani.png",
+    };
+
+    try {
+      sessionStorage.setItem("qbowl_selected_meal", JSON.stringify(foodDetailData));
+    } catch {
+      // ignore
+    }
+
+    try {
+      const res = await fetch("/api/auth/me");
+      if (res.ok) {
+        const user = await res.json();
+        if (user && user.id) {
+          router.push(`/dashboard#meal-${dish.id}`);
+          return;
+        }
+      }
+    } catch {
+      // ignore network errors and fallback to login
+    }
+    router.push(`/login?redirect=${encodeURIComponent(`/dashboard#meal-${dish.id}`)}`);
+  };
 
   // Fetch real master food catalog from DB (No Demo Data)
   useEffect(() => {
@@ -72,8 +99,7 @@ export default function DailyMenuPreview() {
               };
             });
 
-            setTodayItems(formatted);
-            setTomorrowItems([...formatted].reverse());
+            setItems(formatted);
           }
         }
       } catch (err) {
@@ -85,31 +111,6 @@ export default function DailyMenuPreview() {
 
     loadRealMenu();
   }, []);
-
-  const items = selectedDay === "today" ? todayItems : tomorrowItems;
-
-  const changeDay = (day: "today" | "tomorrow") => {
-    if (day === selectedDay || isChanging) return;
-
-    setIsChanging(true);
-
-    if (gridRef.current) {
-      gsap.to(gridRef.current.children, {
-        opacity: 0,
-        y: -20,
-        duration: 0.3,
-        stagger: 0.05,
-        ease: "power2.in",
-        onComplete: () => {
-          setSelectedDay(day);
-          setIsChanging(false);
-        },
-      });
-    } else {
-      setSelectedDay(day);
-      setIsChanging(false);
-    }
-  };
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -136,77 +137,10 @@ export default function DailyMenuPreview() {
           },
         }
       );
-
-      // Controls
-      gsap.fromTo(
-        controlsRef.current,
-        {
-          opacity: 0,
-          y: 40,
-        },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.8,
-          delay: 0.2,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: section,
-            start: "top 75%",
-            once: true,
-          },
-        }
-      );
-
-      // Grid items
-      if (gridRef.current) {
-        gsap.fromTo(
-          gridRef.current.children,
-          {
-            opacity: 0,
-            y: 50,
-          },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.8,
-            stagger: 0.1,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: section,
-              start: "top 65%",
-              once: true,
-            },
-          }
-        );
-      }
     }, section);
 
     return () => ctx.revert();
   }, []);
-
-  useEffect(() => {
-    if (!isChanging || !gridRef.current) return;
-
-    requestAnimationFrame(() => {
-      gsap.fromTo(
-        gridRef.current!.children,
-        {
-          opacity: 0,
-          y: 30,
-          scale: 0.97,
-        },
-        {
-          opacity: 1,
-          y: 0,
-          scale: 1,
-          duration: 0.5,
-          stagger: 0.08,
-          ease: "power3.out",
-        }
-      );
-    });
-  }, [selectedDay, isChanging]);
 
   return (
     <section
@@ -222,23 +156,6 @@ export default function DailyMenuPreview() {
         pb-40
       "
     >
-      {/* BACKGROUND GLOW */}
-      <div
-        className="
-          absolute
-          pointer-events-none
-          left-1/2
-          top-[10%]
-          -translate-x-1/2
-          w-[850px]
-          h-[650px]
-          rounded-full
-          bg-black
-          blur-[110px]
-          opacity-70
-        "
-      />
-
       <div
         className="
           relative
@@ -311,141 +228,18 @@ export default function DailyMenuPreview() {
             prepared daily in our cloud kitchen.
           </p>
         </div>
+      </div>
 
-        {/* CONTROLS */}
-        <div
-          ref={controlsRef}
-          className="
-            relative
-            z-20
-            flex
-            flex-col
-            sm:flex-row
-            items-center
-            justify-between
-            gap-6
-            mb-16
-          "
-        >
-          {/* DAY SWITCH */}
-          <div
-            className="
-              relative
-              flex
-              items-center
-              p-1
-              rounded-full
-              bg-black
-              border
-              border-[#E5A00D]/30
-              shadow-[0_10px_30px_rgba(0,0,0,0.15)]
-            "
-          >
-            <div
-              className="
-                absolute
-                top-1
-                bottom-1
-                left-1
-                w-[calc(50%-4px)]
-                rounded-full
-                bg-[#E5A00D]
-                shadow-[3px_3px_0px_#000]
-                transition-transform
-                duration-500
-                ease-[cubic-bezier(0.76,0,0.24,1)]
-              "
-              style={{
-                transform:
-                  selectedDay === "tomorrow"
-                    ? "translateX(calc(100% + 4px))"
-                    : "translateX(0)",
-              }}
-            />
-
-            <button
-              type="button"
-              onClick={() => changeDay("today")}
-              className={`
-                relative
-                z-10
-                w-32
-                sm:w-36
-                py-3
-                rounded-full
-                font-outfit
-                text-sm
-                font-bold
-                uppercase
-                tracking-wide
-                transition-colors
-                duration-300
-                ${
-                  selectedDay === "today"
-                    ? "text-black"
-                    : "text-[#f5e3cd]"
-                }
-              `}
-            >
-              Today
-            </button>
-
-            <button
-              type="button"
-              onClick={() => changeDay("tomorrow")}
-              className={`
-                relative
-                z-10
-                w-32
-                sm:w-36
-                py-3
-                rounded-full
-                font-outfit
-                text-sm
-                font-bold
-                uppercase
-                tracking-wide
-                transition-colors
-                duration-300
-                ${
-                  selectedDay === "tomorrow"
-                    ? "text-black"
-                    : "text-[#f5e3cd]"
-                }
-              `}
-            >
-              Tomorrow
-            </button>
-          </div>
-
-          <div
-            className="
-              flex
-              items-center
-              gap-2
-              font-sans
-              text-sm
-              text-[#E5A00D]
-            "
-          >
-            <Clock className="w-4 h-4" />
-            <span>
-              {selectedDay === "today"
-                ? "Lunch cutoff 11:30 AM · Dinner cutoff 7:00 PM"
-                : "Tomorrow's menu · Reserve before 10:00 PM"}
-            </span>
-          </div>
-        </div>
-
-        {/* MENU GRID */}
+      {/* SINGLE-LINE AUTO-SLIDING FOOD ROW WITH SIDE MARGINS */}
+      <div className="relative z-10 w-full max-w-[1600px] mx-auto overflow-hidden py-4 px-4 sm:px-8 md:px-12 lg:px-16">
         {loadingMenu ? (
-          <div className="relative z-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-14">
-            {[1, 2, 3, 4].map((n) => (
+          <div className="flex gap-6 sm:gap-8 overflow-hidden py-4">
+            {[1, 2, 3, 4, 5].map((n) => (
               <div
                 key={n}
-                className="h-[380px] rounded-[2rem] bg-zinc-900 border-2 border-[#E5A00D]/20 p-4 space-y-4 animate-pulse"
+                className="w-[280px] sm:w-[320px] shrink-0 h-[380px] rounded-[2rem] bg-zinc-900 border-2 border-[#E5A00D]/20 p-4 space-y-4 animate-pulse"
               >
-                <div className="h-[240px] rounded-[1.5rem] bg-zinc-800" />
+                <div className="h-[260px] rounded-[1.5rem] bg-zinc-800" />
                 <div className="space-y-2">
                   <div className="h-4 bg-zinc-800 rounded w-3/4" />
                   <div className="h-3 bg-zinc-800/60 rounded w-1/2" />
@@ -454,187 +248,190 @@ export default function DailyMenuPreview() {
             ))}
           </div>
         ) : items.length > 0 ? (
-          <div
-            ref={gridRef}
-            className="
-              relative
-              z-10
-              grid
-              sm:grid-cols-2
-              lg:grid-cols-4
-              gap-x-6
-              gap-y-14
-            "
-          >
-            {items.map((dish) => (
-            <article
-              key={dish.id}
-              className="
-                group
-                cursor-pointer
-              "
-            >
-              <div
+          <div className="animate-food-slider flex gap-6 sm:gap-8 items-center py-2">
+            {[...items, ...items].map((dish, idx) => (
+              <article
+                key={`${dish.id}-${idx}`}
+                onClick={() => handleDishClick(dish)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleDishClick(dish);
+                  }
+                }}
                 className="
-                  relative
-                  h-[280px]
-                  sm:h-[300px]
-                  w-full
-                  overflow-hidden
-                  rounded-[2rem]
-                  bg-black
-                  border-2
-                  border-[#E5A00D]/30
-                  shadow-[0_20px_50px_rgba(0,0,0,0.3)]
+                  group
+                  cursor-pointer
+                  w-[280px]
+                  sm:w-[320px]
+                  shrink-0
+                  transition-transform
+                  duration-300
+                  hover:-translate-y-2
+                  focus:outline-none
                 "
               >
-                <Image
-                  src={dish.image}
-                  alt={dish.name}
-                  fill
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                  priority
+                <div
                   className="
-                    object-cover
+                    relative
+                    h-[280px]
+                    sm:h-[300px]
                     w-full
-                    h-full
-                    transition-transform
-                    duration-700
-                    ease-out
-                    group-hover:scale-110
-                  "
-                />
-
-                {/* RATING BADGE */}
-                <div
-                  className="
-                    absolute
-                    top-4
-                    right-4
-                    flex
-                    items-center
-                    gap-1
-                    px-3
-                    py-1
-                    rounded-full
-                    bg-black/90
-                    backdrop-blur-md
-                    border
-                    border-[#E5A00D]/40
-                    font-sans
-                    text-xs
-                    font-bold
-                    text-[#f5e3cd]
-                    shadow-md
-                    z-20
+                    overflow-hidden
+                    rounded-[2rem]
+                    bg-black
+                    border-2
+                    border-[#E5A00D]/30
+                    shadow-[0_20px_50px_rgba(0,0,0,0.3)]
                   "
                 >
-                  <Star className="w-3.5 h-3.5 fill-[#E5A00D] text-[#E5A00D]" />
-                  <span>{dish.rating}</span>
-                </div>
-
-                {/* VEG / NON-VEG TAG */}
-                <div
-                  className="
-                    absolute
-                    top-4
-                    left-4
-                    px-2.5
-                    py-1
-                    rounded-full
-                    bg-black/90
-                    backdrop-blur-md
-                    border
-                    border-[#E5A00D]/40
-                    flex
-                    items-center
-                    gap-1.5
-                    z-20
-                  "
-                >
-                  <span
-                    className={`
-                      w-2
-                      h-2
-                      rounded-full
-                      ${dish.isVeg ? "bg-black border border-white/60" : "bg-red-400"}
-                    `}
+                  <Image
+                    src={dish.image}
+                    alt={dish.name}
+                    fill
+                    sizes="(max-width: 640px) 280px, 320px"
+                    priority={idx < 4}
+                    className="
+                      object-cover
+                      w-full
+                      h-full
+                      transition-transform
+                      duration-700
+                      ease-out
+                      group-hover:scale-110
+                    "
                   />
-                  <span
+
+                  {/* RATING BADGE */}
+                  <div
                     className="
-                      font-outfit
-                      text-[10px]
+                      absolute
+                      top-4
+                      right-4
+                      flex
+                      items-center
+                      gap-1
+                      px-3
+                      py-1
+                      rounded-full
+                      bg-black/90
+                      border
+                      border-[#E5A00D]/40
+                      font-sans
+                      text-xs
                       font-bold
-                      uppercase
-                      tracking-wider
                       text-[#f5e3cd]
+                      shadow-md
+                      z-20
                     "
                   >
-                    {dish.isVeg ? "Veg" : "Non-Veg"}
-                  </span>
-                </div>
-              </div>
+                    <Star className="w-3.5 h-3.5 fill-[#E5A00D] text-[#E5A00D]" />
+                    <span>{dish.rating}</span>
+                  </div>
 
-              {/* CARD DETAILS */}
-              <div className="mt-5 space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <h3
+                  {/* VEG / NON-VEG TAG */}
+                  <div
                     className="
-                      font-outfit
-                      text-xl
-                      font-extrabold
-                      text-[#f5e3cd]
-                      uppercase
-                      tracking-tight
-                      group-hover:text-[#E5A00D]
-                      transition-colors
-                      line-clamp-1
+                      absolute
+                      top-4
+                      left-4
+                      px-2.5
+                      py-1
+                      rounded-full
+                      bg-black/90
+                      border
+                      border-[#E5A00D]/40
+                      flex
+                      items-center
+                      gap-1.5
+                      z-20
                     "
                   >
-                    {dish.name}
-                  </h3>
+                    <span
+                      className={`
+                        w-2
+                        h-2
+                        rounded-full
+                        ${dish.isVeg ? "bg-black border border-white/60" : "bg-red-400"}
+                      `}
+                    />
+                    <span
+                      className="
+                        font-outfit
+                        text-[10px]
+                        font-bold
+                        uppercase
+                        tracking-wider
+                        text-[#f5e3cd]
+                      "
+                    >
+                      {dish.isVeg ? "Veg" : "Non-Veg"}
+                    </span>
+                  </div>
+                </div>
 
-                  <span
+                {/* CARD DETAILS */}
+                <div className="mt-5 space-y-2 px-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3
+                      className="
+                        font-outfit
+                        text-xl
+                        font-extrabold
+                        text-[#f5e3cd]
+                        uppercase
+                        tracking-tight
+                        group-hover:text-[#E5A00D]
+                        transition-colors
+                        line-clamp-1
+                      "
+                    >
+                      {dish.name}
+                    </h3>
+
+                    <span
+                      className="
+                        font-outfit
+                        text-xl
+                        font-black
+                        text-[#E5A00D]
+                        shrink-0
+                      "
+                    >
+                      ₹{dish.price}
+                    </span>
+                  </div>
+
+                  <div
                     className="
-                      font-outfit
-                      text-xl
-                      font-black
-                      text-[#E5A00D]
-                      shrink-0
+                      flex
+                      items-center
+                      justify-between
+                      font-sans
+                      text-xs
+                      text-[#D8C4A9]
                     "
                   >
-                    ₹{dish.price}
-                  </span>
+                    <span>{dish.calories} kcal</span>
+                    <span>•</span>
+                    <span>{dish.protein} protein</span>
+                    <span>•</span>
+                    <span className="uppercase text-[#E5A00D] font-bold">
+                      {dish.mealType}
+                    </span>
+                  </div>
                 </div>
-
-                <div
-                  className="
-                    flex
-                    items-center
-                    justify-between
-                    font-sans
-                    text-xs
-                    text-[#D8C4A9]
-                  "
-                >
-                  <span>{dish.calories} kcal</span>
-                  <span>•</span>
-                  <span>{dish.protein} protein</span>
-                  <span>•</span>
-                  <span className="uppercase text-[#E5A00D] font-bold">
-                    {dish.mealType}
-                  </span>
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      ) : (
-        <div className="relative z-10 p-12 text-center rounded-3xl border-2 border-[#E5A00D]/20 bg-zinc-900/50">
-          <p className="font-outfit font-black text-xl text-[#f5e3cd]">Kitchen Menu Loading</p>
-          <p className="text-sm text-[#D8C4A9] mt-1">Today&apos;s specials are being freshly prepared in our cloud kitchen.</p>
-        </div>
-      )}
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="max-w-3xl mx-auto p-12 text-center rounded-3xl border-2 border-[#E5A00D]/20 bg-zinc-900/50">
+            <p className="font-outfit font-black text-xl text-[#f5e3cd]">Kitchen Menu Loading</p>
+            <p className="text-sm text-[#D8C4A9] mt-1">Today&apos;s specials are being freshly prepared in our cloud kitchen.</p>
+          </div>
+        )}
       </div>
     </section>
   );

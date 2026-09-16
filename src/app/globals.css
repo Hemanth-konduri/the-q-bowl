@@ -174,6 +174,23 @@ html, body {
   animation-play-state: paused;
 }
 
+/* Food Slider Continuous Marquee */
+@keyframes foodMarquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-food-slider {
+  display: flex;
+  width: max-content;
+  animation: foodMarquee 35s linear infinite;
+  will-change: transform;
+}
+
+.animate-food-slider:hover {
+  animation-play-state: paused;
+}
+
 .text-stroke-footer {
   -webkit-text-stroke: 6px #000000;
   paint-order: stroke fill;

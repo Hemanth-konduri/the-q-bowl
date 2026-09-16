@@ -64,21 +64,21 @@ export default function FAQSection() {
             </h3>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid md:grid-cols-2 gap-6 md:gap-8">
             {REVIEWS.map((r, i) => (
-              <div key={i} className="gsap-reveal p-8 rounded-[2rem] bg-[#FFF8EE] border-4 border-black text-black relative shadow-[6px_6px_0px_#000000]">
-                <Quote className="w-8 h-8 text-[#E5A00D] mb-4" />
-                <p className="font-sans text-base sm:text-lg text-black font-medium leading-relaxed mb-6">
+              <div key={i} className="gsap-reveal p-5 sm:p-8 rounded-2xl sm:rounded-[2rem] bg-[#FFF8EE] border-4 border-black text-black relative shadow-[4px_4px_0px_#000000] sm:shadow-[6px_6px_0px_#000000]">
+                <Quote className="w-6 h-6 sm:w-8 sm:h-8 text-[#E5A00D] mb-3 sm:mb-4" />
+                <p className="font-sans text-sm sm:text-lg text-black font-medium leading-relaxed mb-5 sm:mb-6">
                   &ldquo;{r.comment}&rdquo;
                 </p>
-                <div className="flex items-center justify-between border-t border-black/20 pt-4">
+                <div className="flex items-center justify-between border-t border-black/20 pt-3.5 sm:pt-4">
                   <div>
-                    <h4 className="font-outfit text-xl font-extrabold text-black">{r.name}</h4>
+                    <h4 className="font-outfit text-lg sm:text-xl font-extrabold text-black">{r.name}</h4>
                     <span className="font-sans text-xs text-black/70 font-semibold">{r.role}</span>
                   </div>
-                  <div className="flex text-[#E5A00D] gap-1">
+                  <div className="flex text-[#E5A00D] gap-0.5 sm:gap-1">
                     {[...Array(r.rating)].map((_, idx) => (
-                      <Star key={idx} className="w-4 h-4 fill-current text-[#E5A00D]" />
+                      <Star key={idx} className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current text-[#E5A00D]" />
                     ))}
                   </div>
                 </div>
@@ -89,28 +89,28 @@ export default function FAQSection() {
 
         {/* FAQ Accordion Section */}
         <div className="max-w-4xl mx-auto">
-          <div className="gsap-reveal text-center mb-10">
-            <span className="font-mouse-memoirs text-2xl text-black uppercase font-bold tracking-widest block mb-1">
+          <div className="gsap-reveal text-center mb-8 sm:mb-10">
+            <span className="font-mouse-memoirs text-xl sm:text-2xl text-black uppercase font-bold tracking-widest block mb-1">
               KNOW BEFORE YOU ORDER
             </span>
-            <h2 className="font-outfit text-4xl sm:text-6xl font-extrabold text-black uppercase tracking-tight leading-none">
+            <h2 className="font-outfit text-3xl sm:text-6xl font-extrabold text-black uppercase tracking-tight leading-none">
               FREQUENTLY ASKED QUESTIONS
             </h2>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3.5 sm:space-y-4">
             {FAQS.map((faq, index) => {
               const isOpen = openIndex === index;
               return (
                 <div
                   key={index}
-                  className="gsap-reveal overflow-hidden rounded-2xl bg-black border-2 border-black shadow-[4px_4px_0px_#000000] transition-all"
+                  className="gsap-reveal overflow-hidden rounded-2xl bg-black border-2 border-black shadow-[3px_3px_0px_#000000] sm:shadow-[4px_4px_0px_#000000] transition-all"
                 >
                   <button
                     onClick={() => setOpenIndex(isOpen ? null : index)}
-                    className="w-full p-6 text-left flex items-center justify-between gap-4 focus:outline-none"
+                    className="w-full p-4 sm:p-6 text-left flex items-center justify-between gap-3 sm:gap-4 focus:outline-none"
                   >
-                    <span className="font-outfit text-lg sm:text-xl font-bold text-[#E5A00D]">
+                    <span className="font-outfit text-base sm:text-xl font-bold text-[#E5A00D]">
                       {faq.question}
                     </span>
                     <ChevronDown
@@ -121,7 +121,7 @@ export default function FAQSection() {
                   </button>
 
                   {isOpen && (
-                    <div className="px-6 pb-6 font-sans text-xs sm:text-sm text-[#f5e3cd] font-light leading-relaxed border-t border-[#E5A00D]/20 pt-4 animate-in fade-in">
+                    <div className="px-4 pb-4 sm:px-6 sm:pb-6 font-sans text-xs sm:text-sm text-[#f5e3cd] font-light leading-relaxed border-t border-[#E5A00D]/20 pt-3 sm:pt-4 animate-in fade-in">
                       {faq.answer}
                     </div>
                   )}

@@ -753,7 +753,7 @@ export function CustomerNavbar() {
 
             {/* Notifications Popover */}
             {notifOpen && (
-              <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white border-2 border-black rounded-2xl shadow-[6px_6px_0px_#000000] p-4 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-3">
+              <div className="absolute right-0 mt-3 w-[calc(100vw-24px)] max-w-sm sm:w-96 bg-white border-2 border-black rounded-2xl shadow-[6px_6px_0px_#000000] p-4 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-3">
                 <div className="flex items-center justify-between border-b-2 border-black/10 pb-2.5">
                   <div className="flex items-center gap-2">
                     <Bell size={16} className="text-[#E5A00D]" />
@@ -825,7 +825,7 @@ export function CustomerNavbar() {
 
             {/* Cart Popover */}
             {cartOpen && (
-              <div className="absolute right-0 mt-3 w-80 sm:w-88 bg-white border-2 border-black rounded-2xl shadow-[6px_6px_0px_#000000] p-4 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-3">
+              <div className="absolute right-0 mt-3 w-[calc(100vw-24px)] max-w-sm sm:w-88 bg-white border-2 border-black rounded-2xl shadow-[6px_6px_0px_#000000] p-4 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-3">
                 <div className="flex items-center justify-between border-b-2 border-black/10 pb-2.5">
                   <div className="flex items-center gap-2">
                     <ShoppingCart size={16} className="text-[#E5A00D]" />

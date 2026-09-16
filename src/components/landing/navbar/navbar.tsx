@@ -52,15 +52,15 @@ export default function Navbar() {
   return (
     <>
       {/* 100% Transparent Floating Navbar with Smooth Color Theme Switch */}
-      <header className="fixed top-0 left-0 w-full z-[990] py-4 bg-transparent transition-colors duration-500 pointer-events-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-8 flex items-center justify-between">
+      <header className="fixed top-0 left-0 w-full z-[990] py-3 sm:py-4 bg-transparent transition-colors duration-500 pointer-events-auto">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 flex items-center justify-between gap-2">
 
           {/* Brand Logo & Icon with Smooth Theme Transition */}
           <Link
             href="/"
-            className="flex items-center gap-2.5 sm:gap-3 shrink-0 group transition-transform duration-300 hover:scale-105"
+            className="flex items-center gap-2 sm:gap-3 shrink-0 group transition-transform duration-300 hover:scale-105 min-w-0"
           >
-            <div className={`p-1 rounded-xl border-2 transition-all duration-500 ${isDarkSection
+            <div className={`p-1 rounded-xl border-2 transition-all duration-500 shrink-0 ${isDarkSection
                 ? "bg-[#E5A00D] border-[#E5A00D] shadow-[2px_2px_0px_#FFF8EE]"
                 : "bg-[#FFF8EE] border-black shadow-[2px_2px_0px_#000000]"
               }`}>
@@ -70,11 +70,11 @@ export default function Navbar() {
                 width={48}
                 height={48}
                 priority
-                className="w-7 h-7 sm:w-9 sm:h-9 object-contain rounded-lg"
+                className="w-6 h-6 sm:w-8 sm:h-8 md:w-9 md:h-9 object-contain rounded-lg"
               />
             </div>
             <span
-              className={`font-outfit text-2xl sm:text-4xl font-black uppercase tracking-wider transition-colors duration-500 ${isDarkSection ? "text-[#E5A00D] text-stroke-white" : "text-black text-stroke-small"
+              className={`font-outfit text-xl sm:text-3xl lg:text-4xl font-black uppercase tracking-wider transition-colors duration-500 truncate ${isDarkSection ? "text-[#E5A00D] text-stroke-white" : "text-black text-stroke-small"
                 }`}
             >
               The Q BOWL
@@ -82,12 +82,12 @@ export default function Navbar() {
           </Link>
 
           {/* Action Buttons Container */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
 
             {/* Primary Order CTA Pill */}
             <Link
               href="#menu"
-              className={`font-outfit text-xs sm:text-sm font-extrabold uppercase tracking-wider px-4 py-2 sm:px-6 sm:py-2.5 rounded-full border-2 transition-all duration-500 flex items-center gap-1.5 shrink-0 ${isDarkSection
+              className={`font-outfit text-xs sm:text-sm font-extrabold uppercase tracking-wider px-3 py-1.5 sm:px-6 sm:py-2.5 rounded-full border-2 transition-all duration-500 flex items-center gap-1 sm:gap-1.5 shrink-0 ${isDarkSection
                   ? "bg-[#E5A00D] text-black border-[#E5A00D] shadow-[2px_2px_0px_#FFF8EE] sm:shadow-[3px_3px_0px_#FFF8EE] hover:bg-white"
                   : "bg-black text-[#f5e3cd] border-black shadow-[2px_2px_0px_#000] sm:shadow-[3px_3px_0px_#000] hover:bg-zinc-900"
                 }`}
@@ -99,13 +99,13 @@ export default function Navbar() {
             {/* Menu Toggle Button */}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className={`flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2 rounded-full border-2 font-outfit text-xs sm:text-sm font-extrabold transition-all duration-500 shrink-0 ${isDarkSection
+              className={`flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-full border-2 font-outfit text-xs sm:text-sm font-extrabold transition-all duration-500 shrink-0 ${isDarkSection
                   ? "bg-[#FFF8EE] text-black border-[#E5A00D] shadow-[2px_2px_0px_#E5A00D] sm:shadow-[3px_3px_0px_#E5A00D] hover:bg-[#E5A00D]"
                   : "bg-[#FFF8EE] text-black border-black shadow-[2px_2px_0px_#000000] sm:shadow-[3px_3px_0px_#000000] hover:bg-black hover:text-white"
                 }`}
               aria-label="Toggle Navigation Menu"
             >
-              <span className="uppercase font-bold">Menu</span>
+              <span className="uppercase font-bold hidden xs:inline sm:inline">Menu</span>
               {menuOpen ? (
                 <X className={`w-4 h-4 sm:w-5 sm:h-5 transition-colors duration-500 ${isDarkSection ? "text-black" : "text-[#E5A00D]"}`} />
               ) : (
@@ -119,14 +119,14 @@ export default function Navbar() {
 
       {/* Fullscreen Mobile & Desktop Navigation Overlay Drawer */}
       {menuOpen && (
-        <div className="fixed inset-0 z-[9999] bg-black text-[#f5e3cd] flex flex-col justify-between p-6 sm:p-12 animate-in fade-in slide-in-from-top duration-300 overflow-y-auto">
+        <div className="fixed inset-0 z-[9999] bg-black text-[#f5e3cd] flex flex-col justify-between p-5 sm:p-10 md:p-12 animate-in fade-in slide-in-from-top duration-300 overflow-y-auto">
 
           {/* Drawer Header */}
-          <div className="flex items-center justify-between border-b-2 border-[#E5A00D]/30 pb-6">
+          <div className="flex items-center justify-between border-b-2 border-[#E5A00D]/30 pb-4 sm:pb-6 shrink-0">
             <Link
               href="/"
               onClick={() => setMenuOpen(false)}
-              className="flex items-center gap-3 font-outfit text-3xl sm:text-4xl font-black text-[#E5A00D] uppercase tracking-wider"
+              className="flex items-center gap-2.5 sm:gap-3 font-outfit text-2xl sm:text-4xl font-black text-[#E5A00D] uppercase tracking-wider"
             >
               <div className="p-1 rounded-xl bg-[#E5A00D] border-2 border-[#E5A00D] shadow-[2px_2px_0px_#000000]">
                 <Image
@@ -134,26 +134,26 @@ export default function Navbar() {
                   alt="The Q Bowl Logo"
                   width={40}
                   height={40}
-                  className="w-8 h-8 sm:w-10 sm:h-10 object-contain rounded-lg"
+                  className="w-7 h-7 sm:w-10 sm:h-10 object-contain rounded-lg"
                 />
               </div>
               <span>The Q BOWL</span>
             </Link>
             <button
               onClick={() => setMenuOpen(false)}
-              className="p-3 rounded-full bg-black text-[#E5A00D] border-2 border-[#E5A00D] hover:bg-[#E5A00D] hover:text-black transition-all shadow-[3px_3px_0px_#000]"
+              className="p-2 sm:p-3 rounded-full bg-black text-[#E5A00D] border-2 border-[#E5A00D] hover:bg-[#E5A00D] hover:text-black transition-all shadow-[2px_2px_0px_#000] sm:shadow-[3px_3px_0px_#000]"
               aria-label="Close Menu"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           </div>
 
           {/* Big Navigation Links */}
-          <div className="my-auto py-8 flex flex-col gap-6 text-center sm:text-left max-w-xl mx-auto w-full">
-            <span className="font-mouse-memoirs text-2xl text-[#E5A00D] uppercase font-bold tracking-widest block">
+          <div className="my-auto py-6 sm:py-8 flex flex-col gap-4 sm:gap-6 text-left max-w-xl mx-auto w-full">
+            <span className="font-mouse-memoirs text-xl sm:text-2xl text-[#E5A00D] uppercase font-bold tracking-widest block">
               QUICK NAVIGATION
             </span>
-            <nav className="flex flex-col gap-4 font-outfit text-3xl sm:text-5xl font-black uppercase text-[#FFF8EE] tracking-tight">
+            <nav className="flex flex-col gap-2.5 sm:gap-4 font-outfit text-2xl sm:text-4xl md:text-5xl font-black uppercase text-[#FFF8EE] tracking-tight">
               {[
                 { label: "Today's Menu", href: "#menu" },
                 { label: "Subscription Plans", href: "#subscriptions" },
@@ -166,36 +166,36 @@ export default function Navbar() {
                   key={idx}
                   href={item.href}
                   onClick={() => setMenuOpen(false)}
-                  className="hover:text-[#E5A00D] transition-colors flex items-center justify-between group py-1"
+                  className="hover:text-[#E5A00D] transition-colors flex items-center justify-between group py-1 border-b border-white/5 sm:border-transparent"
                 >
                   <span>{item.label}</span>
-                  <ArrowRight className="w-8 h-8 text-[#E5A00D] opacity-0 group-hover:opacity-100 transform -translate-x-4 group-hover:translate-x-0 transition-all" />
+                  <ArrowRight className="w-5 h-5 sm:w-8 sm:h-8 text-[#E5A00D] opacity-60 sm:opacity-0 group-hover:opacity-100 transform -translate-x-2 sm:-translate-x-4 group-hover:translate-x-0 transition-all" />
                 </a>
               ))}
             </nav>
           </div>
 
           {/* Drawer Footer Actions */}
-          <div className="border-t-2 border-[#E5A00D]/30 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
-              <span className="font-sans text-xs font-bold text-[#E5A00D] uppercase tracking-wider">
+          <div className="border-t-2 border-[#E5A00D]/30 pt-5 sm:pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0 pb-2">
+            <div className="flex items-center gap-2 text-center sm:text-left">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping shrink-0" />
+              <span className="font-sans text-[11px] sm:text-xs font-bold text-[#E5A00D] uppercase tracking-wider">
                 Kitchen Live &amp; Dispatching • Hyderabad
               </span>
             </div>
 
-            <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="flex items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
               <Link
                 href="/login"
                 onClick={() => setMenuOpen(false)}
-                className="flex-1 sm:flex-initial px-6 py-3 rounded-full bg-[#E5A00D] text-black font-outfit text-sm font-extrabold uppercase tracking-wider text-center hover:bg-white transition-all shadow-[3px_3px_0px_#000]"
+                className="flex-1 sm:flex-initial px-5 py-2.5 sm:px-6 sm:py-3 rounded-full bg-[#E5A00D] text-black font-outfit text-xs sm:text-sm font-extrabold uppercase tracking-wider text-center hover:bg-white transition-all shadow-[2px_2px_0px_#000] sm:shadow-[3px_3px_0px_#000]"
               >
                 Sign In
               </Link>
               <Link
                 href="/register"
                 onClick={() => setMenuOpen(false)}
-                className="flex-1 sm:flex-initial px-6 py-3 rounded-full bg-[#FFF8EE] text-black font-outfit text-sm font-extrabold uppercase tracking-wider text-center hover:bg-[#E5A00D] transition-all shadow-[3px_3px_0px_#000]"
+                className="flex-1 sm:flex-initial px-5 py-2.5 sm:px-6 sm:py-3 rounded-full bg-[#FFF8EE] text-black font-outfit text-xs sm:text-sm font-extrabold uppercase tracking-wider text-center hover:bg-[#E5A00D] transition-all shadow-[2px_2px_0px_#000] sm:shadow-[3px_3px_0px_#000]"
               >
                 Register
               </Link>

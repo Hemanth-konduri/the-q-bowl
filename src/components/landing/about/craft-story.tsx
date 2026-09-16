@@ -30,19 +30,45 @@ export default function CraftStory() {
     if (!section || !cards || !card1 || !card2 || !card3) return;
 
     const ctx = gsap.context(() => {
+      // ------------------------------------------
+      // HEADER TEXT REVEALS
+      // ------------------------------------------
+      const textElements = section.querySelectorAll(".gsap-reveal");
+      if (textElements.length > 0) {
+        gsap.fromTo(
+          textElements,
+          {
+            opacity: 0,
+            y: 40,
+          },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.9,
+            stagger: 0.15,
+            ease: "power3.out",
+            scrollTrigger: {
+              trigger: section,
+              start: "top 80%",
+              once: true,
+            },
+          }
+        );
+      }
+
       const mm = gsap.matchMedia();
 
       // ------------------------------------------
       // DESKTOP ANIMATION
       // ------------------------------------------
       mm.add("(min-width: 768px)", () => {
-        // Initial position:
-        // Cards start slightly closer together and tilted.
+        // Initial setup for cards
         gsap.set(card1, {
           x: 0,
           y: 20,
           rotation: -8,
           scale: 0.96,
+          opacity: 0,
         });
 
         gsap.set(card2, {
@@ -50,6 +76,7 @@ export default function CraftStory() {
           y: -15,
           rotation: -2,
           scale: 1,
+          opacity: 0,
         });
 
         gsap.set(card3, {
@@ -57,9 +84,23 @@ export default function CraftStory() {
           y: 15,
           rotation: 9,
           scale: 0.96,
+          opacity: 0,
         });
 
-        // Main smooth scroll animation
+        // Entrance animation
+        gsap.to([card1, card2, card3], {
+          opacity: 1,
+          duration: 1,
+          stagger: 0.15,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: cards,
+            start: "top 85%",
+            once: true,
+          },
+        });
+
+        // Main smooth scroll spread animation
         const tl = gsap.timeline({
           scrollTrigger: {
             trigger: section,
@@ -69,54 +110,45 @@ export default function CraftStory() {
           },
         });
 
-        /*
-         * The cards smoothly move outward as the user scrolls.
-         * This creates the same "floating / spreading" feeling
-         * from your reference video.
-         */
-
         tl.to(
           card1,
           {
-            x: "-5vw",
-            y: 25,
-            rotation: -8,
-            scale: 1,
+            x: "-4vw",
+            y: 30,
+            rotation: -10,
+            scale: 1.02,
             ease: "none",
           },
           0
         )
-
           .to(
             card2,
             {
               x: "0vw",
-              y: -5,
-              rotation: -2,
-              scale: 1.03,
+              y: -10,
+              rotation: 0,
+              scale: 1.06,
               ease: "none",
             },
             0
           )
-
           .to(
             card3,
             {
-              x: "5vw",
-              y: 20,
-              rotation: 9,
-              scale: 1,
+              x: "4vw",
+              y: 25,
+              rotation: 11,
+              scale: 1.02,
               ease: "none",
             },
             0
           );
 
         // ------------------------------------------
-        // SUBTLE FLOATING MOTION
+        // SUBTLE FLOATING LEVITATION MOTION
         // ------------------------------------------
-
         gsap.to(card1, {
-          y: "+=8",
+          y: "+=12",
           duration: 3.2,
           repeat: -1,
           yoyo: true,
@@ -124,7 +156,7 @@ export default function CraftStory() {
         });
 
         gsap.to(card2, {
-          y: "-=10",
+          y: "-=14",
           duration: 3.8,
           repeat: -1,
           yoyo: true,
@@ -133,7 +165,7 @@ export default function CraftStory() {
         });
 
         gsap.to(card3, {
-          y: "+=9",
+          y: "+=12",
           duration: 3.5,
           repeat: -1,
           yoyo: true,
@@ -144,24 +176,22 @@ export default function CraftStory() {
         // ------------------------------------------
         // HOVER EFFECT
         // ------------------------------------------
-
         [card1, card2, card3].forEach((card) => {
           const image = card.querySelector(".story-image");
-
           if (!image) return;
 
           card.addEventListener("mouseenter", () => {
             gsap.to(card, {
-              scale: 1.045,
-              y: -8,
-              duration: 0.5,
+              scale: 1.06,
+              y: -12,
+              duration: 0.4,
               ease: "power3.out",
               overwrite: "auto",
             });
 
             gsap.to(image, {
-              scale: 1.06,
-              duration: 0.8,
+              scale: 1.08,
+              duration: 0.6,
               ease: "power3.out",
               overwrite: "auto",
             });
@@ -170,14 +200,14 @@ export default function CraftStory() {
           card.addEventListener("mouseleave", () => {
             gsap.to(card, {
               scale: 1,
-              duration: 0.6,
+              duration: 0.5,
               ease: "power3.out",
               overwrite: "auto",
             });
 
             gsap.to(image, {
               scale: 1,
-              duration: 0.8,
+              duration: 0.6,
               ease: "power3.out",
               overwrite: "auto",
             });
@@ -186,28 +216,27 @@ export default function CraftStory() {
       });
 
       // ------------------------------------------
-      // MOBILE
+      // MOBILE ANIMATION
       // ------------------------------------------
-
       mm.add("(max-width: 767px)", () => {
         gsap.fromTo(
           [card1, card2, card3],
           {
             opacity: 0,
-            y: 50,
+            y: 40,
             scale: 0.95,
           },
           {
             opacity: 1,
             y: 0,
             scale: 1,
-            duration: 1,
+            duration: 0.9,
             stagger: 0.15,
             ease: "power3.out",
             scrollTrigger: {
               trigger: cards,
-              start: "top 80%",
-              toggleActions: "play none none reverse",
+              start: "top 85%",
+              once: true,
             },
           }
         );

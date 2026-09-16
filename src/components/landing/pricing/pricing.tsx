@@ -58,30 +58,30 @@ export default function Pricing() {
         <div className="grid lg:grid-cols-12 gap-8 items-start">
           
           {/* Controls */}
-          <div className="gsap-reveal lg:col-span-7 retro-card p-8 bg-white border-2 border-black/20 space-y-8">
+          <div className="gsap-reveal lg:col-span-7 retro-card p-5 sm:p-8 bg-white border-2 border-black/20 space-y-6 sm:space-y-8">
             <div>
-              <h3 className="font-outfit text-2xl font-bold text-black uppercase">Build Your Custom Plan</h3>
+              <h3 className="font-outfit text-xl sm:text-2xl font-bold text-black uppercase">Build Your Custom Plan</h3>
               <p className="font-sans text-xs text-black/70 mt-1 font-medium">Select plan duration and preferred daily meal slots.</p>
             </div>
 
             {/* Duration Selector */}
             <div>
-              <label className="font-outfit text-xs font-bold uppercase tracking-wider text-black block mb-3">
+              <label className="font-outfit text-xs font-bold uppercase tracking-wider text-black block mb-2 sm:mb-3">
                 1. Select Duration (Days)
               </label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 {([7, 15, 30] as const).map((d) => (
                   <button
                     key={d}
                     onClick={() => setDuration(d)}
-                    className={`p-4 rounded-2xl border-2 transition-all ${
+                    className={`p-2.5 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all ${
                       duration === d
-                        ? "bg-black border-black text-white shadow-[4px_4px_0px_#000000]"
+                        ? "bg-black border-black text-white shadow-[2px_2px_0px_#000000] sm:shadow-[4px_4px_0px_#000000]"
                         : "bg-[#FFF8EE] border-black text-black hover:bg-[#E5A00D]/20"
                     }`}
                   >
-                    <div className="font-outfit text-2xl font-bold">{d} Days</div>
-                    <div className="font-sans text-xs opacity-90 font-medium mt-1">
+                    <div className="font-outfit text-base sm:text-2xl font-bold">{d} Days</div>
+                    <div className="font-sans text-[10px] sm:text-xs opacity-90 font-medium mt-0.5 sm:mt-1">
                       {d === 30 ? "Save 15%" : d === 15 ? "Save 10%" : "Standard"}
                     </div>
                   </button>
@@ -91,44 +91,44 @@ export default function Pricing() {
 
             {/* Meal Slot Selector */}
             <div>
-              <label className="font-outfit text-xs font-bold uppercase tracking-wider text-black block mb-3">
+              <label className="font-outfit text-xs font-bold uppercase tracking-wider text-black block mb-2 sm:mb-3">
                 2. Choose Daily Meal Slots
               </label>
-              <div className="grid sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
                 <button
                   onClick={() => setMealSlot("LUNCH")}
-                  className={`p-4 rounded-2xl border-2 text-left transition-all ${
+                  className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 text-left transition-all ${
                     mealSlot === "LUNCH"
-                      ? "bg-black border-black text-white shadow-[4px_4px_0px_#000000]"
+                      ? "bg-black border-black text-white shadow-[2px_2px_0px_#000000] sm:shadow-[4px_4px_0px_#000000]"
                       : "bg-[#FFF8EE] border-black text-black hover:bg-[#E5A00D]/20"
                   }`}
                 >
-                  <div className="font-outfit text-lg font-bold">Lunch Only</div>
-                  <div className="font-sans text-xs opacity-80 mt-1 font-normal">12:00-1:30 PM</div>
+                  <div className="font-outfit text-base sm:text-lg font-bold">Lunch Only</div>
+                  <div className="font-sans text-xs opacity-80 mt-0.5 sm:mt-1 font-normal">12:00-1:30 PM</div>
                 </button>
 
                 <button
                   onClick={() => setMealSlot("DINNER")}
-                  className={`p-4 rounded-2xl border-2 text-left transition-all ${
+                  className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 text-left transition-all ${
                     mealSlot === "DINNER"
-                      ? "bg-black border-black text-white shadow-[4px_4px_0px_#000000]"
+                      ? "bg-black border-black text-white shadow-[2px_2px_0px_#000000] sm:shadow-[4px_4px_0px_#000000]"
                       : "bg-[#FFF8EE] border-black text-black hover:bg-[#E5A00D]/20"
                   }`}
                 >
-                  <div className="font-outfit text-lg font-bold">Dinner Only</div>
-                  <div className="font-sans text-xs opacity-80 mt-1 font-normal">7:30-9:00 PM</div>
+                  <div className="font-outfit text-base sm:text-lg font-bold">Dinner Only</div>
+                  <div className="font-sans text-xs opacity-80 mt-0.5 sm:mt-1 font-normal">7:30-9:00 PM</div>
                 </button>
 
                 <button
                   onClick={() => setMealSlot("BOTH")}
-                  className={`p-4 rounded-2xl border-2 text-left transition-all ${
+                  className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 text-left transition-all ${
                     mealSlot === "BOTH"
-                      ? "bg-black border-black text-white shadow-[4px_4px_0px_#000000]"
+                      ? "bg-black border-black text-white shadow-[2px_2px_0px_#000000] sm:shadow-[4px_4px_0px_#000000]"
                       : "bg-[#FFF8EE] border-black text-black hover:bg-[#E5A00D]/20"
                   }`}
                 >
-                  <div className="font-outfit text-lg font-bold">Lunch + Dinner</div>
-                  <div className="font-sans text-xs opacity-80 mt-1 font-normal">Best Value</div>
+                  <div className="font-outfit text-base sm:text-lg font-bold">Lunch + Dinner</div>
+                  <div className="font-sans text-xs opacity-80 mt-0.5 sm:mt-1 font-normal">Best Value</div>
                 </button>
               </div>
             </div>
@@ -152,7 +152,7 @@ export default function Pricing() {
           </div>
 
           {/* Price Summary Card */}
-          <div className="gsap-reveal lg:col-span-5 retro-card-dark p-8 border-4 border-[#E5A00D] flex flex-col justify-between h-full bg-black">
+          <div className="gsap-reveal lg:col-span-5 retro-card-dark p-5 sm:p-8 border-4 border-[#E5A00D] flex flex-col justify-between h-full bg-black">
             <div>
               <span className="font-outfit text-xs font-bold text-[#E5A00D] uppercase tracking-wider block mb-4">
                 CALCULATED SUMMARY

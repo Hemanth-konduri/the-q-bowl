@@ -102,7 +102,7 @@ export default function Hero() {
             text-[#E5A00D]
             font-modak
 
-            text-xl sm:text-2xl md:text-4xl
+            text-base sm:text-2xl md:text-4xl
 
             leading-none
             text-center
@@ -138,7 +138,7 @@ export default function Hero() {
             text-[#E5A00D]
             font-modak
 
-            text-xl sm:text-2xl md:text-4xl
+            text-base sm:text-2xl md:text-4xl
 
             leading-none
             text-center
@@ -170,7 +170,7 @@ export default function Hero() {
 
             font-mouse-memoirs
 
-            text-[32vw]
+            text-[27vw]
             sm:text-[27vw]
             md:text-[25vw]
 
@@ -247,7 +247,7 @@ export default function Hero() {
 
             font-modak
 
-            text-[18vw]
+            text-[16vw]
             sm:text-[15vw]
             md:text-[13vw]
 

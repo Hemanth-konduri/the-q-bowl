@@ -920,6 +920,16 @@ export function CustomerDashboardView() {
       } else {
         setActiveTab("home");
         setActiveCategory("All Delicacies");
+        try {
+          const saved = sessionStorage.getItem("qbowl_selected_meal");
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            setSelectedFoodModal(parsed);
+            sessionStorage.removeItem("qbowl_selected_meal");
+          }
+        } catch (err) {
+          console.error("Error reading selected meal:", err);
+        }
       }
     }
 
