@@ -8,6 +8,7 @@ import {
   addresses,
 } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { BatchService } from "./batchService";
 
 export class SubscriptionService {
   /**
@@ -193,84 +194,19 @@ export class SubscriptionService {
         .set({ subscriptionId: subRecord.id })
         .where(eq(payments.id, payment.id));
 
-      // 5. Generate full initial delivery schedules
-      await SubscriptionService.generateDeliverySchedules(subRecord);
+      // 5. Generate full initial delivery schedules & manifest via BatchService
+      await BatchService.generateSubscriptionScheduleAndManifest(subRecord);
     }
 
     return subRecord;
   }
 
   /**
-   * Generates initial scheduled delivery rows in subscriptionDeliveries
+   * Generates initial scheduled delivery rows in subscriptionDeliveries & deliveryManifest
    */
-  public static async generateDeliverySchedules(sub: {
-    id: string;
-    mealId: string | null;
-    mealCreditsPurchased: number;
-    mealsPerDay: number;
-    mealTiming: string;
-    startDate: string;
-  }) {
-    const existing = await db
-      .select()
-      .from(subscriptionDeliveries)
-      .where(eq(subscriptionDeliveries.subscriptionId, sub.id))
-      .limit(1);
-
-    if (existing.length > 0) return;
-
-    const totalCredits = sub.mealCreditsPurchased || 20;
-    const mealsPerDay = sub.mealsPerDay || 1;
-    const days = Math.ceil(totalCredits / mealsPerDay);
-
-    let curr = new Date(sub.startDate || Date.now());
-    let scheduled = 0;
-
-    const rowsToInsert = [];
-
-    for (let dayIdx = 0; dayIdx < days && scheduled < totalCredits; dayIdx++) {
-      const dateStr = curr.toISOString().split("T")[0];
-
-      if (mealsPerDay === 2 || sub.mealTiming === "BOTH") {
-        rowsToInsert.push({
-          id: `sdel-${sub.id}-${dateStr}-lunch`,
-          subscriptionId: sub.id,
-          deliveryDate: dateStr,
-          mealType: "LUNCH",
-          status: "SCHEDULED",
-          mealId: sub.mealId || null,
-        });
-        scheduled++;
-
-        if (scheduled < totalCredits) {
-          rowsToInsert.push({
-            id: `sdel-${sub.id}-${dateStr}-dinner`,
-            subscriptionId: sub.id,
-            deliveryDate: dateStr,
-            mealType: "DINNER",
-            status: "SCHEDULED",
-            mealId: sub.mealId || null,
-          });
-          scheduled++;
-        }
-      } else {
-        rowsToInsert.push({
-          id: `sdel-${sub.id}-${dateStr}-${(sub.mealTiming || "LUNCH").toLowerCase()}`,
-          subscriptionId: sub.id,
-          deliveryDate: dateStr,
-          mealType: sub.mealTiming === "DINNER" ? "DINNER" : "LUNCH",
-          status: "SCHEDULED",
-          mealId: sub.mealId || null,
-        });
-        scheduled++;
-      }
-
-      curr.setDate(curr.getDate() + 1);
-    }
-
-    if (rowsToInsert.length > 0) {
-      await db.insert(subscriptionDeliveries).values(rowsToInsert);
-    }
+  public static async generateDeliverySchedules(sub: any) {
+    const { BatchService } = await import("./batchService");
+    await BatchService.generateSubscriptionScheduleAndManifest(sub);
   }
 
   /**

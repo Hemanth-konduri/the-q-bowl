@@ -111,11 +111,19 @@ export async function POST(req: Request) {
           .set({
             mealsUsed: sql`${subscriptions.mealsUsed} + 1`,
             mealsRemaining: sql`GREATEST(0, ${subscriptions.mealsRemaining} - 1)`,
+            creditsRemaining: sql`GREATEST(0, COALESCE(${subscriptions.creditsRemaining}, ${subscriptions.mealsRemaining}) - 1)`,
             updatedAt: now,
           })
           .where(eq(subscriptions.id, subDel.subscriptionId));
 
-        // 3. Update delivery assignment
+        // 3. Update delivery manifest
+        const { deliveryManifest } = await import("@/db/schema");
+        await db
+          .update(deliveryManifest)
+          .set({ status: "DELIVERED", deliveredAt: now, updatedAt: now })
+          .where(eq(deliveryManifest.referenceId, deliveryId));
+
+        // 4. Update delivery assignment
         await db
           .update(deliveryAssignments)
           .set({ status: "DELIVERED", updatedAt: now })

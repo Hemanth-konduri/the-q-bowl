@@ -237,6 +237,10 @@ export class OrderService {
       })
       .where(eq(orders.id, orderId));
 
+    // Add to unified delivery manifest for batch operations
+    const { BatchService } = await import("./batchService");
+    await BatchService.addDailyOrderToManifest(ord);
+
     // Ensure delivery assignment exists
     const existingAssignment = await db
       .select()

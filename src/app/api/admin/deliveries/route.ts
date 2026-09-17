@@ -348,7 +348,29 @@ export async function PATCH(req: NextRequest) {
             updatedAt: new Date(),
           })
           .where(eq(subscriptionDeliveries.id, targetId));
-      } catch (e) {}
+
+        if (deliveryStatus === "DELIVERED") {
+          const subDel = await db
+            .select({ subscriptionId: subscriptionDeliveries.subscriptionId })
+            .from(subscriptionDeliveries)
+            .where(eq(subscriptionDeliveries.id, targetId))
+            .limit(1);
+
+          if (subDel.length > 0) {
+            await db
+              .update(subscriptions)
+              .set({
+                creditsRemaining: sql`GREATEST(0, COALESCE(${subscriptions.creditsRemaining}, ${subscriptions.mealsRemaining}) - 1)`,
+                mealsRemaining: sql`GREATEST(0, ${subscriptions.mealsRemaining} - 1)`,
+                mealsUsed: sql`${subscriptions.mealsUsed} + 1`,
+                updatedAt: new Date(),
+              })
+              .where(eq(subscriptions.id, subDel[0].subscriptionId));
+          }
+        }
+      } catch (e) {
+        console.error("Error updating subscriber delivery:", e);
+      }
     }
 
     return NextResponse.json({

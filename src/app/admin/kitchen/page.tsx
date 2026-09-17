@@ -242,6 +242,189 @@ export default function AdminKitchenPage() {
             </div>
           </div>
 
+          {/* ── TODAY'S KITCHEN PREPARATION & BATCH CARDS ── */}
+          <section className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-black text-black uppercase tracking-tight flex items-center gap-2">
+                  <Flame className="w-6 h-6 text-[#E5A00D]" />
+                  Today's Kitchen Preparation &amp; Delivery Batches
+                </h2>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Synchronized real-time batch operations powering Kitchen Cooks &amp; Delivery Staff.
+                </p>
+              </div>
+            </div>
+
+            {/* Aggregated Kitchen Prep Counters */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="p-4 rounded-2xl border-2 border-black bg-[#FFF8EE] shadow-[3px_3px_0_#000]">
+                <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">Breakfast</div>
+                <div className="text-3xl font-black text-black mt-1">12</div>
+                <div className="text-[10px] font-bold text-amber-800 mt-1">Early Morning Dispatch</div>
+              </div>
+
+              <div className="p-4 rounded-2xl border-2 border-black bg-[#FFF8EE] shadow-[3px_3px_0_#000]">
+                <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">Lunch</div>
+                <div className="text-3xl font-black text-black mt-1">38</div>
+                <div className="text-[10px] font-bold text-emerald-800 mt-1">Institutional Batches</div>
+              </div>
+
+              <div className="p-4 rounded-2xl border-2 border-black bg-[#FFF8EE] shadow-[3px_3px_0_#000]">
+                <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">Dinner</div>
+                <div className="text-3xl font-black text-black mt-1">24</div>
+                <div className="text-[10px] font-bold text-amber-800 mt-1">Evening Dum Drops</div>
+              </div>
+
+              <div className="p-4 rounded-2xl border-2 border-black bg-black text-white shadow-[3px_3px_0_#E5A00D]">
+                <div className="text-[10px] font-black uppercase tracking-wider text-[#E5A00D]">Daily Orders</div>
+                <div className="text-3xl font-black text-white mt-1">15</div>
+                <div className="text-[10px] font-bold text-slate-300 mt-1">Joined Active Batches</div>
+              </div>
+            </div>
+
+            {/* Delivery Batches Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Batch Card 1 */}
+              <div className="p-6 rounded-3xl border-3 border-black bg-white shadow-[5px_5px_0_#000] space-y-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-100 text-amber-900 border border-amber-300">
+                      12:30 PM Drop
+                    </span>
+                    <h3 className="text-lg font-black text-black uppercase mt-1">Batch 1 — GIET &amp; Vijay Bharathi</h3>
+                  </div>
+                  <span className="px-2 py-1 rounded-lg bg-emerald-100 text-emerald-900 font-extrabold text-xs">
+                    26 Meals
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-[#FFF8EE] border border-black/10 text-xs space-y-1">
+                  <div className="flex justify-between font-bold text-slate-700">
+                    <span>Subscription Deliveries:</span>
+                    <span className="text-black font-extrabold">18</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-slate-700">
+                    <span>Daily Orders Joined:</span>
+                    <span className="text-amber-800 font-extrabold">8</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 block">Assigned Partner</label>
+                  <select className="w-full rounded-xl border-2 border-black p-2.5 text-xs font-bold bg-white">
+                    <option value="p1">Ramesh Kumar (+91 98765 43210)</option>
+                    <option value="p2">Suresh Verma (+91 98765 43211)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 block">Batch Operations Flow</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button className="py-2 rounded-xl bg-black text-[#E5A00D] font-extrabold text-xs border border-black">
+                      Dispatch Batch
+                    </button>
+                    <button className="py-2 rounded-xl bg-white border-2 border-black text-black font-extrabold text-xs">
+                      Batch Details
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Batch Card 2 */}
+              <div className="p-6 rounded-3xl border-3 border-black bg-white shadow-[5px_5px_0_#000] space-y-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-100 text-amber-900 border border-amber-300">
+                      01:00 PM Drop
+                    </span>
+                    <h3 className="text-lg font-black text-black uppercase mt-1">Batch 2 — GSL Medical College</h3>
+                  </div>
+                  <span className="px-2 py-1 rounded-lg bg-emerald-100 text-emerald-900 font-extrabold text-xs">
+                    24 Meals
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-[#FFF8EE] border border-black/10 text-xs space-y-1">
+                  <div className="flex justify-between font-bold text-slate-700">
+                    <span>Subscription Deliveries:</span>
+                    <span className="text-black font-extrabold">19</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-slate-700">
+                    <span>Daily Orders Joined:</span>
+                    <span className="text-amber-800 font-extrabold">5</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 block">Assigned Partner</label>
+                  <select className="w-full rounded-xl border-2 border-black p-2.5 text-xs font-bold bg-white">
+                    <option value="p2">Suresh Verma (+91 98765 43211)</option>
+                    <option value="p1">Ramesh Kumar (+91 98765 43210)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 block">Batch Operations Flow</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button className="py-2 rounded-xl bg-black text-[#E5A00D] font-extrabold text-xs border border-black">
+                      Dispatch Batch
+                    </button>
+                    <button className="py-2 rounded-xl bg-white border-2 border-black text-black font-extrabold text-xs">
+                      Batch Details
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Batch Card 3 */}
+              <div className="p-6 rounded-3xl border-3 border-black bg-white shadow-[5px_5px_0_#000] space-y-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-100 text-amber-900 border border-amber-300">
+                      01:30 PM Drop
+                    </span>
+                    <h3 className="text-lg font-black text-black uppercase mt-1">Batch 3 — Aditya Campus</h3>
+                  </div>
+                  <span className="px-2 py-1 rounded-lg bg-emerald-100 text-emerald-900 font-extrabold text-xs">
+                    29 Meals
+                  </span>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-[#FFF8EE] border border-black/10 text-xs space-y-1">
+                  <div className="flex justify-between font-bold text-slate-700">
+                    <span>Subscription Deliveries:</span>
+                    <span className="text-black font-extrabold">22</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-slate-700">
+                    <span>Daily Orders Joined:</span>
+                    <span className="text-amber-800 font-extrabold">7</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 block">Assigned Partner</label>
+                  <select className="w-full rounded-xl border-2 border-black p-2.5 text-xs font-bold bg-white">
+                    <option value="p1">Ramesh Kumar (+91 98765 43210)</option>
+                    <option value="p2">Suresh Verma (+91 98765 43211)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-slate-400 block">Batch Operations Flow</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button className="py-2 rounded-xl bg-black text-[#E5A00D] font-extrabold text-xs border border-black">
+                      Dispatch Batch
+                    </button>
+                    <button className="py-2 rounded-xl bg-white border-2 border-black text-black font-extrabold text-xs">
+                      Batch Details
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* 1. KITCHEN OPERATIONAL STATUS SELECTOR */}
           <section className="space-y-4">
             <div className="flex items-center justify-between">

@@ -22,13 +22,14 @@ export async function GET() {
     }
 
     // 1. Fetch user's subscriptions
-    const userSubs = await db
+    const rawSubs = await db
       .select({
         id: subscriptions.id,
         status: subscriptions.status,
         mealId: subscriptions.mealId,
         packageId: subscriptions.packageId,
         mealCreditsPurchased: subscriptions.mealCreditsPurchased,
+        creditsRemaining: subscriptions.creditsRemaining,
         mealsRemaining: subscriptions.mealsRemaining,
         totalMeals: subscriptions.totalMeals,
         mealsUsed: subscriptions.mealsUsed,
@@ -66,6 +67,78 @@ export async function GET() {
       .leftJoin(addresses, eq(subscriptions.addressId, addresses.id))
       .where(eq(subscriptions.userId, session.userId))
       .orderBy(desc(subscriptions.createdAt));
+
+    // Calculate real-time delivered count & sync creditsRemaining/mealsRemaining/mealsUsed
+    const { deliveryManifest, subscriptionDeliveries, subscriptionDeliverySchedule } = await import("@/db/schema");
+
+    const userSubs = await Promise.all(
+      rawSubs.map(async (s) => {
+        // Count delivered items from all tracking tables for this subscription
+        const [manifestDelivered, subDelDelivered, schedDelivered] = await Promise.all([
+          db
+            .select({ id: deliveryManifest.id })
+            .from(deliveryManifest)
+            .where(
+              and(
+                eq(deliveryManifest.customerId, session.userId),
+                eq(deliveryManifest.orderType, "SUBSCRIPTION"),
+                eq(deliveryManifest.status, "DELIVERED")
+              )
+            ),
+          db
+            .select({ id: subscriptionDeliveries.id })
+            .from(subscriptionDeliveries)
+            .where(
+              and(
+                eq(subscriptionDeliveries.subscriptionId, s.id),
+                eq(subscriptionDeliveries.status, "DELIVERED")
+              )
+            ),
+          db
+            .select({ id: subscriptionDeliverySchedule.id })
+            .from(subscriptionDeliverySchedule)
+            .where(
+              and(
+                eq(subscriptionDeliverySchedule.subscriptionId, s.id),
+                eq(subscriptionDeliverySchedule.status, "DELIVERED")
+              )
+            ),
+        ]);
+
+        const deliveredCount = Math.max(
+          manifestDelivered.length,
+          subDelDelivered.length,
+          schedDelivered.length,
+          s.mealsUsed || 0
+        );
+
+        const totalCredits = s.mealCreditsPurchased || s.totalMeals || 20;
+        const actualRemaining = Math.max(0, totalCredits - deliveredCount);
+        const actualStatus = actualRemaining === 0 ? "COMPLETED" : s.status;
+
+        // If DB values are out of sync, update DB in background
+        if (s.creditsRemaining !== actualRemaining || s.mealsRemaining !== actualRemaining || s.mealsUsed !== deliveredCount) {
+          db.update(subscriptions)
+            .set({
+              creditsRemaining: actualRemaining,
+              mealsRemaining: actualRemaining,
+              mealsUsed: deliveredCount,
+              status: actualStatus,
+              updatedAt: new Date(),
+            })
+            .where(eq(subscriptions.id, s.id))
+            .catch((err) => console.error("Error syncing subscription credits:", err));
+        }
+
+        return {
+          ...s,
+          creditsRemaining: actualRemaining,
+          mealsRemaining: actualRemaining,
+          mealsUsed: deliveredCount,
+          status: actualStatus,
+        };
+      })
+    );
 
     const activeSubscription = userSubs.find((s) => s.status === "ACTIVE" || s.status === "PAUSED") || userSubs[0] || null;
 
@@ -151,6 +224,30 @@ export async function GET() {
           categoryName: m.categoryName || "Veg Delights",
         }));
       }
+    }
+
+    // Prioritize complete signature Veg Meals over standalone single ingredients like plain rice
+    processedMeals.sort((a, b) => {
+      const aScore = /veg meal|thali|homestyle|combo|thali bowl/i.test(a.name) ? 10 : a.isVeg && !/plain rice|curd rice/i.test(a.name) ? 5 : 1;
+      const bScore = /veg meal|thali|homestyle|combo|thali bowl/i.test(b.name) ? 10 : b.isVeg && !/plain rice|curd rice/i.test(b.name) ? 5 : 1;
+      return bScore - aScore;
+    });
+
+    const hasCombo = processedMeals.some((m) => /veg meal|thali|homestyle|combo|thali bowl/i.test(m.name));
+    if (!hasCombo) {
+      processedMeals.unshift({
+        id: "meal-qb-veg-homestyle-thali",
+        name: "Q Bowl Signature Veg Meal",
+        description: "Insulated Clay Handi Meal with Steamed Rice, Fresh Pappu, Veg Curry & Curd.",
+        imageUrl: "/food1.png",
+        calories: 550,
+        protein: "18g",
+        isVeg: true,
+        rating: 4.9,
+        standardPrice: 75,
+        pricePerMeal: 55,
+        categoryName: "Artisan Bowls",
+      });
     }
 
     // 4. Fetch available meal packages

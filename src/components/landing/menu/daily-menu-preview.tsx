@@ -152,8 +152,8 @@ export default function DailyMenuPreview() {
         bg-black
         text-[#f5e3cd]
         overflow-hidden
-        pt-32
-        pb-40
+        pt-12 sm:pt-28 md:pt-32
+        pb-16 sm:pb-36 md:pb-40
       "
     >
       <div
@@ -162,7 +162,7 @@ export default function DailyMenuPreview() {
           z-10
           max-w-7xl
           mx-auto
-          px-4
+          px-3
           sm:px-6
           lg:px-8
         "
@@ -176,19 +176,19 @@ export default function DailyMenuPreview() {
             text-center
             max-w-3xl
             mx-auto
-            mb-16
+            mb-8 sm:mb-16
           "
         >
           <span
             className="
               font-mouse-memoirs
-              text-xl
+              text-lg
               sm:text-2xl
               text-[#E5A00D]
               uppercase
-              tracking-[0.25em]
+              tracking-[0.2em]
               block
-              mb-4
+              mb-2 sm:mb-4
             "
           >
             DAILY CHANGING KITCHEN MENU
@@ -197,14 +197,14 @@ export default function DailyMenuPreview() {
           <h2
             className="
               font-outfit
-              text-5xl
+              text-3xl
               sm:text-6xl
               lg:text-7xl
               font-extrabold
               text-[#f5e3cd]
               uppercase
               tracking-tight
-              leading-[0.9]
+              leading-[0.95]
             "
           >
             FRESH FROM
@@ -215,13 +215,14 @@ export default function DailyMenuPreview() {
           <p
             className="
               font-sans
-              text-base
+              text-xs
               sm:text-lg
               text-[#D8C4A9]
-              mt-6
+              mt-2.5 sm:mt-6
               max-w-2xl
               mx-auto
               leading-relaxed
+              px-2
             "
           >
             Fresh ingredients, chef-crafted recipes and bold flavors —
@@ -230,16 +231,16 @@ export default function DailyMenuPreview() {
         </div>
       </div>
 
-      {/* SINGLE-LINE AUTO-SLIDING FOOD ROW WITH SIDE MARGINS */}
-      <div className="relative z-10 w-full max-w-[1600px] mx-auto overflow-hidden py-4 px-4 sm:px-8 md:px-12 lg:px-16">
+      {/* SINGLE-LINE AUTO-SLIDING FOOD ROW WITH MOBILE SIZING */}
+      <div className="relative z-10 w-full max-w-[1600px] mx-auto overflow-hidden py-2 sm:py-4 px-2 sm:px-8 md:px-12 lg:px-16">
         {loadingMenu ? (
-          <div className="flex gap-6 sm:gap-8 overflow-hidden py-4">
+          <div className="flex gap-4 sm:gap-8 overflow-hidden py-2">
             {[1, 2, 3, 4, 5].map((n) => (
               <div
                 key={n}
-                className="w-[280px] sm:w-[320px] shrink-0 h-[380px] rounded-[2rem] bg-zinc-900 border-2 border-[#E5A00D]/20 p-4 space-y-4 animate-pulse"
+                className="w-[220px] sm:w-[320px] shrink-0 h-[300px] sm:h-[380px] rounded-[1.5rem] sm:rounded-[2rem] bg-zinc-900 border-2 border-[#E5A00D]/20 p-3 sm:p-4 space-y-3 animate-pulse"
               >
-                <div className="h-[260px] rounded-[1.5rem] bg-zinc-800" />
+                <div className="h-[200px] sm:h-[260px] rounded-xl bg-zinc-800" />
                 <div className="space-y-2">
                   <div className="h-4 bg-zinc-800 rounded w-3/4" />
                   <div className="h-3 bg-zinc-800/60 rounded w-1/2" />
@@ -248,7 +249,7 @@ export default function DailyMenuPreview() {
             ))}
           </div>
         ) : items.length > 0 ? (
-          <div className="animate-food-slider flex gap-6 sm:gap-8 items-center py-2">
+          <div className="animate-food-slider flex gap-4 sm:gap-8 items-center py-2">
             {[...items, ...items].map((dish, idx) => (
               <article
                 key={`${dish.id}-${idx}`}
@@ -264,7 +265,7 @@ export default function DailyMenuPreview() {
                 className="
                   group
                   cursor-pointer
-                  w-[280px]
+                  w-[220px]
                   sm:w-[320px]
                   shrink-0
                   transition-transform
@@ -276,22 +277,23 @@ export default function DailyMenuPreview() {
                 <div
                   className="
                     relative
-                    h-[280px]
+                    h-[220px]
                     sm:h-[300px]
                     w-full
                     overflow-hidden
-                    rounded-[2rem]
+                    rounded-[1.5rem]
+                    sm:rounded-[2rem]
                     bg-black
                     border-2
                     border-[#E5A00D]/30
-                    shadow-[0_20px_50px_rgba(0,0,0,0.3)]
+                    shadow-[0_15px_35px_rgba(0,0,0,0.4)]
                   "
                 >
                   <Image
                     src={dish.image}
                     alt={dish.name}
                     fill
-                    sizes="(max-width: 640px) 280px, 320px"
+                    sizes="(max-width: 640px) 220px, 320px"
                     priority={idx < 4}
                     className="
                       object-cover
@@ -308,26 +310,26 @@ export default function DailyMenuPreview() {
                   <div
                     className="
                       absolute
-                      top-4
-                      right-4
+                      top-3
+                      right-3
                       flex
                       items-center
                       gap-1
-                      px-3
-                      py-1
+                      px-2.5
+                      py-0.5
                       rounded-full
                       bg-black/90
                       border
                       border-[#E5A00D]/40
                       font-sans
-                      text-xs
+                      text-[11px]
                       font-bold
                       text-[#f5e3cd]
                       shadow-md
                       z-20
                     "
                   >
-                    <Star className="w-3.5 h-3.5 fill-[#E5A00D] text-[#E5A00D]" />
+                    <Star className="w-3 h-3 fill-[#E5A00D] text-[#E5A00D]" />
                     <span>{dish.rating}</span>
                   </div>
 
@@ -335,24 +337,24 @@ export default function DailyMenuPreview() {
                   <div
                     className="
                       absolute
-                      top-4
-                      left-4
-                      px-2.5
-                      py-1
+                      top-3
+                      left-3
+                      px-2
+                      py-0.5
                       rounded-full
                       bg-black/90
                       border
                       border-[#E5A00D]/40
                       flex
                       items-center
-                      gap-1.5
+                      gap-1
                       z-20
                     "
                   >
                     <span
                       className={`
-                        w-2
-                        h-2
+                        w-1.5
+                        h-1.5
                         rounded-full
                         ${dish.isVeg ? "bg-black border border-white/60" : "bg-red-400"}
                       `}
@@ -360,7 +362,7 @@ export default function DailyMenuPreview() {
                     <span
                       className="
                         font-outfit
-                        text-[10px]
+                        text-[9px]
                         font-bold
                         uppercase
                         tracking-wider
@@ -373,12 +375,13 @@ export default function DailyMenuPreview() {
                 </div>
 
                 {/* CARD DETAILS */}
-                <div className="mt-5 space-y-2 px-1">
-                  <div className="flex items-start justify-between gap-2">
+                <div className="mt-3 sm:mt-5 space-y-1 sm:space-y-2 px-1">
+                  <div className="flex items-start justify-between gap-1.5">
                     <h3
                       className="
                         font-outfit
-                        text-xl
+                        text-base
+                        sm:text-xl
                         font-extrabold
                         text-[#f5e3cd]
                         uppercase
@@ -394,7 +397,8 @@ export default function DailyMenuPreview() {
                     <span
                       className="
                         font-outfit
-                        text-xl
+                        text-base
+                        sm:text-xl
                         font-black
                         text-[#E5A00D]
                         shrink-0
@@ -410,7 +414,8 @@ export default function DailyMenuPreview() {
                       items-center
                       justify-between
                       font-sans
-                      text-xs
+                      text-[10px]
+                      sm:text-xs
                       text-[#D8C4A9]
                     "
                   >
@@ -427,9 +432,9 @@ export default function DailyMenuPreview() {
             ))}
           </div>
         ) : (
-          <div className="max-w-3xl mx-auto p-12 text-center rounded-3xl border-2 border-[#E5A00D]/20 bg-zinc-900/50">
-            <p className="font-outfit font-black text-xl text-[#f5e3cd]">Kitchen Menu Loading</p>
-            <p className="text-sm text-[#D8C4A9] mt-1">Today&apos;s specials are being freshly prepared in our cloud kitchen.</p>
+          <div className="max-w-3xl mx-auto p-8 sm:p-12 text-center rounded-3xl border-2 border-[#E5A00D]/20 bg-zinc-900/50">
+            <p className="font-outfit font-black text-lg sm:text-xl text-[#f5e3cd]">Kitchen Menu Loading</p>
+            <p className="text-xs sm:text-sm text-[#D8C4A9] mt-1">Today&apos;s specials are being freshly prepared in our cloud kitchen.</p>
           </div>
         )}
       </div>

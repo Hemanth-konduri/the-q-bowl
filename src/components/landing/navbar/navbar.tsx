@@ -51,8 +51,8 @@ export default function Navbar() {
 
   return (
     <>
-      {/* 100% Transparent Floating Navbar with Smooth Color Theme Switch */}
-      <header className="fixed top-0 left-0 w-full z-[990] py-3 sm:py-4 bg-transparent transition-colors duration-500 pointer-events-auto">
+      {/* Floating Navbar with Glass Blur and Dynamic Contrast */}
+      <header className="fixed top-0 left-0 w-full z-[990] py-2.5 sm:py-4 bg-transparent backdrop-blur-[2px] transition-colors duration-500 pointer-events-auto">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 flex items-center justify-between gap-2">
 
           {/* Brand Logo & Icon with Smooth Theme Transition */}
@@ -61,7 +61,7 @@ export default function Navbar() {
             className="flex items-center gap-2 sm:gap-3 shrink-0 group transition-transform duration-300 hover:scale-105 min-w-0"
           >
             <div className={`p-1 rounded-xl border-2 transition-all duration-500 shrink-0 ${isDarkSection
-                ? "bg-[#E5A00D] border-[#E5A00D] shadow-[2px_2px_0px_#FFF8EE]"
+                ? "bg-[#E5A00D] border-black shadow-[2px_2px_0px_#000]"
                 : "bg-[#FFF8EE] border-black shadow-[2px_2px_0px_#000000]"
               }`}>
               <Image
@@ -74,7 +74,7 @@ export default function Navbar() {
               />
             </div>
             <span
-              className={`font-outfit text-xl sm:text-3xl lg:text-4xl font-black uppercase tracking-wider transition-colors duration-500 truncate ${isDarkSection ? "text-[#E5A00D] text-stroke-white" : "text-black text-stroke-small"
+              className={`font-outfit text-lg sm:text-3xl lg:text-4xl font-black uppercase tracking-wider transition-colors duration-500 truncate ${isDarkSection ? "text-[#E5A00D]" : "text-black text-stroke-small"
                 }`}
             >
               The Q BOWL

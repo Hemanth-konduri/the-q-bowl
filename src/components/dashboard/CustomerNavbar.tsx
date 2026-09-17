@@ -48,6 +48,7 @@ interface NotificationItem {
   type: string;
   time: string;
   isRead: boolean;
+  actionUrl?: string;
 }
 
 interface SearchResult {
@@ -116,6 +117,31 @@ export function CustomerNavbar() {
     loadUser();
   }, []);
 
+  // Helper to read local viewed IDs
+  const getViewedNotificationIds = (): string[] => {
+    if (typeof window === "undefined") return [];
+    try {
+      const stored = localStorage.getItem("qbowl_viewed_notif_ids");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  // Helper to save local viewed IDs
+  const addViewedNotificationId = (id: string) => {
+    if (typeof window === "undefined") return;
+    try {
+      const current = getViewedNotificationIds();
+      if (!current.includes(id)) {
+        const updated = [...current, id];
+        localStorage.setItem("qbowl_viewed_notif_ids", JSON.stringify(updated));
+      }
+    } catch {
+      // Ignore
+    }
+  };
+
   // Fetch notifications
   async function loadNotifications() {
     setLoadingNotifs(true);
@@ -123,8 +149,18 @@ export function CustomerNavbar() {
       const res = await fetch("/api/user/notifications");
       if (res.ok) {
         const data = await res.json();
-        setNotifications(data.notifications || []);
-        setUnreadCount(data.unreadCount || 0);
+        const rawNotifs: NotificationItem[] = data.notifications || [];
+        const viewedIds = getViewedNotificationIds();
+
+        // Mark items as read if in DB or in local storage
+        const processed = rawNotifs.map((n) => ({
+          ...n,
+          isRead: n.isRead || viewedIds.includes(n.id),
+        }));
+
+        const unread = processed.filter((n) => !n.isRead).length;
+        setNotifications(processed);
+        setUnreadCount(unread);
       }
     } catch (err) {
       console.error("Failed to load notifications:", err);
@@ -132,6 +168,41 @@ export function CustomerNavbar() {
       setLoadingNotifs(false);
     }
   }
+
+  // Handle single notification click: mark as read and optionally navigate
+  const handleNotificationClick = async (notif: NotificationItem) => {
+    if (!notif.isRead) {
+      // Optimistically update UI
+      addViewedNotificationId(notif.id);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notif.id ? { ...n, isRead: true } : n))
+      );
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+
+      // Sync with backend
+      try {
+        await fetch("/api/user/notifications", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ notificationId: notif.id }),
+        });
+      } catch {
+        // Silently handled
+      }
+    }
+
+    if (notif.actionUrl) {
+      setNotifOpen(false);
+      router.push(notif.actionUrl);
+    }
+  };
+
+  // Mark all notifications as read
+  const handleMarkAllAsRead = () => {
+    notifications.forEach((n) => addViewedNotificationId(n.id));
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    setUnreadCount(0);
+  };
 
   // Load initial notification count
   useEffect(() => {
@@ -761,11 +832,21 @@ export function CustomerNavbar() {
                       Notifications
                     </h4>
                   </div>
-                  {unreadCount > 0 && (
-                    <span className="text-[10px] font-black bg-[#E5A00D] text-black px-2 py-0.5 rounded-full border border-black">
-                      {unreadCount} New
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {unreadCount > 0 && (
+                      <span className="text-[10px] font-black bg-[#E5A00D] text-black px-2 py-0.5 rounded-full border border-black">
+                        {unreadCount} New
+                      </span>
+                    )}
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={handleMarkAllAsRead}
+                        className="text-[10px] font-bold text-zinc-600 hover:text-black underline cursor-pointer"
+                      >
+                        Mark all as read
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {loadingNotifs ? (
@@ -777,17 +858,34 @@ export function CustomerNavbar() {
                     {notifications.map((n) => (
                       <div
                         key={n.id}
-                        className="p-3 rounded-xl bg-[#FFF8EE] border border-black/10 flex items-start gap-3 text-xs hover:border-black/30 transition-colors"
+                        onClick={() => handleNotificationClick(n)}
+                        className={`p-3 rounded-xl border flex items-start gap-3 text-xs transition-all cursor-pointer ${
+                          !n.isRead
+                            ? "bg-[#FFF8EE] border-black/30 shadow-[2px_2px_0px_#000] ring-1 ring-black/10"
+                            : "bg-white border-zinc-200 text-zinc-600 opacity-80 hover:opacity-100 hover:border-black/20"
+                        }`}
                       >
-                        <div className="h-7 w-7 rounded-lg bg-[#E5A00D] text-black flex items-center justify-center shrink-0 mt-0.5 border border-black font-bold">
+                        <div
+                          className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 border border-black font-bold ${
+                            !n.isRead ? "bg-[#E5A00D] text-black" : "bg-zinc-100 text-zinc-600"
+                          }`}
+                        >
                           <Sparkles size={14} />
                         </div>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <p className="font-bold text-black text-xs">{n.title}</p>
-                            <span className="text-[10px] font-medium text-zinc-500">{n.time}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <p className={`text-xs truncate ${!n.isRead ? "font-black text-black" : "font-semibold text-zinc-700"}`}>
+                              {n.title}
+                            </p>
+                            <span className="text-[10px] font-medium text-zinc-400 shrink-0">{n.time}</span>
                           </div>
-                          <p className="text-[11px] text-zinc-600 mt-1 leading-snug">{n.body}</p>
+                          <p className="text-[11px] text-zinc-600 mt-0.5 leading-snug">{n.body}</p>
+                          {!n.isRead && (
+                            <div className="flex items-center gap-1 mt-1 text-[10px] font-black text-[#B47B00]">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#E5A00D]" />
+                              <span>Click to view</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}

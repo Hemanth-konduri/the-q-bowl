@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Modak&family=Mouse+Memoirs&family=Outfit:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -6,14 +7,18 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter), system-ui, sans-serif;
-  --font-display: var(--font-outfit), system-ui, sans-serif;
-  --font-modak: var(--font-modak), cursive, sans-serif;
-  --font-mouse-memoirs: var(--font-mouse-memoirs), sans-serif;
+  --font-sans: var(--font-inter), 'Inter', system-ui, sans-serif;
+  --font-display: var(--font-outfit), 'Outfit', system-ui, sans-serif;
+  --font-modak: var(--font-modak), 'Modak', cursive, sans-serif;
+  --font-mouse-memoirs: var(--font-mouse-memoirs), 'Mouse Memoirs', sans-serif;
   --font-mono: monospace;
 }
 
 :root {
+  --font-outfit: 'Outfit', system-ui, sans-serif;
+  --font-inter: 'Inter', system-ui, sans-serif;
+  --font-modak: 'Modak', cursive, sans-serif;
+  --font-mouse-memoirs: 'Mouse Memoirs', sans-serif;
   --background: #f5e3cd;
   --foreground: #000000;
   --card: #FFF8EE;

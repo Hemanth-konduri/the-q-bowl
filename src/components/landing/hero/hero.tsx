@@ -16,28 +16,21 @@ export default function Hero() {
         bg-[#f5e3cd]
         overflow-hidden
         px-4 sm:px-8
-        pt-[16vw] sm:pt-[10vw] md:pt-[5vw]
+        pt-[68px] sm:pt-[76px] md:pt-[5vw]
         pb-6 md:pb-4
       "
     >
-
       {/* =========================================================
-          3D BIRYANI DISH (CENTERPIECE)
+          DESKTOP 3D BIRYANI DISH (CENTERPIECE)
           ========================================================= */}
-
       <div
         className="
           gsap-hero-dish
+          hidden md:flex
           absolute
           z-10
           pointer-events-none
-          flex items-center justify-center
-
-          w-[80vw]
-          h-[80vw]
-
-          sm:w-[62vw]
-          sm:h-[62vw]
+          items-center justify-center
 
           md:w-[48vw]
           md:h-[48vw]
@@ -45,11 +38,11 @@ export default function Hero() {
           lg:w-[44vw]
           lg:h-[44vw]
 
-          max-w-[320px] sm:max-w-[480px] md:max-w-[650px]
-          max-h-[320px] sm:max-h-[480px] md:max-h-[650px]
+          md:max-w-[650px]
+          md:max-h-[650px]
 
-          left-[46%] sm:left-[46.5%] md:left-[47%]
-          top-[44%] sm:top-[46%] md:top-[47%]
+          md:left-[47%]
+          md:top-[47%]
 
           -translate-x-1/2
           -translate-y-1/2
@@ -63,56 +56,43 @@ export default function Hero() {
             w-full
             h-full
             object-contain
-            drop-shadow-[0_20px_35px_rgba(0,0,0,0.4)]
-            md:drop-shadow-[0_35px_55px_rgba(0,0,0,0.5)]
+            drop-shadow-[0_35px_55px_rgba(0,0,0,0.5)]
           "
         />
       </div>
 
-
       {/* =========================================================
-          MAIN HEADLINE (THE / BOWL + STICKERS)
+          DESKTOP MAIN HEADLINE (THE / BOWL + STICKERS)
           ========================================================= */}
-
       <div
         className="
+          hidden md:block
           relative
           z-20
           w-full
           max-w-[1600px]
           mx-auto
-          h-[35vh] sm:h-[40vh] md:h-[45vh]
-          min-h-[220px] sm:min-h-[300px] md:min-h-[360px]
+          md:h-[45vh]
+          md:min-h-[360px]
         "
       >
-
-        {/* -------------------------
-            LEFT STICKER: SMASHED FRESH
-        -------------------------- */}
-
+        {/* DESKTOP LEFT STICKER: SMASHED FRESH */}
         <p
           className="
             gsap-float
             absolute
             z-30
-
-            top-[16%] sm:top-[26%] md:top-[28%]
-            left-[1%] sm:left-[3%] md:left-[4%]
-
+            top-[28%]
+            left-[4%]
             text-[#E5A00D]
             font-modak
-
-            text-base sm:text-2xl md:text-4xl
-
+            text-4xl
             leading-none
             text-center
             uppercase
-
             rotate-[-10deg]
-
             text-stroke-small sm:text-stroke-180
             drop-shadow-md
-
             select-none
           "
         >
@@ -121,34 +101,23 @@ export default function Hero() {
           FRESH
         </p>
 
-
-        {/* -------------------------
-            RIGHT STICKER: BOLD FLAVOR
-        -------------------------- */}
-
+        {/* DESKTOP RIGHT STICKER: BOLD FLAVOR */}
         <p
           className="
             gsap-float
             absolute
             z-30
-
-            top-[20%] sm:top-[34%] md:top-[38%]
-            right-[1%] sm:right-[2%] md:right-[3%]
-
+            top-[38%]
+            right-[3%]
             text-[#E5A00D]
             font-modak
-
-            text-base sm:text-2xl md:text-4xl
-
+            text-4xl
             leading-none
             text-center
             uppercase
-
             rotate-[10deg]
-
             text-stroke-small sm:text-stroke-180
             drop-shadow-md
-
             select-none
           "
         >
@@ -157,109 +126,173 @@ export default function Hero() {
           FLAVOR
         </p>
 
-
-        {/* =====================================================
-            THE / BOWL DISPLAY TEXT
-            ===================================================== */}
-
+        {/* DESKTOP THE / BOWL DISPLAY TEXT */}
         <h1
           className="
             gsap-pop
             absolute
             inset-0
-
             font-mouse-memoirs
-
-            text-[27vw]
-            sm:text-[27vw]
-            md:text-[25vw]
-
+            text-[25vw]
             leading-[0.72]
-
             text-black
             text-stroke-small sm:text-stroke-180
-
             uppercase
             tracking-tight
-
             select-none
           "
         >
+          <span className="absolute left-[4%] top-[8%]">THE</span>
+          <span className="absolute right-[0%] top-[7%]">BOWL</span>
+        </h1>
+      </div>
 
-          {/* THE - pushed left */}
-          <span
+      {/* =========================================================
+          MOBILE HERO SECTION ("THE" -> BIG BIRYANI -> "BOWL")
+          ========================================================= */}
+      <div className="md:hidden relative z-20 w-full flex-1 flex flex-col items-center justify-center pt-2">
+        
+        {/* TOP: "THE" + STICKER */}
+        <div className="relative w-full text-center flex items-center justify-center">
+          <p
             className="
+              gsap-float
               absolute
-              left-[1%]
-              sm:left-[3%]
-              md:left-[4%]
+              z-30
+              left-2
+              top-1/2
+              -translate-y-1/2
+              text-[#E5A00D]
+              font-modak
+              text-lg
+              leading-none
+              uppercase
+              rotate-[-12deg]
+              text-stroke-small
+              drop-shadow-md
+              select-none
+            "
+          >
+            SMASHED
+            <br />
+            FRESH
+          </p>
 
-              top-[4%] sm:top-[6%] md:top-[8%]
+          <h1
+            className="
+              gsap-pop
+              font-mouse-memoirs
+              text-[38vw]
+              leading-[0.7]
+              text-black
+              text-stroke-small
+              uppercase
+              tracking-tight
+              select-none
             "
           >
             THE
-          </span>
+          </h1>
 
-
-          {/* BOWL - pushed right */}
-          <span
+          <p
             className="
+              gsap-float
               absolute
+              z-30
+              right-2
+              top-1/2
+              -translate-y-1/2
+              text-[#E5A00D]
+              font-modak
+              text-lg
+              leading-none
+              uppercase
+              rotate-[12deg]
+              text-stroke-small
+              drop-shadow-md
+              select-none
+            "
+          >
+            BOLD
+            <br />
+            FLAVOR
+          </p>
+        </div>
 
-              right-[-1%]
-              sm:right-[0%]
-              md:right-[0%]
+        {/* MIDDLE: ENLARGED BIRYANI IMAGE */}
+        <div
+          className="
+            gsap-hero-dish
+            relative
+            z-10
+            w-[88vw]
+            h-[88vw]
+            max-w-[380px]
+            max-h-[380px]
+            my-[-4vw]
+            flex items-center justify-center
+            pointer-events-none
+          "
+        >
+          <Image
+            src={biryaniImg}
+            alt="Q1 Bowl Artisan Hyderabadi Dum Biryani"
+            priority
+            className="
+              w-full
+              h-full
+              object-contain
+              drop-shadow-[0_22px_38px_rgba(0,0,0,0.45)]
+            "
+          />
+        </div>
 
-              top-[3%] sm:top-[5%] md:top-[7%]
+        {/* BOTTOM: "BOWL" */}
+        <div className="relative w-full text-center">
+          <h1
+            className="
+              gsap-pop
+              font-mouse-memoirs
+              text-[38vw]
+              leading-[0.7]
+              text-black
+              text-stroke-small
+              uppercase
+              tracking-tight
+              select-none
             "
           >
             BOWL
-          </span>
-
-        </h1>
-
+          </h1>
+        </div>
       </div>
 
-
       {/* =========================================================
-          BACKGROUND Q1 BOWL TEXT
+          DESKTOP BACKGROUND Q1 BOWL TEXT
           ========================================================= */}
-
       <div
         className="
+          hidden md:block
           absolute
           z-30
-
           left-1/2
           -translate-x-1/2
-
-          bottom-[11vh] sm:bottom-[9vh] md:bottom-[8vh]
-
+          bottom-[8vh]
           w-full
           text-center
-
           pointer-events-none
         "
       >
         <p
           className="
             gsap-pop
-
             font-modak
-
-            text-[16vw]
-            sm:text-[15vw]
-            md:text-[13vw]
-
+            text-[13vw]
             leading-none
-
             uppercase
-
             text-[#E5A00D]
             text-stroke-small sm:text-stroke-180
-
             select-none
-
             whitespace-nowrap
           "
         >
@@ -267,37 +300,29 @@ export default function Hero() {
         </p>
       </div>
 
-
       {/* =========================================================
-          BOTTOM CONTENT (RESPONSIVE FOR MOBILE)
+          BOTTOM CTA & DESCRIPTIONS
           ========================================================= */}
-
       <div
         className="
           relative md:absolute
           z-40
-
           md:bottom-[1vh]
           md:left-1/2
           md:-translate-x-1/2
-
           w-full
           max-w-7xl
-
           px-2 sm:px-8
-
           flex
           flex-col
           md:flex-row
-
           items-center
           md:items-end
           justify-between
-
           gap-3 md:gap-5
         "
       >
-        {/* LEFT DESCRIPTION (HIDDEN ON SMALL MOBILE TO PREVENT OVERLAP) */}
+        {/* LEFT DESCRIPTION (DESKTOP) */}
         <div
           className="
             hidden md:block
@@ -321,8 +346,7 @@ export default function Hero() {
           </p>
         </div>
 
-
-        {/* CTA BUTTONS (STACKED/CENTERED ON MOBILE) */}
+        {/* CTA BUTTONS (RESPONSIVE) */}
         <div
           className="
             flex
@@ -337,12 +361,12 @@ export default function Hero() {
             href="#menu"
             className="
               flex-1 sm:flex-initial
-              px-5 sm:px-6
-              py-2 sm:py-2.5
+              px-6 sm:px-6
+              py-2.5 sm:py-2.5
               rounded-full
 
               font-mouse-memoirs
-              text-xl sm:text-2xl
+              text-2xl sm:text-2xl
               uppercase
               tracking-wide
 
@@ -358,6 +382,7 @@ export default function Hero() {
               transition-all
               transform
               hover:scale-105
+              active:scale-95
 
               shadow-[3px_3px_0px_#000]
 
@@ -370,19 +395,19 @@ export default function Hero() {
             "
           >
             <span>Browse Menu</span>
-            <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+            <ArrowRight className="w-5 h-5" />
           </a>
 
           <a
             href="#subscriptions"
             className="
               flex-1 sm:flex-initial
-              px-5 sm:px-6
-              py-2 sm:py-2.5
+              px-6 sm:px-6
+              py-2.5 sm:py-2.5
               rounded-full
 
               font-mouse-memoirs
-              text-xl sm:text-2xl
+              text-2xl sm:text-2xl
               uppercase
               tracking-wide
 
@@ -398,6 +423,7 @@ export default function Hero() {
               transition-all
               transform
               hover:scale-105
+              active:scale-95
 
               shadow-[3px_3px_0px_#000000]
 
@@ -409,8 +435,7 @@ export default function Hero() {
           </a>
         </div>
 
-
-        {/* RIGHT DESCRIPTION (HIDDEN ON SMALL MOBILE TO PREVENT OVERLAP) */}
+        {/* RIGHT DESCRIPTION (DESKTOP) */}
         <div
           className="
             hidden md:block
@@ -433,9 +458,7 @@ export default function Hero() {
             spices crafted to satisfy your cravings daily.
           </p>
         </div>
-
       </div>
-
     </section>
   );
 }

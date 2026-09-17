@@ -138,12 +138,25 @@ export const addresses = pgTable("addresses", {
 });
 
 // -------------------------------------------------------
-// DELIVERY AREAS
+// DELIVERY BATCHES & AREAS
 // -------------------------------------------------------
+
+export const deliveryBatches = pgTable("delivery_batches", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  mealSlot: text("meal_slot").default("LUNCH").notNull(), // 'BREAKFAST', 'LUNCH', 'DINNER'
+  deliveryTime: text("delivery_time").notNull(), // e.g., "12:30 PM", "1:00 PM", "1:30 PM"
+  assignedPartnerId: text("assigned_partner_id"),
+  status: text("status").default("SCHEDULED").notNull(), // 'SCHEDULED', 'PREPARING', 'PACKED', 'READY', 'DISPATCHED'
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
 
 export const deliveryAreas = pgTable("delivery_areas", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  batchId: text("batch_id").references(() => deliveryBatches.id, { onDelete: "set null" }),
   kitchenLat: real("kitchen_lat").notNull(),
   kitchenLng: real("kitchen_lng").notNull(),
   radius: real("radius").notNull(),
@@ -335,12 +348,14 @@ export const subscriptions = pgTable("subscriptions", {
   planId: text("plan_id").references(() => subscriptionPlans.id),
   paymentId: text("payment_id").references((): AnyPgColumn => payments.id).unique(),
   addressId: text("address_id").references(() => addresses.id),
+  batchId: text("batch_id").references(() => deliveryBatches.id),
   mealCreditsPurchased: integer("meal_credits_purchased").notNull().default(0),
+  creditsRemaining: integer("credits_remaining"),
   mealsRemaining: integer("meals_remaining").notNull(),
   totalMeals: integer("total_meals").notNull().default(0),
   mealsUsed: integer("meals_used").default(0).notNull(),
   mealsPerDay: integer("meals_per_day").default(1).notNull(),
-  mealTiming: text("meal_timing").default("LUNCH").notNull(), // 'LUNCH', 'DINNER', 'BOTH'
+  mealTiming: text("meal_timing").default("LUNCH").notNull(), // 'LUNCH', 'DINNER', 'BREAKFAST', 'BOTH'
   mealTypes: mealTypeEnum("meal_types").array().default([]).notNull(),
   pricePerMeal: real("price_per_meal").default(0).notNull(),
   discount: real("discount").default(0).notNull(),
@@ -385,13 +400,38 @@ export const subscriptionDeliveries = pgTable("subscription_deliveries", {
   subscriptionId: text("subscription_id")
     .notNull()
     .references(() => subscriptions.id, { onDelete: "cascade" }),
+  batchId: text("batch_id").references(() => deliveryBatches.id),
+  addressId: text("address_id").references(() => addresses.id),
   deliveryPartnerId: text("delivery_partner_id").references(() => deliveryPartners.id),
   deliveryDate: date("delivery_date").notNull(),
   mealType: text("meal_type").notNull(), // 'LUNCH', 'DINNER', 'BREAKFAST'
-  status: text("status").default("SCHEDULED").notNull(), // 'SCHEDULED', 'DELIVERED', 'CANCELLED', 'SKIPPED'
+  status: text("status").default("SCHEDULED").notNull(), // 'SCHEDULED', 'PREPARING', 'PACKED', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', 'SKIPPED'
   mealId: text("meal_id").references(() => foodItems.id),
   deliveredAt: timestamp("delivered_at"),
   notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const subscriptionDeliverySchedule = subscriptionDeliveries;
+
+// -------------------------------------------------------
+// UNIFIED DELIVERY MANIFEST
+// -------------------------------------------------------
+
+export const deliveryManifest = pgTable("delivery_manifest", {
+  id: text("id").primaryKey(),
+  orderType: text("order_type").notNull(), // 'SUBSCRIPTION' | 'DAILY_ORDER'
+  referenceId: text("reference_id").notNull(),
+  batchId: text("batch_id").notNull().references(() => deliveryBatches.id),
+  customerId: text("customer_id").notNull().references(() => users.id),
+  mealId: text("meal_id").references(() => foodItems.id),
+  addressId: text("address_id").references(() => addresses.id),
+  deliveryPartnerId: text("delivery_partner_id").references(() => deliveryPartners.id),
+  deliveryDate: date("delivery_date").notNull(),
+  mealSlot: text("meal_slot").notNull(), // 'BREAKFAST', 'LUNCH', 'DINNER'
+  status: text("status").default("SCHEDULED").notNull(), // 'SCHEDULED', 'PREPARING', 'PACKED', 'READY', 'DISPATCHED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'
+  deliveredAt: timestamp("delivered_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

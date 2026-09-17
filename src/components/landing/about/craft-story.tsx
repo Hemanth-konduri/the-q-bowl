@@ -2,14 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Flame, Sparkles, Star } from "lucide-react";
 import { useLayoutEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 import biryaniImg from "../../../../public/biryani.png";
 import paneerImg from "../../../../public/paneer.png";
-import heroDish from "../../../../public/hero_dish.png"
+import heroDish from "../../../../public/hero_dish.png";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -31,7 +31,7 @@ export default function CraftStory() {
 
     const ctx = gsap.context(() => {
       // ------------------------------------------
-      // HEADER TEXT REVEALS
+      // HEADER TEXT REVEALS (DESKTOP)
       // ------------------------------------------
       const textElements = section.querySelectorAll(".gsap-reveal");
       if (textElements.length > 0) {
@@ -144,9 +144,7 @@ export default function CraftStory() {
             0
           );
 
-        // ------------------------------------------
-        // SUBTLE FLOATING LEVITATION MOTION
-        // ------------------------------------------
+        // Subtile levitation
         gsap.to(card1, {
           y: "+=12",
           duration: 3.2,
@@ -173,9 +171,7 @@ export default function CraftStory() {
           delay: 0.8,
         });
 
-        // ------------------------------------------
-        // HOVER EFFECT
-        // ------------------------------------------
+        // Hover Effect
         [card1, card2, card3].forEach((card) => {
           const image = card.querySelector(".story-image");
           if (!image) return;
@@ -215,33 +211,6 @@ export default function CraftStory() {
         });
       });
 
-      // ------------------------------------------
-      // MOBILE ANIMATION
-      // ------------------------------------------
-      mm.add("(max-width: 767px)", () => {
-        gsap.fromTo(
-          [card1, card2, card3],
-          {
-            opacity: 0,
-            y: 40,
-            scale: 0.95,
-          },
-          {
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            duration: 0.9,
-            stagger: 0.15,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: cards,
-              start: "top 85%",
-              once: true,
-            },
-          }
-        );
-      });
-
       return () => {
         mm.revert();
       };
@@ -250,55 +219,139 @@ export default function CraftStory() {
     return () => ctx.revert();
   }, []);
 
+  const storyItems = [
+    {
+      id: "biryani",
+      title: "Hyderabadi Dum Biryani",
+      subtitle: "Insulated Dum Pot • Slow Cooked",
+      badge: "Chef's Special",
+      price: "₹189",
+      img: biryaniImg,
+      tag: "Best Seller",
+    },
+    {
+      id: "paneer",
+      title: "Royal Paneer Tikka Thali",
+      subtitle: "Clay Tandoori • Butter Naan & Curd",
+      badge: "Pure Homestyle",
+      price: "₹149",
+      img: paneerImg,
+      tag: "Customer Favorite",
+    },
+    {
+      id: "protein",
+      title: "Signature Protein Bowl",
+      subtitle: "Avocado, Quinoa, Roasted Veggies",
+      badge: "Nutrient Rich",
+      price: "₹169",
+      img: heroDish,
+      tag: "Healthy Pick",
+    },
+  ];
+
   return (
     <section
       ref={sectionRef}
       id="about"
       data-nav-dark="false"
-      className="relative z-20 overflow-hidden bg-[#f5e3cd] py-24 sm:py-32"
+      className="relative z-20 overflow-hidden bg-[#f5e3cd] py-10 sm:py-24 md:py-32"
     >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
 
         {/* ----------------------------------------
             SECTION INTRO
         ----------------------------------------- */}
-
         <div className="text-center">
 
-          <p className="gsap-reveal inline-block rounded-full border border-black/20 bg-[#E5A00D]/20 px-4 py-1 font-mouse-memoirs text-2xl uppercase tracking-widest text-black sm:text-3xl">
+          <p className="gsap-reveal inline-block rounded-full border-2 border-black bg-[#E5A00D] px-3.5 py-0.5 font-mouse-memoirs text-xl uppercase tracking-widest text-black shadow-[2px_2px_0px_#000] sm:text-3xl">
             Artisan Cloud Kitchen
           </p>
 
-          <h2 className="gsap-reveal mx-auto mt-6 max-w-5xl font-outfit text-4xl font-extrabold uppercase leading-none tracking-tight text-black sm:text-6xl lg:text-7xl">
+          <h2 className="gsap-reveal mx-auto mt-4 max-w-5xl font-outfit text-3xl font-extrabold uppercase leading-tight tracking-tight text-black sm:text-6xl lg:text-7xl">
             Juicy, Cheesy &amp; Fully Loaded Bowls
           </h2>
 
-          <p className="gsap-reveal mx-auto mt-6 max-w-3xl font-sans text-base font-normal leading-relaxed text-black/80 sm:text-xl">
+          <p className="gsap-reveal mx-auto mt-3 max-w-3xl font-sans text-xs font-medium leading-relaxed text-black/85 sm:text-xl sm:font-normal">
             Q1 Bowl delivers gourmet chef-marinated meals cooked fresh daily
             with zero preservatives. Choose single orders or build a flexible
             subscription plan on your schedule.
           </p>
 
-          <div className="gsap-reveal pt-7 pb-16">
+          <div className="gsap-reveal pt-4 pb-6 sm:pt-7 sm:pb-16">
             <Link
-              href="/login"
-              className="inline-flex items-center gap-3 rounded-full border-2 border-black bg-black px-8 py-4 font-outfit text-xl font-bold uppercase tracking-wider text-white shadow-[4px_4px_0px_#000000] transition-all hover:scale-105 hover:bg-[#E5A00D] hover:text-black"
+              href="/#menu"
+              className="inline-flex items-center gap-2 rounded-full border-2 border-black bg-black px-6 py-2.5 font-outfit text-sm font-bold uppercase tracking-wider text-white shadow-[3px_3px_0px_#000000] transition-all hover:scale-105 hover:bg-[#E5A00D] hover:text-black sm:px-8 sm:py-4 sm:text-xl"
             >
-              <span>Order Now</span>
-              <ArrowRight className="h-5 w-5" />
+              <span>Explore The Flavors</span>
+              <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
             </Link>
           </div>
 
         </div>
 
+        {/* ----------------------------------------
+            MOBILE-ONLY COMPACT SHOWCASE (NO EMPTY SPACE)
+        ----------------------------------------- */}
+        <div className="md:hidden mt-2 space-y-3">
+          {storyItems.map((item, idx) => (
+            <div
+              key={item.id}
+              className="retro-card p-3 bg-white border-2 border-black shadow-[3px_3px_0px_#000] rounded-2xl flex items-center gap-3.5"
+            >
+              {/* Image Thumbnail */}
+              <div className="relative w-24 h-24 shrink-0 rounded-xl overflow-hidden border-2 border-black bg-[#FFF8EE]">
+                <Image
+                  src={item.img}
+                  alt={item.title}
+                  fill
+                  className="object-cover"
+                />
+                <span className="absolute top-1 left-1 bg-black text-[#E5A00D] text-[9px] font-bold px-1.5 py-0.5 rounded shadow">
+                  #{idx + 1}
+                </span>
+              </div>
+
+              {/* Information */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="bg-[#E5A00D]/30 border border-black/30 text-black text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase">
+                    {item.tag}
+                  </span>
+                  <span className="text-[10px] text-black/60 font-semibold">• {item.badge}</span>
+                </div>
+
+                <h4 className="font-outfit text-base font-extrabold text-black leading-tight mt-1 truncate">
+                  {item.title}
+                </h4>
+
+                <p className="font-sans text-[11px] text-black/75 line-clamp-1 mt-0.5 font-medium">
+                  {item.subtitle}
+                </p>
+
+                <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-black/10">
+                  <span className="font-outfit text-sm font-extrabold text-black">
+                    {item.price}
+                  </span>
+                  <Link
+                    href="/#menu"
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-black bg-[#FFF8EE] border border-black px-2.5 py-0.5 rounded-full shadow-[1px_1px_0px_#000] active:scale-95"
+                  >
+                    <span>Order</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
 
         {/* ----------------------------------------
-            FLOATING IMAGE SHOWCASE
+            DESKTOP FLOATING IMAGE SHOWCASE
         ----------------------------------------- */}
-
         <div
           ref={cardsRef}
           className="
+            hidden md:block
             relative
             mx-auto
             h-[520px]
@@ -309,10 +362,7 @@ export default function CraftStory() {
           "
         >
 
-          {/* --------------------------------------
-              CARD 1
-          --------------------------------------- */}
-
+          {/* CARD 1 */}
           <div
             ref={card1Ref}
             className="
@@ -325,7 +375,6 @@ export default function CraftStory() {
             "
           >
             <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] border-4 border-black/10 bg-white shadow-[0_25px_60px_rgba(0,0,0,0.18)]">
-
               <Image
                 src={heroDish}
                 alt="Signature Protein Bowl"
@@ -333,19 +382,13 @@ export default function CraftStory() {
                 className="story-image object-cover"
                 sizes="(max-width: 768px) 90vw, 30vw"
               />
-
             </div>
-
             <p className="mt-5 text-center font-outfit text-xl font-bold text-black sm:text-2xl">
               Signature Protein Bowl
             </p>
           </div>
 
-
-          {/* --------------------------------------
-              CARD 2 — CENTER
-          --------------------------------------- */}
-
+          {/* CARD 2 — CENTER */}
           <div
             ref={card2Ref}
             className="
@@ -359,7 +402,6 @@ export default function CraftStory() {
             "
           >
             <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] border-4 border-[#E5A00D] bg-white shadow-[0_30px_70px_rgba(0,0,0,0.22)]">
-
               <Image
                 src={biryaniImg}
                 alt="Hyderabadi Dum Biryani"
@@ -367,19 +409,13 @@ export default function CraftStory() {
                 className="story-image object-cover"
                 sizes="(max-width: 768px) 90vw, 32vw"
               />
-
             </div>
-
             <p className="mt-5 text-center font-outfit text-xl font-bold text-black sm:text-2xl">
               Hyderabadi Dum Biryani
             </p>
           </div>
 
-
-          {/* --------------------------------------
-              CARD 3
-          --------------------------------------- */}
-
+          {/* CARD 3 */}
           <div
             ref={card3Ref}
             className="
@@ -391,8 +427,7 @@ export default function CraftStory() {
               will-change-transform
             "
           >
-            <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] border-4  bg-white shadow-[0_25px_60px_rgba(0,0,0,0.18)]">
-
+            <div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] border-4 bg-white shadow-[0_25px_60px_rgba(0,0,0,0.18)]">
               <Image
                 src={paneerImg}
                 alt="Royal Paneer Tikka Thali"
@@ -400,9 +435,7 @@ export default function CraftStory() {
                 className="story-image object-cover"
                 sizes="(max-width: 768px) 90vw, 30vw"
               />
-
             </div>
-
             <p className="mt-5 text-center font-outfit text-xl font-bold text-black sm:text-2xl">
               Royal Paneer Tikka Thali
             </p>

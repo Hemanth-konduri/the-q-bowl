@@ -20,6 +20,7 @@ import {
   Check,
   Sparkles,
 } from "lucide-react";
+// @ts-ignore
 import { Html5Qrcode } from "html5-qrcode";
 import { formatOrderId } from "@/lib/utils/orderIdFormatter";
 
@@ -121,7 +122,7 @@ export default function DeliveryQrScannerModal({
           qrbox: { width: 250, height: 250 },
           aspectRatio: 1.0,
         },
-        (decodedText) => {
+        (decodedText: string) => {
           handleQrDecoded(decodedText);
         },
         () => {

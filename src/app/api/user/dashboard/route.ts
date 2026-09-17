@@ -6,6 +6,7 @@ import {
   subscriptionPlans,
   subscriptionPackages,
   subscriptionDeliveries,
+  deliveryManifest,
   payments,
   orders,
   orderItems,
@@ -49,6 +50,7 @@ export async function GET() {
         totalMeals: subscriptions.totalMeals,
         mealsUsed: subscriptions.mealsUsed,
         mealsRemaining: subscriptions.mealsRemaining,
+        creditsRemaining: subscriptions.creditsRemaining,
         startDate: subscriptions.startDate,
         endDate: subscriptions.endDate,
         expectedEndDate: subscriptions.expectedEndDate,
@@ -71,9 +73,12 @@ export async function GET() {
       .orderBy(desc(subscriptions.createdAt))
       .limit(1);
 
-    const activeSubscription = activeSubs.length > 0 ? activeSubs[0] : null;
+    const activeSubscription = activeSubs.length > 0 ? {
+      ...activeSubs[0],
+      mealsRemaining: activeSubs[0].creditsRemaining ?? activeSubs[0].mealsRemaining,
+    } : null;
 
-    // 3. Fetch customer's subscription deliveries
+    // 3. Fetch customer's subscription deliveries that are strictly DELIVERED
     const subDeliveries = await db
       .select({
         id: subscriptionDeliveries.id,
@@ -86,18 +91,50 @@ export async function GET() {
       .from(subscriptionDeliveries)
       .innerJoin(subscriptions, eq(subscriptionDeliveries.subscriptionId, subscriptions.id))
       .leftJoin(foodItems, eq(subscriptionDeliveries.mealId, foodItems.id))
-      .where(eq(subscriptions.userId, session.userId))
-      .orderBy(desc(subscriptionDeliveries.deliveryDate), desc(subscriptionDeliveries.createdAt))
-      .limit(5);
+      .where(
+        and(
+          eq(subscriptions.userId, session.userId),
+          eq(subscriptionDeliveries.status, "DELIVERED")
+        )
+      )
+      .orderBy(desc(subscriptionDeliveries.deliveredAt), desc(subscriptionDeliveries.deliveryDate))
+      .limit(10);
 
-    // 4. Fetch customer's real recent orders with order items
+    // 4. Fetch unified delivery manifest records that are strictly DELIVERED
+    const manifestDeliveries = await db
+      .select({
+        id: deliveryManifest.id,
+        deliveryDate: deliveryManifest.deliveryDate,
+        mealSlot: deliveryManifest.mealSlot,
+        status: deliveryManifest.status,
+        deliveredAt: deliveryManifest.deliveredAt,
+        orderType: deliveryManifest.orderType,
+        mealName: foodItems.name,
+      })
+      .from(deliveryManifest)
+      .leftJoin(foodItems, eq(deliveryManifest.mealId, foodItems.id))
+      .where(
+        and(
+          eq(deliveryManifest.customerId, session.userId),
+          eq(deliveryManifest.status, "DELIVERED")
+        )
+      )
+      .orderBy(desc(deliveryManifest.deliveredAt), desc(deliveryManifest.deliveryDate))
+      .limit(10);
+
+    // 5. Fetch customer's real DELIVERED orders with order items
     const userOrders = await withDbRetry(async () => {
       return await db
         .select()
         .from(orders)
-        .where(eq(orders.userId, session.userId))
-        .orderBy(desc(orders.createdAt))
-        .limit(5);
+        .where(
+          and(
+            eq(orders.userId, session.userId),
+            eq(orders.status, "DELIVERED")
+          )
+        )
+        .orderBy(desc(orders.updatedAt), desc(orders.createdAt))
+        .limit(10);
     });
 
     let ordersWithItems: any[] = [];
@@ -122,28 +159,44 @@ export async function GET() {
       }));
     }
 
-    // 5. Combine and format recent deliveries
+    // 6. Combine and format ONLY delivered items (no scheduled or pending orders)
     const formattedSubDeliveries = subDeliveries.map((sd) => ({
       id: sd.id,
-      date: sd.deliveredAt ? sd.deliveredAt.toISOString() : sd.deliveryDate,
-      mealType: sd.mealType || "Lunch",
-      itemsSummary: sd.mealName || activeSubscription?.mealName || "Gourmet Subscription Meal",
-      status: sd.status, // SCHEDULED, DELIVERED, CANCELLED, SKIPPED
+      date: sd.deliveredAt ? sd.deliveredAt.toISOString() : (sd.deliveryDate || new Date().toISOString()),
+      mealType: sd.mealType ? `${sd.mealType.charAt(0).toUpperCase()}${sd.mealType.slice(1).toLowerCase()}` : "Lunch",
+      itemsSummary: sd.mealName || activeSubscription?.mealName || "Q Bowl Royal Homestyle Thali Bowl",
+      status: "DELIVERED",
       quantity: 1,
       type: "SUBSCRIPTION" as const,
     }));
 
+    const formattedManifestDeliveries = manifestDeliveries.map((md) => ({
+      id: md.id,
+      date: md.deliveredAt ? md.deliveredAt.toISOString() : (md.deliveryDate || new Date().toISOString()),
+      mealType: md.mealSlot ? `${md.mealSlot.charAt(0).toUpperCase()}${md.mealSlot.slice(1).toLowerCase()}` : "Daily Drop",
+      itemsSummary: md.mealName || (md.orderType === "SUBSCRIPTION" ? "Q Bowl Royal Homestyle Thali Bowl" : "Express Gourmet Order"),
+      status: "DELIVERED",
+      quantity: 1,
+      type: (md.orderType === "SUBSCRIPTION" ? "SUBSCRIPTION" : "ORDER") as "SUBSCRIPTION" | "ORDER",
+    }));
+
     const formattedOrders = ordersWithItems.map((ord) => ({
       id: ord.id,
-      date: ord.createdAt ? ord.createdAt.toISOString() : new Date().toISOString(),
+      date: ord.updatedAt ? ord.updatedAt.toISOString() : (ord.createdAt ? ord.createdAt.toISOString() : new Date().toISOString()),
       mealType: "Express Order",
       itemsSummary: ord.items?.map((i: any) => i.name).join(", ") || "Gourmet Meal Order",
-      status: ord.status, // DELIVERED, PREPARING, OUT_FOR_DELIVERY, CANCELLED
+      status: "DELIVERED",
       quantity: ord.items?.reduce((acc: number, i: any) => acc + i.quantity, 0) || 1,
       type: "ORDER" as const,
     }));
 
-    const recentDeliveries = [...formattedSubDeliveries, ...formattedOrders]
+    const seenIds = new Set<string>();
+    const recentDeliveries = [...formattedSubDeliveries, ...formattedManifestDeliveries, ...formattedOrders]
+      .filter((item) => {
+        if (!item.id || seenIds.has(item.id)) return false;
+        seenIds.add(item.id);
+        return true;
+      })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 5);
 

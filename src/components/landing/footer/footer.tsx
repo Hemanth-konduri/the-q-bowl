@@ -1,17 +1,70 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, MessageSquare, Clock, MapPin, Send, Globe, Phone, Mail } from "lucide-react";
+import { ArrowUpRight, MessageSquare, Clock, MapPin, Send, Globe, Phone, Mail, CheckCircle2, Loader2 } from "lucide-react";
+
+function InstagramIcon({ className = "w-4 h-4 sm:w-5 sm:h-5" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+    </svg>
+  );
+}
 
 export default function Footer() {
+  const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [subscribed, setSubscribed] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !email.includes("@")) return;
+
+    setSubmitting(true);
+    setStatusMessage("");
+
+    try {
+      const res = await fetch("/api/newsletter/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSubscribed(true);
+        setStatusMessage(data.message || "Subscribed successfully!");
+        setEmail("");
+      } else {
+        setStatusMessage(data.error || "Failed to subscribe. Please try again.");
+      }
+    } catch {
+      setStatusMessage("Network error. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <footer className="bg-[#E5A00D] text-black pt-12 pb-10 relative overflow-hidden">
       
       {/* 1. Continuous Marquee Ticker Bar */}
       <div className="w-full overflow-hidden border-y-4 border-black bg-black py-2.5 sm:py-3 text-[#E5A00D] font-mouse-memoirs text-lg sm:text-3xl font-bold tracking-widest uppercase mb-8 sm:mb-12 shadow-[0_4px_0_#000000]">
         <div className="animate-footer-marquee whitespace-nowrap flex gap-6 sm:gap-8">
-          <span>THE Q BOWL • HYDERABAD&apos;S FINEST CLOUD KITCHEN • FRESH DAILY MEAL BOWLS • NO MINIMUM ORDER • FLEXIBLE SUBSCRIPTIONS • PAUSE OR SKIP ANYTIME • CHEF-CURATED MENU •</span>
-          <span>THE Q BOWL • HYDERABAD&apos;S FINEST CLOUD KITCHEN • FRESH DAILY MEAL BOWLS • NO MINIMUM ORDER • FLEXIBLE SUBSCRIPTIONS • PAUSE OR SKIP ANYTIME • CHEF-CURATED MENU •</span>
+          <span>THE Q BOWL • RAJAHMUNDRY &amp; RAJANAGARAM FINEST CLOUD KITCHEN • FRESH DAILY MEAL BOWLS • NO MINIMUM ORDER • FLEXIBLE SUBSCRIPTIONS • PAUSE OR SKIP ANYTIME • CHEF-CURATED MENU •</span>
+          <span>THE Q BOWL • RAJAHMUNDRY &amp; RAJANAGARAM FINEST CLOUD KITCHEN • FRESH DAILY MEAL BOWLS • NO MINIMUM ORDER • FLEXIBLE SUBSCRIPTIONS • PAUSE OR SKIP ANYTIME • CHEF-CURATED MENU •</span>
         </div>
       </div>
 
@@ -34,7 +87,7 @@ export default function Footer() {
                 THE Q BOWL
               </h3>
               <p className="font-sans text-xs sm:text-sm text-[#f5e3cd]/80 leading-relaxed font-normal">
-                Artisan cloud kitchen in Hyderabad serving chef-crafted meal bowls and flexible daily meal subscriptions.
+                Artisan cloud kitchen in Rajamahendravaram &amp; Rajanagaram serving fresh chef-crafted meal bowls and flexible daily subscriptions.
               </p>
             </div>
             <div className="pt-5 sm:pt-6">
@@ -54,7 +107,7 @@ export default function Footer() {
               {[
                 { label: "Today's Menu", href: "#menu" },
                 { label: "Subscription Plans", href: "#subscriptions" },
-                { label: "How It Works", href: "#how-it-works" },
+                { label: "Check Delivery Zone", href: "#delivery" },
                 { label: "Our Kitchen Story", href: "#story" },
                 { label: "Customer Sign In", href: "/login" },
               ].map((link, idx) => (
@@ -89,7 +142,7 @@ export default function Footer() {
                 <div>
                   <h5 className="font-bold text-[#FFF8EE]">Active Delivery Hubs</h5>
                   <p className="text-xs text-[#f5e3cd]/80 leading-relaxed">
-                    Gachibowli, Hitec City, Madhapur, Jubilee Hills &amp; Kondapur.
+                    Bridge County, Rajanagaram, GIET, Diwancheruvu, Lalacheruvu &amp; Rajahmundry.
                   </p>
                 </div>
               </div>
@@ -105,20 +158,49 @@ export default function Footer() {
               <p className="font-sans text-xs text-[#f5e3cd]/80 leading-relaxed font-normal mb-3 sm:mb-4">
                 Get tomorrow&apos;s chef menu dropped to your inbox every evening at 8:00 PM.
               </p>
-              <form onSubmit={(e) => e.preventDefault()} className="space-y-2">
-                <input
-                  type="email"
-                  placeholder="Enter your email..."
-                  className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl bg-black border-2 border-[#E5A00D]/40 text-[#FFF8EE] placeholder-[#f5e3cd]/50 text-xs font-sans focus:outline-none focus:border-[#E5A00D]"
-                />
-                <button
-                  type="submit"
-                  className="w-full py-2.5 sm:py-3 rounded-xl bg-[#E5A00D] text-black font-outfit text-xs font-extrabold uppercase tracking-wider hover:bg-white transition-colors flex items-center justify-center gap-2 shadow-[2px_2px_0px_#000]"
-                >
-                  <span>Subscribe Menu</span>
-                  <Send className="w-3.5 h-3.5" />
-                </button>
-              </form>
+              
+              {subscribed ? (
+                <div className="p-3.5 rounded-xl bg-[#E5A00D]/10 border-2 border-[#E5A00D] text-left space-y-1 animate-fadeIn">
+                  <div className="flex items-center gap-2 text-[#E5A00D] font-bold text-xs">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>Subscribed!</span>
+                  </div>
+                  <p className="text-[11px] text-[#f5e3cd]/80 font-sans leading-tight">
+                    {statusMessage || "Tomorrow's chef menu will drop in your inbox at 8:00 PM."}
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={handleSubscribe} className="space-y-2">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Enter your email..."
+                    required
+                    className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-xl bg-black border-2 border-[#E5A00D]/40 text-[#FFF8EE] placeholder-[#f5e3cd]/50 text-xs font-sans focus:outline-none focus:border-[#E5A00D]"
+                  />
+                  {statusMessage && (
+                    <p className="text-[11px] text-red-400 font-sans">{statusMessage}</p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full py-2.5 sm:py-3 rounded-xl bg-[#E5A00D] text-black font-outfit text-xs font-extrabold uppercase tracking-wider hover:bg-white transition-colors flex items-center justify-center gap-2 shadow-[2px_2px_0px_#000] disabled:opacity-50"
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Subscribing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Subscribe Menu</span>
+                        <Send className="w-3.5 h-3.5" />
+                      </>
+                    )}
+                  </button>
+                </form>
+              )}
             </div>
           </div>
 
@@ -126,20 +208,44 @@ export default function Footer() {
 
         {/* 4. Social Links & FSSAI Badges */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-5 sm:gap-6 pt-6 border-t-4 border-black text-center sm:text-left">
-          <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap justify-center sm:justify-start">
             {[
-              { icon: Globe, label: "Website", href: "#" },
-              { icon: MessageSquare, label: "WhatsApp", href: "#" },
-              { icon: Phone, label: "Call Support", href: "#" },
-              { icon: Mail, label: "Email Support", href: "#" },
+              { 
+                icon: Globe, 
+                label: "Website", 
+                href: "/" 
+              },
+              { 
+                icon: MessageSquare, 
+                label: "WhatsApp (+91 9389434343)", 
+                href: "https://wa.me/919389434343?text=Hello%20The%20Q%20Bowl,%20I%20would%20like%20to%20order%20or%20inquire%20about%20meal%20subscriptions" 
+              },
+              { 
+                icon: Phone, 
+                label: "Call Support (9389434343)", 
+                href: "tel:+919389434343" 
+              },
+              { 
+                icon: InstagramIcon, 
+                label: "Instagram (@the_qbowl)", 
+                href: "https://instagram.com/the_qbowl" 
+              },
+              { 
+                icon: Mail, 
+                label: "Email Support", 
+                href: "mailto:support@theqbowl.com" 
+              },
             ].map((s, idx) => {
               const Icon = s.icon;
               return (
                 <a
                   key={idx}
                   href={s.href}
+                  target={s.href.startsWith("http") ? "_blank" : undefined}
+                  rel={s.href.startsWith("http") ? "noopener noreferrer" : undefined}
                   className="p-2.5 sm:p-3 rounded-full bg-black text-[#E5A00D] border-2 border-black hover:bg-white hover:text-black transition-all transform hover:scale-110 shadow-[2px_2px_0px_#000000] sm:shadow-[3px_3px_0px_#000000]"
                   aria-label={s.label}
+                  title={s.label}
                 >
                   <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
                 </a>
@@ -158,9 +264,9 @@ export default function Footer() {
         <div className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t-2 border-black/20 flex flex-col sm:flex-row items-center justify-between text-xs font-sans text-black font-medium gap-3 sm:gap-4 text-center sm:text-left">
           <p>© 2026 The Q Bowl Kitchen. All rights reserved.</p>
           <div className="flex flex-wrap justify-center sm:justify-end gap-4 sm:gap-6">
-            <a href="#" className="hover:underline">Privacy Policy</a>
-            <a href="#" className="hover:underline">Terms of Service</a>
-            <a href="#" className="hover:underline">Refund Policy</a>
+            <Link href="#story" className="hover:underline">About Kitchen</Link>
+            <Link href="#delivery" className="hover:underline">Delivery Zones</Link>
+            <Link href="#subscriptions" className="hover:underline">Subscription Terms</Link>
           </div>
         </div>
 

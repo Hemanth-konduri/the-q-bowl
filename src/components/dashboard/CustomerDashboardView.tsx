@@ -20,6 +20,7 @@ import {
   Minus,
   Flame,
   UtensilsCrossed,
+  Utensils,
   Heart,
   Edit2,
   AlertCircle,
@@ -209,6 +210,8 @@ export function CustomerDashboardView() {
 
   // Fetch live kitchen operational status from backend (with fast 4s polling + window focus sync)
   useEffect(() => {
+    const controller = new AbortController();
+
     async function fetchKitchenStatus() {
       try {
         const res = await fetch(`/api/kitchen/status?t=${Date.now()}`, {
@@ -217,6 +220,7 @@ export function CustomerDashboardView() {
             "Cache-Control": "no-cache",
             Pragma: "no-cache",
           },
+          signal: controller.signal,
         });
         if (res.ok) {
           const data = await res.json();
@@ -224,15 +228,19 @@ export function CustomerDashboardView() {
             setKitchenStatus((prev) => ({ ...prev, ...data.settings }));
           }
         }
-      } catch (err) {
-        console.error("Failed to fetch kitchen status:", err);
+      } catch (err: any) {
+        // Suppress abort errors or temporary fetch failures during tab switch/hot-reloads
+        if (err?.name !== "AbortError") {
+          // Silent fallback to avoid flooding console on intermittent network blips
+        }
       }
     }
 
     fetchKitchenStatus();
-    const interval = setInterval(fetchKitchenStatus, 4000);
+    const interval = setInterval(fetchKitchenStatus, 5000);
     window.addEventListener("focus", fetchKitchenStatus);
     return () => {
+      controller.abort();
       clearInterval(interval);
       window.removeEventListener("focus", fetchKitchenStatus);
     };
@@ -609,7 +617,8 @@ export function CustomerDashboardView() {
   // ── Subscription State ──
   const [dbSubPackages, setDbSubPackages] = useState<any[]>([]);
   const [dbSubMeals, setDbSubMeals] = useState<any[]>([]);
-  const [selectedSubPlan, setSelectedSubPlan] = useState<string>("pkg-30-meals");
+  const [selectedSubPlan, setSelectedSubPlan] = useState<string>("");
+  const [selectedPackageId, setSelectedPackageId] = useState<string>("");
   const [subMealTiming, setSubMealTiming] = useState<"LUNCH" | "DINNER" | "BOTH">("LUNCH");
   const [subStartDate, setSubStartDate] = useState<string>(() => {
     const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -623,6 +632,86 @@ export function CustomerDashboardView() {
   const [subSubmitting, setSubSubmitting] = useState(false);
   const [subSuccessMsg, setSubSuccessMsg] = useState<string | null>(null);
   const [subErrorMsg, setSubErrorMsg] = useState<string | null>(null);
+
+  // ── 5-Step Subscription Wizard State ──
+  const [subStep, setSubStep] = useState<number>(1);
+  const [selectedMealCredits, setSelectedMealCredits] = useState<number>(20);
+  const [selectedDeliveryDays, setSelectedDeliveryDays] = useState<string[]>(["MON", "TUE", "WED", "THU", "FRI"]);
+  const [selectedMealTimings, setSelectedMealTimings] = useState<string[]>(["LUNCH"]);
+
+  // Helper to dynamically calculate expected end date for calendar preview
+  function calculateSubEndDate(startDateStr: string, credits: number, days: string[], sessions: string[]) {
+    if (!startDateStr || credits <= 0 || sessions.length === 0) return startDateStr;
+    const dayNameMap: Record<number, string[]> = {
+      0: ["SUN", "SUNDAY"],
+      1: ["MON", "MONDAY"],
+      2: ["TUE", "TUESDAY"],
+      3: ["WED", "WEDNESDAY"],
+      4: ["THU", "THURSDAY"],
+      5: ["FRI", "FRIDAY"],
+      6: ["SAT", "SATURDAY"],
+    };
+    let curr = new Date(startDateStr);
+    let scheduled = 0;
+    let lastDate = startDateStr;
+    const rawDays = days.map((d) => d.toUpperCase());
+
+    for (let safety = 0; safety < 365 && scheduled < credits; safety++) {
+      const dayOfWeek = curr.getDay();
+      const validNames = dayNameMap[dayOfWeek] || [];
+      const isDayActive = rawDays.length === 0 || rawDays.some((d) => validNames.includes(d));
+
+      if (isDayActive) {
+        for (let i = 0; i < sessions.length; i++) {
+          if (scheduled < credits) {
+            scheduled++;
+            lastDate = curr.toISOString().split("T")[0];
+          }
+        }
+      }
+      curr.setDate(curr.getDate() + 1);
+    }
+    return lastDate;
+  }
+
+  // Helper to generate visual calendar preview items
+  function generateCalendarPreview(startDateStr: string, credits: number, days: string[], sessions: string[]) {
+    const dayNameMap: Record<number, string[]> = {
+      0: ["SUN", "SUNDAY"],
+      1: ["MON", "MONDAY"],
+      2: ["TUE", "TUESDAY"],
+      3: ["WED", "WEDNESDAY"],
+      4: ["THU", "THURSDAY"],
+      5: ["FRI", "FRIDAY"],
+      6: ["SAT", "SATURDAY"],
+    };
+    let curr = new Date(startDateStr);
+    let scheduled = 0;
+    const items: { dateStr: string; dayName: string; slot: string }[] = [];
+    const rawDays = days.map((d) => d.toUpperCase());
+
+    for (let safety = 0; safety < 365 && scheduled < credits; safety++) {
+      const dateStr = curr.toISOString().split("T")[0];
+      const dayOfWeek = curr.getDay();
+      const validNames = dayNameMap[dayOfWeek] || [];
+      const isDayActive = rawDays.length === 0 || rawDays.some((d) => validNames.includes(d));
+
+      if (isDayActive) {
+        for (const session of sessions) {
+          if (scheduled < credits) {
+            scheduled++;
+            items.push({
+              dateStr,
+              dayName: curr.toLocaleDateString("en-US", { weekday: "short" }),
+              slot: session,
+            });
+          }
+        }
+      }
+      curr.setDate(curr.getDate() + 1);
+    }
+    return items;
+  }
 
   // Load User Subscriptions, Active Packages & Active Meals from Database
   async function loadSubscriptionData() {
@@ -639,12 +728,14 @@ export function CustomerDashboardView() {
         const pkgs = data.availablePackages || [];
         setDbSubPackages(pkgs);
         if (pkgs.length > 0) {
-          // If currently selected plan is no longer in active packages, select the first available or featured
-          setSelectedSubPlan((current) => {
+          const featured = pkgs.find((p: any) => p.isFeatured) || pkgs[0];
+          setSelectedPackageId((current) => {
             const exists = pkgs.some((p: any) => p.id === current);
-            if (exists) return current;
-            const featured = pkgs.find((p: any) => p.isFeatured);
-            return featured ? featured.id : pkgs[0].id;
+            return exists ? current : featured.id;
+          });
+          setSelectedMealCredits((current) => {
+            const exists = pkgs.some((p: any) => p.mealCredits === current);
+            return exists ? current : featured.mealCredits;
           });
         }
 
@@ -653,7 +744,12 @@ export function CustomerDashboardView() {
         setDbSubMeals(activeMeals);
 
         // Prefer Full Veg Meal if present among active pricing, else first active meal
-        const veg = activeMeals.find((m: any) => m.isVeg) || activeMeals[0] || null;
+        const veg =
+          activeMeals.find((m: any) => /veg meal|thali|homestyle|combo|thali bowl/i.test(m.name)) ||
+          activeMeals.find((m: any) => m.isVeg && !/plain rice|curd rice|roti|bread/i.test(m.name)) ||
+          activeMeals.find((m: any) => m.isVeg) ||
+          activeMeals[0] ||
+          null;
         setSubVegMeal(veg);
       }
     } catch (e) {
@@ -708,23 +804,33 @@ export function CustomerDashboardView() {
     setSubErrorMsg(null);
     setSubSuccessMsg(null);
 
-    const matchedPkgId =
-      packageId || (pkgCredits === 20 ? "pkg-20-meals" : pkgCredits === 30 ? "pkg-30-meals" : "pkg-60-meals");
+    // Resolve exact database package
+    const matchedPkg =
+      dbSubPackages.find((p) => p.id === packageId) ||
+      dbSubPackages.find((p) => p.id === selectedPackageId) ||
+      dbSubPackages.find((p) => p.mealCredits === pkgCredits) ||
+      dbSubPackages[0];
+
+    const targetPkgId = matchedPkg?.id;
+    const finalCredits = matchedPkg?.mealCredits || pkgCredits || 20;
 
     try {
+      const timingVal = selectedMealTimings.includes("LUNCH") && selectedMealTimings.includes("DINNER") ? "BOTH" : selectedMealTimings.join(",");
+
       // 1. Create official Razorpay Order for Subscription
       const createRes = await fetch("/api/payments/razorpay/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           purpose: "SUBSCRIPTION",
-          packageId: matchedPkgId,
+          packageId: targetPkgId,
           mealId: targetMeal.id,
           addressId: activeAddress.id,
-          mealCredits: pkgCredits,
-          mealsPerDay: subMealTiming === "BOTH" ? 2 : 1,
-          mealTiming: subMealTiming,
-          deliveryDays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
+          mealCredits: finalCredits,
+          mealsPerDay: selectedMealTimings.length,
+          mealTiming: timingVal,
+          deliveryDays: selectedDeliveryDays,
+          startDate: subStartDate,
         }),
       });
 
@@ -744,21 +850,21 @@ export function CustomerDashboardView() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "CREATE_SUBSCRIPTION",
-            packageId: matchedPkgId,
+            packageId: targetPkgId,
             mealId: targetMeal.id,
             addressId: activeAddress.id,
-            mealCredits: pkgCredits,
-            mealsPerDay: subMealTiming === "BOTH" ? 2 : 1,
-            mealTiming: subMealTiming,
-            deliveryDays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
-            preferredDeliveryTime: subMealTiming === "DINNER" ? "07:30 PM - 08:30 PM" : "12:00 PM - 01:00 PM",
+            mealCredits: finalCredits,
+            mealsPerDay: selectedMealTimings.length,
+            mealTiming: timingVal,
+            deliveryDays: selectedDeliveryDays,
+            preferredDeliveryTime: selectedMealTimings.includes("DINNER") ? "07:30 PM - 08:30 PM" : "12:00 PM - 01:00 PM",
             startDate: subStartDate,
           }),
         });
 
         const directData = await directRes.json();
         if (directRes.ok && directData.success) {
-          setSubSuccessMsg(`🎉 Congratulations! Your ${pkgName} is activated! (Total: ₹${pkgCredits * 55})`);
+          setSubSuccessMsg(`🎉 Congratulations! Your ${pkgName} is activated! (Total: ₹${createData.amount || finalCredits * 55})`);
           await loadSubscriptionData();
         } else {
           setSubErrorMsg(directData.error || "Unable to activate subscription. Please try again.");
@@ -877,6 +983,35 @@ export function CustomerDashboardView() {
       } else if (hash === "#subscriptions") {
         setActiveTab("subscriptions");
         loadSubscriptionData();
+
+        // Hydrate pre-selected subscription package from URL query params or sessionStorage
+        try {
+          const urlParams = new URLSearchParams(window.location.search);
+          const qPkgId = urlParams.get("packageId");
+          const qCredits = urlParams.get("credits");
+
+          let storedSub: any = null;
+          const stored = sessionStorage.getItem("qbowl_selected_subscription");
+          if (stored) {
+            storedSub = JSON.parse(stored);
+            sessionStorage.removeItem("qbowl_selected_subscription");
+          }
+
+          const targetPkgId = qPkgId || storedSub?.packageId;
+          const targetCredits = Number(qCredits) || storedSub?.mealCredits;
+
+          if (targetPkgId) {
+            setSelectedPackageId(targetPkgId);
+          }
+          if (targetCredits && targetCredits > 0) {
+            setSelectedMealCredits(targetCredits);
+          }
+          if (storedSub?.timings && Array.isArray(storedSub.timings)) {
+            setSelectedMealTimings(storedSub.timings);
+          }
+        } catch (e) {
+          console.error("Error hydrating pre-selected subscription package:", e);
+        }
       } else if (hash === "#settings") {
         setActiveTab("settings");
       } else if (hash === "#kitchen" || hash === "#kitchen-info") {
@@ -2185,8 +2320,8 @@ export function CustomerDashboardView() {
                 <div className="bg-black/30 backdrop-blur-md rounded-2xl p-4 border border-white/10 transition-colors hover:bg-black/40">
                   <span className="text-[10px] font-black uppercase text-amber-300 block">Meals Remaining</span>
                   <span className="font-outfit text-3xl font-black text-white block mt-1">
-                    {activeSubRecord.mealsRemaining}
-                    <span className="text-xs text-zinc-300 font-bold ml-1">/ {activeSubRecord.totalMeals || activeSubRecord.mealCreditsPurchased}</span>
+                    {activeSubRecord.creditsRemaining ?? activeSubRecord.mealsRemaining ?? 0}
+                    <span className="text-xs text-zinc-300 font-bold ml-1">/ {activeSubRecord.mealCreditsPurchased || activeSubRecord.totalMeals || 20}</span>
                   </span>
                 </div>
 
@@ -2209,185 +2344,483 @@ export function CustomerDashboardView() {
             </div>
           )}
 
-          {/* ── Active Subscription Plans (Directly Synced with Admin Toggle) ── */}
-          <div className="space-y-6">
-            <div className="border-b-2 border-black/10 pb-4">
-              <span className="text-xs font-black uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
-                <UtensilsCrossed size={14} className="text-black" />
-                <span>Choose Your Plan</span>
-              </span>
-              <h2 className="font-outfit text-2xl sm:text-3xl font-black uppercase text-black mt-1">
-                {subVegMeal?.name || "Full Veg Meal Subscriptions"}
-              </h2>
-              <p className="text-xs text-zinc-600 font-semibold mt-0.5">
-                {subVegMeal?.description || "Steamed Rice, Fresh Pappu, and Veg Curry served hot in insulated clay handi."}
-              </p>
-            </div>
+          {/* ── Active Subscription Tracking & Meal Credit Builder ── */}
+          {activeSubRecord && (
+              <div className="rounded-3xl border-3 border-black bg-white p-6 sm:p-8 shadow-[6px_6px_0_#000] space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-black/10 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center font-black shrink-0 shadow-[2px_2px_0_#000]">
+                      <Sparkles size={24} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="font-outfit text-2xl font-black uppercase text-black">My Active Meal Subscription</h2>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-900 border border-emerald-300">
+                          {activeSubRecord.status}
+                        </span>
+                      </div>
+                      <p className="text-xs font-semibold text-zinc-600">
+                        {activeSubRecord.mealName || "Artisan Homestyle Meal"} &bull; {activeSubRecord.mealTiming}
+                      </p>
+                    </div>
+                  </div>
 
-            {/* ── Step 1: Sleek Compact Delivery Session Dropdown ── */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white rounded-2xl border border-zinc-200/90 p-3 sm:px-4 sm:py-2.5 shadow-xs">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-800">
-                  <Clock size={16} />
-                </span>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-outfit font-black text-xs uppercase tracking-wider text-zinc-900">
-                      Daily Delivery Session
+                  <button
+                    onClick={() => handleToggleSubPause(activeSubRecord.id)}
+                    disabled={subSubmitting}
+                    className="px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 border-2 border-black text-amber-950 font-outfit font-black text-xs uppercase shadow-[2px_2px_0_#000] transition-all self-start sm:self-auto"
+                  >
+                    {activeSubRecord.status === "PAUSED" ? "Resume Deliveries" : "Pause Subscription"}
+                  </button>
+                </div>
+
+                {/* Progress Bar & Telemetry */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-[#FFF8EE] p-5 rounded-2xl border-2 border-black shadow-[3px_3px_0_#000]">
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-zinc-400 block">Credits Remaining</span>
+                    <span className="font-outfit text-2xl sm:text-3xl font-black text-black">
+                      {activeSubRecord.creditsRemaining ?? activeSubRecord.mealsRemaining ?? 0}
                     </span>
-                    <span className="text-[10px] font-bold text-amber-900 bg-amber-50 border border-amber-300 px-2 py-0.2 rounded-full hidden xs:inline-block">
-                      {subMealTiming === "BOTH" ? "2 Meals / Day" : "1 Meal / Day"}
+                    <span className="text-[10px] font-bold text-zinc-500 block">of {activeSubRecord.mealCreditsPurchased || activeSubRecord.totalMeals || 20} purchased</span>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-zinc-400 block">Meals Used</span>
+                    <span className="font-outfit text-2xl sm:text-3xl font-black text-emerald-700">
+                      {activeSubRecord.mealsUsed || 0}
+                    </span>
+                    <span className="text-[10px] font-bold text-zinc-500 block">Successfully Delivered</span>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-zinc-400 block">Next Delivery</span>
+                    <span className="font-outfit text-base sm:text-lg font-black text-black block mt-1">
+                      {activeSubRecord.nextDeliveryDate || activeSubRecord.startDate || "Tomorrow"}
+                    </span>
+                    <span className="text-[10px] font-bold text-amber-800 block">Priority Kitchen Drop</span>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-zinc-400 block">Expected End Date</span>
+                    <span className="font-outfit text-base sm:text-lg font-black text-black block mt-1">
+                      {activeSubRecord.expectedEndDate || activeSubRecord.endDate || "In 20 days"}
+                    </span>
+                    <span className="text-[10px] font-bold text-zinc-500 block">Auto-extended on skips</span>
+                  </div>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-black uppercase text-black">
+                    <span>Subscription Completion Progress</span>
+                    <span>
+                      {Math.round(
+                        (((activeSubRecord.mealCreditsPurchased || 20) - (activeSubRecord.creditsRemaining ?? activeSubRecord.mealsRemaining ?? 0)) /
+                          (activeSubRecord.mealCreditsPurchased || 20)) *
+                          100
+                      )}
+                      %
                     </span>
                   </div>
-                  <p className="text-[11px] text-zinc-500 font-medium">
-                    When do you want your fresh homestyle handi bowls delivered?
+                  <div className="h-3 w-full bg-zinc-100 rounded-full overflow-hidden border-2 border-black">
+                    <div
+                      className="h-full bg-[#E5A00D] transition-all duration-500"
+                      style={{
+                        width: `${Math.round(
+                          (((activeSubRecord.mealCreditsPurchased || 20) - (activeSubRecord.creditsRemaining ?? activeSubRecord.mealsRemaining ?? 0)) /
+                            (activeSubRecord.mealCreditsPurchased || 20)) *
+                            100
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Calendar / Timeline of Scheduled Deliveries */}
+                {subDeliveries.length > 0 && (
+                  <div className="space-y-4 pt-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-outfit text-xl font-black uppercase tracking-tight text-black flex items-center gap-2">
+                        <Calendar size={18} className="text-[#E5A00D]" />
+                        Scheduled Delivery Timeline
+                      </h3>
+                      <span className="text-xs font-bold text-zinc-500">
+                        Only delivered meals consume credits. Skipped meals extend timeline.
+                      </span>
+                    </div>
+
+                    <div className="divide-y-2 divide-black/10 rounded-2xl border-2 border-black bg-white overflow-hidden shadow-[3px_3px_0_#000]">
+                      {subDeliveries.map((item) => (
+                        <div key={item.id} className="p-4 flex items-center justify-between gap-4 hover:bg-[#FFF8EE] transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div className={`h-10 w-10 rounded-xl border-2 border-black flex items-center justify-center font-bold text-xs shrink-0 ${
+                              item.status === 'DELIVERED' ? 'bg-emerald-300 text-black' : item.status === 'SKIPPED' ? 'bg-zinc-200 text-zinc-600' : 'bg-amber-100 text-amber-900'
+                            }`}>
+                              {item.mealType === 'DINNER' ? '🌙' : '☀️'}
+                            </div>
+
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-black text-sm text-black">{item.deliveryDate}</span>
+                                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-zinc-100 border border-black/20">
+                                  {item.mealType}
+                                </span>
+                              </div>
+                              <p className="text-xs font-bold text-zinc-600">{item.mealName || activeSubRecord.mealName || "Full Meal Bowl"}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-black ${
+                              item.status === 'DELIVERED' ? 'bg-emerald-100 text-emerald-900 border-emerald-950' :
+                              item.status === 'SKIPPED' ? 'bg-zinc-100 text-zinc-600 border-zinc-400' :
+                              'bg-amber-100 text-amber-950 border-amber-950'
+                            }`}>
+                              {item.status}
+                            </span>
+
+                            {/* Skip meal feature temporarily disabled/hidden from UI */}
+                            {false && item.status === 'SCHEDULED' && (
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const res = await fetch("/api/user/subscriptions/schedule", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ action: "SKIP", scheduleId: item.id }),
+                                    });
+                                    if (res.ok) {
+                                      await loadSubscriptionData();
+                                    }
+                                  } catch (e) {
+                                    console.error("Failed to skip meal:", e);
+                                  }
+                                }}
+                                className="px-3 py-1 rounded-xl bg-white hover:bg-black hover:text-white border-2 border-black text-xs font-black uppercase shadow-[1.5px_1.5px_0_#000] transition-all"
+                              >
+                                Skip Meal
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── 2. STEP-BY-STEP SUBSCRIPTION PURCHASE WIZARD ── */}
+            <div className="rounded-3xl border-3 border-black bg-white p-6 sm:p-8 shadow-[6px_6px_0_#000] space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-black/10 pb-4">
+                <div>
+                  <span className="px-3 py-1 rounded-full bg-[#E5A00D] border-2 border-black font-outfit font-black text-[10px] uppercase text-black">
+                    Meal Credit &amp; Calendar Builder
+                  </span>
+                  <h2 className="font-outfit text-2xl sm:text-3xl font-black uppercase text-black mt-1">
+                    Configure Your Subscription
+                  </h2>
+                  <p className="text-xs font-semibold text-zinc-600">
+                    Select a meal package, create your delivery calendar, and confirm delivery address.
                   </p>
                 </div>
-              </div>
 
-              {/* Compact Session Dropdown */}
-              <div className="relative shrink-0 w-full sm:w-auto">
-                <select
-                  value={subMealTiming}
-                  onChange={(e) => setSubMealTiming(e.target.value as "LUNCH" | "DINNER" | "BOTH")}
-                  className="w-full sm:w-auto appearance-none pl-9 pr-9 py-2 rounded-xl border border-zinc-300/80 bg-zinc-50 hover:bg-zinc-100 font-outfit font-black text-xs uppercase tracking-wider text-zinc-900 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#E5A00D] transition-colors"
-                >
-                  <option value="LUNCH">☀️ Lunch Only (12:00 PM – 1:00 PM)</option>
-                  <option value="DINNER">🌙 Dinner Only (7:30 PM – 8:30 PM)</option>
-                  <option value="BOTH">🍽️ Both (Lunch + Dinner • 2/Day)</option>
-                </select>
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-amber-700">
-                  {subMealTiming === "DINNER" ? <Moon size={14} /> : subMealTiming === "BOTH" ? <UtensilsCrossed size={14} /> : <Sun size={14} />}
-                </div>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
-                  <ChevronDown size={14} />
-                </div>
-              </div>
-            </div>
-
-            {/* If no plans are active */}
-            {dbSubPackages.length === 0 ? (
-              <div className="rounded-3xl border-3 border-black bg-[#FFF8EE] p-8 text-center space-y-3 shadow-[5px_5px_0_#000]">
-                <UtensilsCrossed size={36} className="mx-auto text-[#E5A00D]" />
-                <h3 className="font-outfit text-xl font-black uppercase text-black">
-                  Subscription Plans Temporarily Unavailable
-                </h3>
-                <p className="text-xs text-zinc-600 font-semibold max-w-md mx-auto">
-                  Our kitchen is currently updating seasonal subscription meal packages. Please check back shortly or enjoy ordering single bowls directly from our menu!
-                </p>
-              </div>
-            ) : (
-              /* The Dynamic Cards Grid: directly driven by Admin active plans */
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {dbSubPackages.map((pkg) => {
-                  const mealRate = subVegMeal?.pricePerMeal || 55;
-                  const originalSinglePrice = subVegMeal?.standardPrice || 60;
-                  const regularTotal = originalSinglePrice * pkg.mealCredits;
-                  const discountSavings = pkg.discount > 0 ? pkg.discount : Math.max(0, regularTotal - (mealRate * pkg.mealCredits));
-                  const finalTotal = Math.max(0, (mealRate * pkg.mealCredits) - (pkg.discount || 0));
-                  const isSelected = selectedSubPlan === pkg.id;
-
-                  const durationDays = subMealTiming === "BOTH" ? Math.round(pkg.mealCredits / 2) : pkg.mealCredits;
-
-                  return (
-                    <div
-                      key={pkg.id}
-                      onClick={() => setSelectedSubPlan(pkg.id)}
-                      className={`group relative rounded-3xl border-3 p-6 sm:p-7 flex flex-col justify-between transition-all duration-300 cursor-pointer hover:-translate-y-1.5 ${isSelected
-                        ? "bg-[#FFF8EE] border-black shadow-[7px_7px_0_#000] ring-2 ring-black"
-                        : "bg-white border-black/30 hover:border-black shadow-[3px_3px_0_#000] hover:shadow-[6px_6px_0_#000]"
-                        }`}
+                {/* Wizard Step Indicator */}
+                <div className="flex items-center gap-2 bg-[#FFF8EE] p-2 rounded-2xl border-2 border-black shadow-[2px_2px_0_#000]">
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setSubStep(s)}
+                      className={`h-8 w-8 rounded-xl font-outfit font-black text-xs flex items-center justify-center border-2 transition-all ${
+                        subStep === s
+                          ? "bg-black text-[#E5A00D] border-black shadow-[1.5px_1.5px_0_#000]"
+                          : subStep > s
+                          ? "bg-emerald-300 text-black border-black"
+                          : "bg-white text-zinc-400 border-zinc-200"
+                      }`}
                     >
-                      {pkg.isFeatured && (
-                        <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-[#E5A00D] text-black px-4 py-0.5 rounded-full border-2 border-black font-outfit font-black text-[10px] uppercase tracking-wider shadow-[2px_2px_0_#000] flex items-center gap-1">
-                          <Sparkles size={11} className="text-black animate-spin" />
-                          <span>Most Popular</span>
-                        </div>
-                      )}
+                      {subStep > s ? "✓" : s}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between pt-1">
-                          <span className="text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 px-3 py-1 rounded-full border border-amber-300">
-                            {pkg.mealCredits >= 60 ? "Best Value" : pkg.mealCredits >= 30 ? "Full Month" : "Weekday Care"}
-                          </span>
-                          {discountSavings > 0 && (
-                            <span className="text-xs font-black text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-md border border-emerald-300">
-                              Save ₹{discountSavings}
-                            </span>
-                          )}
+              {/* STEP 1: CHOOSE MEAL PACKAGE */}
+              {subStep === 1 && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-outfit text-lg font-black uppercase text-black flex items-center gap-2">
+                      <Sparkles size={18} className="text-[#E5A00D]" />
+                      Step 1: Choose Meal Package
+                    </h3>
+                    <span className="text-xs font-bold text-zinc-500">
+                      Fixed Meal: Q Bowl Signature Homestyle Thali
+                    </span>
+                  </div>
+
+                  {/* Fixed Subscription Meal Info Banner */}
+                  <div className="p-4 rounded-2xl bg-[#FFF8EE] border-2 border-black flex flex-col sm:flex-row items-center justify-between gap-4 shadow-[3px_3px_0_#000]">
+                    <div className="flex items-center gap-3">
+                      <div className="h-12 w-12 rounded-xl bg-black text-[#E5A00D] flex items-center justify-center font-black border border-black shrink-0">
+                        <Utensils size={20} />
+                      </div>
+                      <div>
+                        <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 font-black text-[9px] uppercase border border-emerald-300">
+                          SINGLE FIXED SUBSCRIPTION MEAL
+                        </span>
+                        <h4 className="font-outfit font-black text-base text-black uppercase mt-0.5">
+                          {subVegMeal?.name && !/plain rice/i.test(subVegMeal.name) ? subVegMeal.name : "Q Bowl Signature Veg Meal"}
+                        </h4>
+                        <p className="text-xs text-zinc-600 font-medium">
+                          {subVegMeal?.description && !/plain rice/i.test(subVegMeal.description)
+                            ? subVegMeal.description
+                            : "Insulated Clay Handi Meal with Steamed Rice, Fresh Pappu, Veg Curry & Curd."}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="px-3 py-1 bg-black text-[#E5A00D] font-outfit font-black text-xs uppercase rounded-xl border border-black shrink-0">
+                      ₹55 / Meal Base
+                    </span>
+                  </div>
+
+                  {/* Dynamic Database Package Cards (Admin Active Packages Only) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {loadingSubData ? (
+                      <div className="col-span-full py-12 text-center">
+                        <Loader2 size={32} className="animate-spin mx-auto text-[#E5A00D] mb-2" />
+                        <p className="font-outfit font-black text-sm text-black">Loading meal packages...</p>
+                      </div>
+                    ) : dbSubPackages.length === 0 ? (
+                      <div className="col-span-full p-8 text-center rounded-2xl border-2 border-dashed border-black/20 bg-[#FFF8EE]">
+                        <p className="font-outfit font-black text-sm text-black">No Active Subscription Packages Available</p>
+                        <p className="text-xs text-zinc-500 font-semibold mt-1">Please check back soon.</p>
+                      </div>
+                    ) : (
+                      dbSubPackages.map((pkg: any) => {
+                        const isSelected = selectedPackageId ? selectedPackageId === pkg.id : selectedMealCredits === pkg.mealCredits;
+                        const basePrice = subVegMeal?.pricePerMeal || 55;
+                        const subtotal = basePrice * pkg.mealCredits;
+                        const total = Math.max(0, subtotal - (pkg.discount || 0));
+
+                        return (
+                          <div
+                            key={pkg.id}
+                            onClick={() => {
+                              setSelectedPackageId(pkg.id);
+                              setSelectedMealCredits(pkg.mealCredits);
+                            }}
+                            className={`p-6 rounded-2xl border-3 text-left transition-all cursor-pointer flex flex-col justify-between relative ${
+                              isSelected
+                                ? "bg-[#FFF8EE] border-black shadow-[6px_6px_0_#000] ring-2 ring-black"
+                                : "bg-white border-black/20 hover:border-black shadow-[3px_3px_0_#000]"
+                            }`}
+                          >
+                            {pkg.isFeatured && (
+                              <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 bg-[#E5A00D] text-black font-outfit font-black text-[9px] uppercase tracking-wider rounded-full border border-black shadow-[1.5px_1.5px_0_#000]">
+                                ★ MOST POPULAR ★
+                              </span>
+                            )}
+
+                            <div>
+                              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
+                                {pkg.discount > 0 ? `Save ₹${pkg.discount}` : "Standard Plan"}
+                              </span>
+                              <h4 className="font-outfit text-3xl font-black text-black mt-2">{pkg.name}</h4>
+                              <p className="text-xs font-semibold text-zinc-500 mt-1">{pkg.mealCredits} Meal Credits</p>
+                            </div>
+
+                            <div className="pt-4 border-t-2 border-black/10 mt-6">
+                              <span className="text-[10px] font-bold text-zinc-400 block uppercase">Package Price</span>
+                              <div className="flex items-baseline gap-2">
+                                <span className="font-outfit font-black text-2xl text-black">₹{total}</span>
+                                {pkg.discount > 0 && (
+                                  <span className="text-xs text-zinc-400 line-through font-bold">₹{subtotal}</span>
+                                )}
+                              </div>
+                              <span className="text-[10px] text-emerald-700 font-bold block mt-1">
+                                ₹{Math.round(total / pkg.mealCredits)} / meal
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  <div className="flex justify-end pt-4">
+                    <button
+                      onClick={() => setSubStep(2)}
+                      className="px-6 py-3 rounded-2xl bg-black text-[#E5A00D] font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[3px_3px_0_#000] hover:bg-zinc-900 flex items-center gap-2"
+                    >
+                      <span>Next: Create Meal Calendar</span>
+                      <ArrowRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 2: CREATE MEAL CALENDAR */}
+              {subStep === 2 && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-outfit text-lg font-black uppercase text-black flex items-center gap-2">
+                      <Calendar size={18} className="text-[#E5A00D]" />
+                      Step 2: Create Your Meal Calendar
+                    </h3>
+                    <span className="text-xs font-bold text-zinc-500">
+                      Configure delivery days, sessions &amp; start date
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    {/* Left Controls */}
+                    <div className="lg:col-span-6 space-y-5">
+                      {/* 1. Delivery Days Selection */}
+                      <div>
+                        <label className="text-xs font-black uppercase tracking-wider text-black block mb-2">
+                          Select Delivery Days (Multi-select)
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            { id: "MON", name: "Mon" },
+                            { id: "TUE", name: "Tue" },
+                            { id: "WED", name: "Wed" },
+                            { id: "THU", name: "Thu" },
+                            { id: "FRI", name: "Fri" },
+                            { id: "SAT", name: "Sat" },
+                            { id: "SUN", name: "Sun" },
+                          ].map((day) => {
+                            const isChecked = selectedDeliveryDays.includes(day.id);
+                            return (
+                              <button
+                                key={day.id}
+                                type="button"
+                                onClick={() => {
+                                  if (isChecked) {
+                                    if (selectedDeliveryDays.length > 1) {
+                                      setSelectedDeliveryDays(selectedDeliveryDays.filter((d) => d !== day.id));
+                                    }
+                                  } else {
+                                    setSelectedDeliveryDays([...selectedDeliveryDays, day.id]);
+                                  }
+                                }}
+                                className={`px-4 py-2 rounded-xl font-outfit font-black text-xs border-2 transition-all ${
+                                  isChecked
+                                    ? "bg-black text-[#E5A00D] border-black shadow-[2px_2px_0_#000]"
+                                    : "bg-white text-black border-black/20 hover:border-black"
+                                }`}
+                              >
+                                {day.name} {isChecked ? "✓" : ""}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* 2. Meal Sessions Selection */}
+                      <div>
+                        <label className="text-xs font-black uppercase tracking-wider text-black block mb-2">
+                          Select Meal Sessions (Multi-select)
+                        </label>
+                        <div className="grid grid-cols-3 gap-3">
+                          {[
+                            { id: "BREAKFAST", name: "Breakfast", icon: "🌅", time: "7:30 - 8:30 AM" },
+                            { id: "LUNCH", name: "Lunch", icon: "☀️", time: "12:00 - 1:00 PM" },
+                            { id: "DINNER", name: "Dinner", icon: "🌙", time: "7:30 - 8:30 PM" },
+                          ].map((session) => {
+                            const isChecked = selectedMealTimings.includes(session.id);
+                            return (
+                              <button
+                                key={session.id}
+                                type="button"
+                                onClick={() => {
+                                  if (isChecked) {
+                                    if (selectedMealTimings.length > 1) {
+                                      setSelectedMealTimings(selectedMealTimings.filter((s) => s !== session.id));
+                                    }
+                                  } else {
+                                    setSelectedMealTimings([...selectedMealTimings, session.id]);
+                                  }
+                                }}
+                                className={`p-3 rounded-xl border-2 text-left transition-all ${
+                                  isChecked
+                                    ? "bg-[#FFF8EE] border-black text-black shadow-[3px_3px_0_#000] ring-2 ring-black"
+                                    : "bg-white border-black/20 hover:border-black text-black"
+                                }`}
+                              >
+                                <span className="text-lg block mb-1">{session.icon}</span>
+                                <div className="font-outfit font-black text-xs uppercase">{session.name}</div>
+                                <div className="text-[9px] text-zinc-500 font-semibold">{session.time}</div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* 3. Start Date Picker */}
+                      <div>
+                        <label className="text-xs font-black uppercase tracking-wider text-black block mb-2">
+                          Subscription Start Date
+                        </label>
+                        <input
+                          type="date"
+                          min={new Date().toISOString().split("T")[0]}
+                          value={subStartDate}
+                          onChange={(e) => setSubStartDate(e.target.value)}
+                          className="w-full p-3 rounded-xl border-2 border-black bg-white text-xs font-black focus:outline-none focus:ring-2 focus:ring-[#E5A00D] shadow-[2px_2px_0_#000]"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Right Live Calendar Preview & Telemetry */}
+                    <div className="lg:col-span-6 space-y-4">
+                      {/* Telemetry Display */}
+                      <div className="p-5 rounded-2xl bg-black text-white border-2 border-black shadow-[4px_4px_0_#E5A00D] grid grid-cols-2 gap-4 text-center">
+                        <div>
+                          <span className="text-[10px] font-black uppercase text-[#E5A00D] block">Meals Per Day</span>
+                          <span className="font-outfit text-2xl font-black text-white">{selectedMealTimings.length} Meals/Day</span>
                         </div>
 
                         <div>
-                          <h3 className="font-outfit text-2xl sm:text-3xl font-black uppercase tracking-tight text-black group-hover:text-amber-900 transition-colors">
-                            {pkg.name}
-                          </h3>
-                          <p className="text-xs text-zinc-600 font-medium mt-1">
-                            {subMealTiming === "BOTH"
-                              ? `2 meals daily (Lunch + Dinner) for ${durationDays} days.`
-                              : subMealTiming === "DINNER"
-                                ? `1 hot dinner delivered daily at 7:30 PM for ${durationDays} days.`
-                                : `1 wholesome lunch delivered daily at 12:00 PM for ${durationDays} days.`}
-                          </p>
+                          <span className="text-[10px] font-black uppercase text-[#E5A00D] block">Delivery Days / Week</span>
+                          <span className="font-outfit text-2xl font-black text-white">{selectedDeliveryDays.length} Days/Week</span>
                         </div>
 
-                        {/* Clean Price Display */}
-                        <div className="p-4 rounded-2xl bg-white border-2 border-black shadow-[2px_2px_0_#000] flex items-baseline justify-between">
-                          <div>
-                            <span className="text-[10px] font-black uppercase text-zinc-400 block">Total Price</span>
-                            <span className="font-outfit text-3xl font-black text-black">₹{finalTotal.toLocaleString()}</span>
-                          </div>
-                          {regularTotal > finalTotal && (
-                            <span className="text-xs line-through text-zinc-400 font-bold">
-                              ₹{regularTotal.toLocaleString()}
-                            </span>
-                          )}
+                        <div>
+                          <span className="text-[10px] font-black uppercase text-[#E5A00D] block">Scheduled Meals</span>
+                          <span className="font-outfit text-2xl font-black text-white">{selectedMealCredits} Deliveries</span>
                         </div>
 
-                        {/* Highlights */}
-                        <ul className="space-y-2 text-xs font-semibold text-zinc-700 pt-1">
-                          <li className="flex items-center gap-2">
-                            <Check size={14} className="text-emerald-600 shrink-0" />
-                            <span>{pkg.mealCredits} Complete Fresh Homestyle Meals</span>
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <Check size={14} className="text-emerald-600 shrink-0" />
-                            <span>Fresh hot handi delivery to your door</span>
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <Check size={14} className="text-emerald-600 shrink-0" />
-                            <span>Pause or skip days anytime on dashboard</span>
-                          </li>
-                        </ul>
+                        <div>
+                          <span className="text-[10px] font-black uppercase text-[#E5A00D] block">Estimated End Date</span>
+                          <span className="font-outfit text-lg font-black text-emerald-400">
+                            {calculateSubEndDate(subStartDate, selectedMealCredits, selectedDeliveryDays, selectedMealTimings)}
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="pt-6">
-                        <button
-                          disabled={subSubmitting}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSubscribePlan(pkg.mealCredits, pkg.name, pkg.id);
-                          }}
-                          className={`w-full py-3.5 rounded-2xl font-outfit font-black text-xs uppercase tracking-wider border-2 border-black transition-all flex items-center justify-center gap-2 cursor-pointer active:translate-x-0.5 active:translate-y-0.5 ${isSelected
-                            ? "bg-black text-[#E5A00D] shadow-[3px_3px_0_#E5A00D] hover:bg-zinc-900"
-                            : "bg-white text-black shadow-[2px_2px_0_#000] hover:bg-[#FFF8EE]"
-                            }`}
-                        >
-                          {subSubmitting && selectedSubPlan === pkg.id ? (
-                            <Loader2 size={16} className="animate-spin text-[#E5A00D]" />
-                          ) : (
-                            <>
-                              <span>Subscribe {pkg.mealCredits} Meals (₹{finalTotal.toLocaleString()})</span>
-                              <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                            </>
+                      {/* Visual Date Calendar Preview Grid */}
+                      <div className="p-4 rounded-2xl bg-[#FFF8EE] border-2 border-black space-y-3 shadow-[3px_3px_0_#000]">
+                        <span className="text-xs font-black uppercase tracking-wider text-black block">
+                          Visual Delivery Calendar Preview ({selectedMealCredits} Meals)
+                        </span>
+                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-48 overflow-y-auto pr-1">
+                          {generateCalendarPreview(subStartDate, selectedMealCredits, selectedDeliveryDays, selectedMealTimings).map(
+                            (item, idx) => (
+                              <div
+                                key={idx}
+                                className="p-2 rounded-xl bg-white border border-black text-center text-[10px] shadow-xs"
+                              >
+                                <span className="font-black text-black block uppercase">{item.dayName}</span>
+                                <span className="font-mono text-zinc-600 block text-[9px]">{item.dateStr.slice(5)}</span>
+                                <span className="font-bold text-[#E5A00D] block text-[8px] uppercase">{item.slot}</span>
+                              </div>
+                            )
                           )}
-                        </button>
+                        </div>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                  </div>
 
           {/* ── Meal Details & Dish Transparency Section (Premium Culinary Showcase) ── */}
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#FFFBF2] via-[#FFF8EE] to-[#FFF3E0] border border-amber-200/80 p-6 sm:p-10">
@@ -2524,8 +2957,256 @@ export function CustomerDashboardView() {
             </div>
           )}
 
-        </div>
-      )}
+                  <div className="flex justify-between pt-4 border-t-2 border-black/10">
+                    <button
+                      onClick={() => setSubStep(1)}
+                      className="px-6 py-3 rounded-2xl bg-white text-black font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[2px_2px_0_#000]"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={() => setSubStep(3)}
+                      className="px-6 py-3 rounded-2xl bg-black text-[#E5A00D] font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[3px_3px_0_#000] hover:bg-zinc-900 flex items-center gap-2"
+                    >
+                      <span>Next: Delivery Address</span>
+                      <ArrowRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: DELIVERY ADDRESS */}
+              {subStep === 3 && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-outfit text-lg font-black uppercase text-black flex items-center gap-2">
+                      <MapPin size={18} className="text-[#E5A00D]" />
+                      Step 3: Delivery Address &amp; Delivery Batch Resolution
+                    </h3>
+                    <button
+                      onClick={() => {
+                        setAddressToEdit(null);
+                        setAddressModalMode("LIST");
+                        setAddressModalOpen(true);
+                      }}
+                      className="text-xs font-black text-black underline hover:text-[#E5A00D]"
+                    >
+                      Change Address
+                    </button>
+                  </div>
+
+                  {activeAddress ? (
+                    <div className="p-5 rounded-2xl border-3 border-black bg-[#FFF8EE] shadow-[4px_4px_0_#000] space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="px-3 py-1 rounded-full bg-black text-[#E5A00D] font-outfit font-black text-[10px] uppercase">
+                          DELIVERING TO {activeAddress.label || "HOME"}
+                        </span>
+                        <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-md border border-emerald-300">
+                          Map Location Pinned ✓
+                        </span>
+                      </div>
+
+                      <p className="text-xs font-semibold text-zinc-800">
+                        {activeAddress.address}, {activeAddress.area}, {activeAddress.city} - {activeAddress.pincode}
+                      </p>
+
+                      <div className="p-3 rounded-xl bg-white border border-black/10 text-xs flex items-center justify-between">
+                        <span className="font-bold text-zinc-600">Automated Delivery Batch:</span>
+                        <span className="font-outfit font-black text-black bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
+                          Batch 1 (12:30 PM Drop)
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-6 text-center rounded-2xl border-2 border-dashed border-black/30 bg-[#FFF8EE]">
+                      <p className="font-outfit font-black text-sm text-black">No Delivery Address Selected</p>
+                      <button
+                        onClick={() => {
+                          setAddressToEdit(null);
+                          setAddressModalMode("FORM");
+                          setAddressModalOpen(true);
+                        }}
+                        className="mt-3 px-5 py-2.5 rounded-xl bg-black text-[#E5A00D] font-outfit font-black text-xs uppercase tracking-wider shadow-[2px_2px_0_#000]"
+                      >
+                        Add Delivery Address
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between pt-4">
+                    <button
+                      onClick={() => setSubStep(2)}
+                      className="px-6 py-3 rounded-2xl bg-white text-black font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[2px_2px_0_#000]"
+                    >
+                      Back
+                    </button>
+                    <button
+                      disabled={!activeAddress?.id}
+                      onClick={() => setSubStep(4)}
+                      className="px-6 py-3 rounded-2xl bg-black text-[#E5A00D] font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[3px_3px_0_#000] hover:bg-zinc-900 flex items-center gap-2 disabled:opacity-50"
+                    >
+                      <span>Next: Review Subscription</span>
+                      <ArrowRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 4: REVIEW SUBSCRIPTION */}
+              {subStep === 4 && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-outfit text-lg font-black uppercase text-black flex items-center gap-2">
+                      <ShieldCheck size={18} className="text-[#E5A00D]" />
+                      Step 4: Review Your Subscription Summary
+                    </h3>
+                    <span className="text-xs font-bold text-emerald-800">Verify All Details Before Payment</span>
+                  </div>
+
+                  <div className="p-6 rounded-2xl border-3 border-black bg-[#FFF8EE] shadow-[5px_5px_0_#000] space-y-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-zinc-400 block">Subscription Meal</span>
+                        <span className="font-outfit font-black text-black">{subVegMeal?.name || "Q Bowl Royal Homestyle Thali"}</span>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-zinc-400 block">Meal Package</span>
+                        <span className="font-outfit font-black text-black">{selectedMealCredits} Meal Credits</span>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-zinc-400 block">Daily Sessions</span>
+                        <span className="font-outfit font-black text-black">{selectedMealTimings.join(" + ")}</span>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-zinc-400 block">Grand Total</span>
+                        <span className="font-outfit font-black text-xl text-black">
+                          ₹{(() => {
+                            const activePkg = dbSubPackages.find((p) => p.id === selectedPackageId) || dbSubPackages.find((p) => p.mealCredits === selectedMealCredits) || dbSubPackages[0];
+                            const credits = activePkg?.mealCredits || selectedMealCredits || 20;
+                            const base = subVegMeal?.pricePerMeal || 55;
+                            const disc = activePkg?.discount || 0;
+                            return Math.max(0, base * credits - disc);
+                          })()}
+                        </span>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-zinc-400 block">Delivery Days</span>
+                        <span className="font-outfit font-bold text-black">{selectedDeliveryDays.join(", ")}</span>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-zinc-400 block">Start Date</span>
+                        <span className="font-outfit font-bold text-black">{subStartDate}</span>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-zinc-400 block">Estimated Completion</span>
+                        <span className="font-outfit font-bold text-black">{calculateSubEndDate(subStartDate, selectedMealCredits, selectedDeliveryDays, selectedMealTimings)}</span>
+                      </div>
+
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-zinc-400 block">Delivery Address</span>
+                        <span className="font-outfit font-bold text-black truncate block">{activeAddress?.label || "Saved Address"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between pt-4">
+                    <button
+                      onClick={() => setSubStep(3)}
+                      className="px-6 py-3 rounded-2xl bg-white text-black font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[2px_2px_0_#000]"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={() => setSubStep(5)}
+                      className="px-6 py-3 rounded-2xl bg-black text-[#E5A00D] font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[3px_3px_0_#000] hover:bg-zinc-900 flex items-center gap-2"
+                    >
+                      <span>Proceed to Payment</span>
+                      <ArrowRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 5: PAYMENT */}
+              {subStep === 5 && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-outfit text-lg font-black uppercase text-black flex items-center gap-2">
+                      <CreditCard size={18} className="text-[#E5A00D]" />
+                      Step 5: Razorpay Secure Payment
+                    </h3>
+                    <span className="text-xs font-bold text-emerald-800">100% Guaranteed Refund Eligibility</span>
+                  </div>
+
+                  {(() => {
+                    const activePkg = dbSubPackages.find((p) => p.id === selectedPackageId) || dbSubPackages.find((p) => p.mealCredits === selectedMealCredits) || dbSubPackages[0];
+                    const credits = activePkg?.mealCredits || selectedMealCredits || 20;
+                    const pkgName = activePkg?.name || `${credits} Meal Credits Package`;
+                    const base = subVegMeal?.pricePerMeal || 55;
+                    const disc = activePkg?.discount || 0;
+                    const grandTotal = Math.max(0, base * credits - disc);
+
+                    return (
+                      <div className="p-6 rounded-2xl border-3 border-black bg-[#FFF8EE] shadow-[5px_5px_0_#000] space-y-4">
+                        <div className="border-b-2 border-black/10 pb-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                          <div>
+                            <h4 className="font-outfit text-xl font-black text-black">{pkgName} ({credits} Meals)</h4>
+                            <p className="text-xs text-zinc-600 font-medium">
+                              {selectedMealTimings.join(" + ")} ({selectedDeliveryDays.length} Days/Week)
+                            </p>
+                          </div>
+
+                          <div className="text-right">
+                            <span className="font-outfit text-3xl font-black text-black">
+                              ₹{grandTotal}
+                            </span>
+                            <span className="text-[10px] text-emerald-700 font-bold block">Free Priority Doorstep Delivery</span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+                          <div className="text-xs text-zinc-600 font-semibold">
+                            Upon payment verification, your complete delivery schedule will be generated automatically.
+                          </div>
+
+                          <button
+                            disabled={subSubmitting}
+                            onClick={() => handleSubscribePlan(credits, pkgName, activePkg?.id)}
+                            className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-black text-[#E5A00D] hover:bg-zinc-900 font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[3px_3px_0_#E5A00D] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            {subSubmitting ? (
+                              <Loader2 size={16} className="animate-spin text-[#E5A00D]" />
+                            ) : (
+                              <>
+                                <span>Pay ₹{grandTotal} via Razorpay</span>
+                                <ChevronRight size={16} />
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  <div className="flex justify-start pt-2">
+                    <button
+                      onClick={() => setSubStep(4)}
+                      className="px-6 py-3 rounded-2xl bg-white text-black font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[2px_2px_0_#000]"
+                    >
+                      Back
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
       {/* ── 0.35 Coupons & Offers Tab ── */}
       {activeTab === "coupons" && (
@@ -3049,7 +3730,7 @@ export function CustomerDashboardView() {
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
                     </div>
                     <p className="text-[10px] font-bold text-emerald-800">
-                      {activeSubRecord.mealsRemaining ?? activeSubRecord.totalMeals ?? 0} left
+                      {activeSubRecord.creditsRemaining ?? activeSubRecord.mealsRemaining ?? activeSubRecord.totalMeals ?? 0} left
                     </p>
                   </div>
                 </button>
@@ -3394,13 +4075,17 @@ export function CustomerDashboardView() {
                   </p>
                 </div>
 
-                <Link
-                  href="/subscriptions"
-                  className="text-[11px] font-bold text-amber-900 hover:text-black underline underline-offset-2 flex items-center gap-0.5"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab("subscriptions");
+                    window.location.hash = "subscriptions";
+                  }}
+                  className="text-[11px] font-bold text-amber-900 hover:text-black underline underline-offset-2 flex items-center gap-0.5 cursor-pointer"
                 >
                   <span>Manage</span>
                   <ChevronRight size={12} />
-                </Link>
+                </button>
               </div>
 
               {/* 1. Subscription Status Card (Compact: Progress & Meals/Month Only) */}
@@ -3473,13 +4158,17 @@ export function CustomerDashboardView() {
                     </div>
                   </div>
 
-                  <Link
-                    href="/subscriptions"
-                    className="px-3 py-1.5 rounded-lg bg-black text-[#E5A00D] hover:bg-zinc-800 font-outfit font-black text-[11px] uppercase tracking-wider transition-all inline-flex items-center gap-1 shrink-0 shadow-xs"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab("subscriptions");
+                      window.location.hash = "subscriptions";
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-black text-[#E5A00D] hover:bg-zinc-800 font-outfit font-black text-[11px] uppercase tracking-wider transition-all inline-flex items-center gap-1 shrink-0 shadow-xs cursor-pointer"
                   >
                     <span>Browse Plans</span>
                     <ArrowRight size={12} />
-                  </Link>
+                  </button>
                 </div>
               )}
 
@@ -3491,17 +4180,20 @@ export function CustomerDashboardView() {
                       Recent Deliveries
                     </h4>
                     <p className="text-xs text-zinc-600 font-medium">
-                      Latest meal dispatches and order fulfillments
+                      Completed meal drops and doorstep deliveries
                     </p>
                   </div>
 
-                  <Link
-                    href="/orders"
-                    className="flex items-center gap-1 font-outfit text-xs font-black uppercase tracking-wider text-amber-700 hover:text-black transition-colors bg-white px-3 py-1.5 rounded-xl border-2 border-black shadow-[2px_2px_0_#000]"
+                  <button
+                    onClick={() => {
+                      setActiveTab("history");
+                      window.location.hash = "history";
+                    }}
+                    className="flex items-center gap-1 font-outfit text-xs font-black uppercase tracking-wider text-amber-700 hover:text-black transition-colors bg-white px-3 py-1.5 rounded-xl border-2 border-black shadow-[2px_2px_0_#000] cursor-pointer hover:bg-amber-50"
                   >
                     <span>View All</span>
                     <ChevronRight size={14} />
-                  </Link>
+                  </button>
                 </div>
 
                 {loadingDashboardData ? (
@@ -3513,9 +4205,6 @@ export function CustomerDashboardView() {
                 ) : recentDeliveries.length > 0 ? (
                   <div className="space-y-3">
                     {recentDeliveries.map((del) => {
-                      const isDelivered = del.status === "DELIVERED" || del.status === "COMPLETED";
-                      const isCancelled = del.status === "CANCELLED" || del.status === "SKIPPED";
-
                       const formattedDate = del.date
                         ? new Date(del.date).toLocaleDateString("en-IN", {
                           day: "numeric",
@@ -3530,21 +4219,8 @@ export function CustomerDashboardView() {
                           className="rounded-2xl border-2 border-black bg-white p-4 sm:p-5 shadow-[4px_4px_0_#000] flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:translate-x-[-1px] hover:translate-y-[-1px]"
                         >
                           <div className="flex items-start sm:items-center gap-3.5">
-                            <div
-                              className={`w-10 h-10 rounded-xl border-2 border-black flex items-center justify-center flex-shrink-0 shadow-[2px_2px_0_#000] ${isDelivered
-                                ? "bg-emerald-300 text-black"
-                                : isCancelled
-                                  ? "bg-red-200 text-black"
-                                  : "bg-[#E5A00D] text-black"
-                                }`}
-                            >
-                              {isDelivered ? (
-                                <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
-                              ) : isCancelled ? (
-                                <X className="w-5 h-5 stroke-[2.5]" />
-                              ) : (
-                                <Truck className="w-5 h-5 stroke-[2.5]" />
-                              )}
+                            <div className="w-10 h-10 rounded-xl border-2 border-black flex items-center justify-center flex-shrink-0 shadow-[2px_2px_0_#000] bg-emerald-300 text-black">
+                              <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
                             </div>
 
                             <div className="space-y-0.5">
@@ -3570,19 +4246,9 @@ export function CustomerDashboardView() {
                           </div>
 
                           <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 border-zinc-100 pt-2 sm:pt-0">
-                            <span
-                              className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border border-black ${isDelivered
-                                ? "bg-emerald-100 text-emerald-900 border-emerald-950"
-                                : isCancelled
-                                  ? "bg-red-100 text-red-900 border-red-950"
-                                  : "bg-amber-100 text-amber-950 border-amber-950"
-                                }`}
-                            >
-                              <span
-                                className={`h-1.5 w-1.5 rounded-full ${isDelivered ? "bg-emerald-600" : isCancelled ? "bg-red-600" : "bg-amber-600"
-                                  }`}
-                              />
-                              {del.status.replace(/_/g, " ")}
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-900 border border-emerald-950">
+                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                              DELIVERED
                             </span>
                           </div>
                         </div>
@@ -3590,9 +4256,10 @@ export function CustomerDashboardView() {
                     })}
                   </div>
                 ) : (
-                  <div className="p-8 text-center rounded-2xl border-2 border-dashed border-black/20 bg-white/60">
-                    <p className="font-outfit font-black text-sm text-black">No delivery records found yet.</p>
-                    <p className="text-xs text-zinc-500 font-semibold mt-0.5">Your meal dispatches and orders will be logged here in real-time.</p>
+                  <div className="p-8 text-center rounded-2xl border-2 border-dashed border-black/20 bg-white/60 space-y-1">
+                    <Package size={32} className="mx-auto text-zinc-400 mb-2" />
+                    <p className="font-outfit font-black text-sm text-black uppercase">No Completed Deliveries Yet</p>
+                    <p className="text-xs text-zinc-500 font-semibold">Your delivered meals and orders will automatically appear here once delivered.</p>
                   </div>
                 )}
               </div>

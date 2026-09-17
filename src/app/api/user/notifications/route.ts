@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { db } from "@/db";
-import { orders, subscriptions, users } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { orders, subscriptions, users, notifications } from "@/db/schema";
+import { eq, desc, and } from "drizzle-orm";
 
 export async function GET() {
   const session = await getSession();
@@ -21,6 +21,20 @@ export async function GET() {
       .limit(1);
 
     const user = userList[0];
+
+    // Fetch notifications stored in db for this user
+    const dbNotifs = await db
+      .select({
+        id: notifications.id,
+        title: notifications.title,
+        body: notifications.body,
+        isRead: notifications.isRead,
+        createdAt: notifications.createdAt,
+      })
+      .from(notifications)
+      .where(eq(notifications.userId, session.userId))
+      .orderBy(desc(notifications.createdAt))
+      .limit(15);
 
     // Fetch user recent orders for status notifications
     const recentOrders = await db
@@ -47,7 +61,27 @@ export async function GET() {
       .orderBy(desc(subscriptions.createdAt))
       .limit(1);
 
-    const notifs = [];
+    const notifs: Array<{
+      id: string;
+      title: string;
+      body: string;
+      type: string;
+      time: string;
+      isRead: boolean;
+      actionUrl?: string;
+    }> = [];
+
+    // Add DB-stored notifications
+    dbNotifs.forEach((dn) => {
+      notifs.push({
+        id: dn.id,
+        title: dn.title,
+        body: dn.body,
+        type: "SYSTEM",
+        time: new Date(dn.createdAt).toLocaleDateString(),
+        isRead: dn.isRead,
+      });
+    });
 
     if (user?.verificationStatus === "APPROVED") {
       notifs.push({
@@ -57,6 +91,7 @@ export async function GET() {
         type: "SUCCESS",
         time: "Just now",
         isRead: false,
+        actionUrl: "/dashboard",
       });
     }
 
@@ -68,6 +103,7 @@ export async function GET() {
         type: "SUBSCRIPTION",
         time: "Active",
         isRead: false,
+        actionUrl: "/dashboard#subscriptions",
       });
     }
 
@@ -79,6 +115,7 @@ export async function GET() {
         type: "ORDER",
         time: new Date(o.createdAt).toLocaleDateString(),
         isRead: false,
+        actionUrl: "/dashboard#history",
       });
     });
 
@@ -89,5 +126,34 @@ export async function GET() {
   } catch (error) {
     console.error("User notifications error:", error);
     return NextResponse.json({ error: "Failed to load notifications" }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: Request) {
+  const session = await getSession();
+  if (!session?.userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const { notificationId } = await req.json();
+    if (!notificationId) {
+      return NextResponse.json({ error: "Notification ID required" }, { status: 400 });
+    }
+
+    // If it's a DB notification, update it in table
+    try {
+      await db
+        .update(notifications)
+        .set({ isRead: true })
+        .where(and(eq(notifications.id, notificationId), eq(notifications.userId, session.userId)));
+    } catch {
+      // Non-db generated notification, client handles in localStorage/state
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Failed to mark notification as read:", error);
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

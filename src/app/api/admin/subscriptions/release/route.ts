@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
           mealId: subscriptions.mealId,
           status: subscriptions.status,
           mealsRemaining: subscriptions.mealsRemaining,
+          creditsRemaining: subscriptions.creditsRemaining,
           mealsUsed: subscriptions.mealsUsed,
           mealTiming: subscriptions.mealTiming,
           customerName: users.name,
@@ -138,6 +139,7 @@ export async function POST(req: NextRequest) {
       await db
         .update(subscriptions)
         .set({
+          creditsRemaining: Math.max(0, (sub.creditsRemaining ?? sub.mealsRemaining) - 1),
           mealsRemaining: Math.max(0, sub.mealsRemaining - 1),
           mealsUsed: (sub.mealsUsed || 0) + 1,
           updatedAt: new Date(),
@@ -175,6 +177,7 @@ export async function POST(req: NextRequest) {
           mealId: subscriptions.mealId,
           status: subscriptions.status,
           mealsRemaining: subscriptions.mealsRemaining,
+          creditsRemaining: subscriptions.creditsRemaining,
           mealsUsed: subscriptions.mealsUsed,
           mealTiming: subscriptions.mealTiming,
           customerName: users.name,
@@ -254,6 +257,7 @@ export async function POST(req: NextRequest) {
         await db
           .update(subscriptions)
           .set({
+            creditsRemaining: Math.max(0, (sub.creditsRemaining ?? sub.mealsRemaining) - 1),
             mealsRemaining: Math.max(0, sub.mealsRemaining - 1),
             mealsUsed: (sub.mealsUsed || 0) + 1,
             updatedAt: new Date(),

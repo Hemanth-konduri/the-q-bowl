@@ -10,8 +10,8 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       <div className="pointer-events-none absolute -top-40 left-1/2 h-[450px] w-[450px] -translate-x-1/2 rounded-full bg-[#E5A00D]/10 blur-[120px]" />
       <div className="pointer-events-none absolute -bottom-40 left-1/2 h-[450px] w-[450px] -translate-x-1/2 rounded-full bg-[#E5A00D]/15 blur-[140px]" />
 
-      {/* ── Floating Decorative Food Bowls (Specified Bowl Assets - Compact Fit) ── */}
-      <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+      {/* ── Floating Decorative Food Bowls (Specified Bowl Assets - Hidden on Mobile) ── */}
+      <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden hidden sm:block">
         {/* 1. Top-Left: Chicken Dum Biryani Bowl */}
         <div className="animate-bowl-1 absolute -left-6 -top-6 w-32 sm:left-4 sm:top-4 sm:w-44 md:w-52 lg:left-8 lg:top-6 lg:w-60 drop-shadow-[0_20px_25px_rgba(0,0,0,0.18)]">
           <Image

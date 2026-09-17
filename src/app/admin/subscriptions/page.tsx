@@ -32,6 +32,12 @@ import {
   Sun,
   Moon,
   Rocket,
+  Truck,
+  PackageCheck,
+  Layers,
+  ChevronDown,
+  ChevronUp,
+  UserCheck,
 } from "lucide-react";
 
 interface SubscriberRecord {
@@ -85,10 +91,41 @@ interface FoodCatalogItem {
   isVeg: boolean;
 }
 
+interface EnrichedBatch {
+  id: string;
+  name: string;
+  mealSlot: string;
+  deliveryTime: string;
+  assignedPartnerId: string | null;
+  partnerName?: string;
+  partnerPhone?: string;
+  status: string;
+  totalMeals: number;
+  subscriptionCount: number;
+  dailyOrderCount: number;
+  deliveries: Array<{
+    id: string;
+    orderType: string;
+    customerName?: string;
+    customerPhone?: string;
+    mealName?: string;
+    addressLine?: string;
+    area?: string;
+    status: string;
+  }>;
+}
+
+interface DeliveryPartnerRecord {
+  id: string;
+  fullName: string;
+  phone: string;
+  isActive: boolean;
+}
+
 export default function AdminSubscriptionsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<"SUBSCRIBERS" | "MEAL_PRICING" | "PACKAGES">("SUBSCRIBERS");
+  const [activeTab, setActiveTab] = useState<"SUBSCRIBERS" | "BATCHES" | "MEAL_PRICING" | "PACKAGES">("SUBSCRIBERS");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Data States
@@ -96,6 +133,10 @@ export default function AdminSubscriptionsPage() {
   const [pricings, setPricings] = useState<MealPricing[]>([]);
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const [foodCatalog, setFoodCatalog] = useState<FoodCatalogItem[]>([]);
+  const [deliveryBatchesList, setDeliveryBatchesList] = useState<EnrichedBatch[]>([]);
+  const [deliveryPartnersList, setDeliveryPartnersList] = useState<DeliveryPartnerRecord[]>([]);
+  const [updatingBatchId, setUpdatingBatchId] = useState<string | null>(null);
+  const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);
 
   // Modal States
   const [selectedSub, setSelectedSub] = useState<SubscriberRecord | null>(null);
@@ -182,7 +223,108 @@ export default function AdminSubscriptionsPage() {
     }
   }
 
-  // 1. Fetch All Subscription Data
+  // 1. Fetch All Subscription Data & Today's Batches
+  async function fetchBatchesData() {
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const [batchesRes, partnersRes, deliveryRes] = await Promise.all([
+        fetch("/api/admin/batches"),
+        fetch("/api/admin/delivery-partners"),
+        fetch(`/api/delivery/batches?date=${today}`),
+      ]);
+
+      let rawBatches: any[] = [];
+      if (batchesRes.ok) {
+        const bData = await batchesRes.json();
+        rawBatches = bData.batches || [];
+      }
+
+      if (partnersRes.ok) {
+        const pData = await partnersRes.json();
+        setDeliveryPartnersList(Array.isArray(pData) ? pData : pData.partners || []);
+      }
+
+      let manifestBatches: any[] = [];
+      if (deliveryRes.ok) {
+        const dData = await deliveryRes.json();
+        manifestBatches = dData.batches || [];
+      }
+
+      const merged: EnrichedBatch[] = rawBatches.map((b) => {
+        const matchedManifest = manifestBatches.find((mb) => mb.id === b.id);
+        const deliveries = matchedManifest?.deliveries || [];
+        const subCount = deliveries.filter((d: any) => d.orderType === "SUBSCRIPTION").length;
+        const dailyCount = deliveries.filter((d: any) => d.orderType !== "SUBSCRIPTION").length;
+
+        return {
+          id: b.id,
+          name: b.name,
+          mealSlot: b.mealSlot || "LUNCH",
+          deliveryTime: b.deliveryTime,
+          assignedPartnerId: b.assignedPartnerId,
+          partnerName: b.partnerName,
+          partnerPhone: b.partnerPhone,
+          status: b.status || "SCHEDULED",
+          totalMeals: deliveries.length,
+          subscriptionCount: subCount,
+          dailyOrderCount: dailyCount,
+          deliveries,
+        };
+      });
+
+      setDeliveryBatchesList(merged);
+    } catch (err) {
+      console.error("Error fetching batches data:", err);
+    }
+  }
+
+  async function handleAssignBatchPartner(batchId: string, assignedPartnerId: string) {
+    setUpdatingBatchId(batchId);
+    try {
+      const res = await fetch("/api/admin/batches", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ batchId, assignedPartnerId }),
+      });
+      if (res.ok) {
+        setToastMessage("Delivery partner assigned to batch successfully!");
+        setTimeout(() => setToastMessage(null), 3000);
+        await fetchBatchesData();
+      }
+    } catch (err) {
+      console.error("Error assigning partner to batch:", err);
+    } finally {
+      setUpdatingBatchId(null);
+    }
+  }
+
+  async function handleUpdateBatchStatus(batchId: string, status: string) {
+    setUpdatingBatchId(batchId);
+    try {
+      const res = await fetch("/api/admin/batches", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ batchId, status }),
+      });
+      if (res.ok) {
+        setToastMessage(`Batch status updated to ${status}!`);
+        setTimeout(() => setToastMessage(null), 3000);
+        await fetchBatchesData();
+      }
+    } catch (err) {
+      console.error("Error updating batch status:", err);
+    } finally {
+      setUpdatingBatchId(null);
+    }
+  }
+
+  async function handleDispatchBatch(batchId: string, batchName: string) {
+    if (!confirm(`Are you sure you want to dispatch ${batchName} now? All orders in this batch will be assigned for delivery.`)) {
+      return;
+    }
+    await handleUpdateBatchStatus(batchId, "DISPATCHED");
+  }
+
   async function fetchAllSubscriptionData(isManual = false) {
     if (isManual) setRefreshing(true);
     try {
@@ -209,6 +351,8 @@ export default function AdminSubscriptionsPage() {
         const foodData = await foodRes.json();
         setFoodCatalog(Array.isArray(foodData) ? foodData : foodData.foodItems || []);
       }
+
+      await fetchBatchesData();
     } catch (err) {
       console.error("Error loading subscription data:", err);
     } finally {
@@ -604,10 +748,10 @@ export default function AdminSubscriptionsPage() {
             </div>
           </div>
 
-          {/* TAB NAVIGATION: SUBSCRIBERS LIST vs MEAL PRICING vs PACKAGES */}
+          {/* TAB NAVIGATION: SUBSCRIBERS LIST vs TODAY'S BATCHES vs MEAL PRICING vs PACKAGES */}
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-none space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <button
                   onClick={() => setActiveTab("SUBSCRIBERS")}
                   className={`px-4 py-2 text-xs font-black rounded-xl transition-colors ${
@@ -617,6 +761,17 @@ export default function AdminSubscriptionsPage() {
                   }`}
                 >
                   Subscribers Directory ({subscribers.length})
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("BATCHES")}
+                  className={`px-4 py-2 text-xs font-black rounded-xl transition-colors ${
+                    activeTab === "BATCHES"
+                      ? "bg-[#E5A00D] text-black shadow-none"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  Today&apos;s Delivery Batches ({deliveryBatchesList.length})
                 </button>
 
                 <button
@@ -911,6 +1066,196 @@ export default function AdminSubscriptionsPage() {
                     </table>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* TAB 2: TODAY'S DELIVERY BATCHES */}
+            {activeTab === "BATCHES" && (
+              <div className="space-y-6">
+                <div className="p-4 rounded-2xl border-2 border-black bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 shadow-[3px_3px_0_#000] flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-black text-[#E5A00D] border border-black flex items-center justify-center font-bold shrink-0">
+                      <Truck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-outfit font-black text-sm uppercase text-black">
+                        Today&apos;s Synchronized Delivery Batches
+                      </h3>
+                      <p className="text-xs text-zinc-600 font-medium">
+                        Daily online orders and subscription meals are grouped into location batches for synchronized dispatch.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => fetchBatchesData()}
+                      className="px-3.5 py-2 bg-white text-black hover:bg-zinc-100 font-bold text-xs rounded-xl border border-black shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <RefreshCw size={13} className={updatingBatchId ? "animate-spin text-[#E5A00D]" : ""} />
+                      <span>Refresh Batches</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {deliveryBatchesList.length > 0 ? (
+                    deliveryBatchesList.map((batch) => {
+                      const isExpanded = expandedBatchId === batch.id;
+                      return (
+                        <div
+                          key={batch.id}
+                          className="bg-white border-2 border-black rounded-2xl p-5 shadow-[4px_4px_0_#000] flex flex-col justify-between space-y-4 relative"
+                        >
+                          {/* Batch Header */}
+                          <div className="flex items-start justify-between gap-2 border-b border-slate-200 pb-3">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-outfit font-black text-base text-black">{batch.name}</span>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-100 text-amber-950 border border-amber-300 flex items-center gap-1">
+                                  {batch.mealSlot === "DINNER" ? <Moon size={10} /> : <Sun size={10} />}
+                                  {batch.mealSlot}
+                                </span>
+                              </div>
+                              <p className="text-xs font-bold text-slate-500 mt-0.5 flex items-center gap-1">
+                                <Clock size={12} className="text-[#E5A00D]" />
+                                <span>Target Delivery: {batch.deliveryTime || "12:30 PM"}</span>
+                              </p>
+                            </div>
+
+                            {/* Status Badge */}
+                            <span
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${
+                                batch.status === "DELIVERED"
+                                  ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                                  : batch.status === "DISPATCHED"
+                                  ? "bg-blue-100 text-blue-900 border-blue-300"
+                                  : batch.status === "PREPARING"
+                                  ? "bg-amber-100 text-amber-900 border-amber-300"
+                                  : "bg-slate-100 text-slate-700 border-slate-300"
+                              }`}
+                            >
+                              {batch.status}
+                            </span>
+                          </div>
+
+                          {/* Delivery Metrics Breakdown */}
+                          <div className="grid grid-cols-3 gap-2 text-center bg-slate-50 p-3 rounded-xl border border-slate-200">
+                            <div>
+                              <span className="text-[10px] font-extrabold text-slate-400 uppercase block">Total Meals</span>
+                              <span className="font-outfit font-black text-lg text-black">{batch.totalMeals}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-extrabold text-amber-800 uppercase block">Subs</span>
+                              <span className="font-outfit font-black text-lg text-amber-950">{batch.subscriptionCount}</span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-extrabold text-blue-800 uppercase block">Daily</span>
+                              <span className="font-outfit font-black text-lg text-blue-950">{batch.dailyOrderCount}</span>
+                            </div>
+                          </div>
+
+                          {/* Delivery Partner Selector */}
+                          <div className="space-y-1 text-xs">
+                            <label className="font-bold text-slate-600 flex items-center justify-between">
+                              <span>Assigned Delivery Partner</span>
+                              {batch.assignedPartnerId && (
+                                <span className="text-[10px] font-extrabold text-emerald-600 flex items-center gap-1">
+                                  <UserCheck size={11} /> Assigned
+                                </span>
+                              )}
+                            </label>
+                            <select
+                              value={batch.assignedPartnerId || ""}
+                              onChange={(e) => handleAssignBatchPartner(batch.id, e.target.value)}
+                              disabled={updatingBatchId === batch.id}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-black focus:border-[#E5A00D] outline-none"
+                            >
+                              <option value="">-- Unassigned --</option>
+                              {deliveryPartnersList.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.fullName} ({p.phone})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Status Update & Dispatch Actions */}
+                          <div className="space-y-2 pt-1 border-t border-slate-100">
+                            <div className="flex items-center gap-2">
+                              <select
+                                value={batch.status}
+                                onChange={(e) => handleUpdateBatchStatus(batch.id, e.target.value)}
+                                disabled={updatingBatchId === batch.id}
+                                className="flex-1 px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-black"
+                              >
+                                <option value="SCHEDULED">Status: SCHEDULED</option>
+                                <option value="PREPARING">Status: PREPARING</option>
+                                <option value="DISPATCHED">Status: DISPATCHED</option>
+                                <option value="DELIVERED">Status: DELIVERED</option>
+                              </select>
+
+                              <button
+                                onClick={() => handleDispatchBatch(batch.id, batch.name)}
+                                disabled={batch.status === "DISPATCHED" || batch.status === "DELIVERED" || updatingBatchId === batch.id}
+                                className={`px-3.5 py-2 rounded-xl font-outfit font-black text-xs uppercase tracking-wider border transition-all ${
+                                  batch.status !== "DISPATCHED" && batch.status !== "DELIVERED"
+                                    ? "bg-black text-[#E5A00D] hover:bg-neutral-800 border-black cursor-pointer shadow-xs"
+                                    : "bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed"
+                                }`}
+                              >
+                                Dispatch Batch
+                              </button>
+                            </div>
+
+                            {/* Toggle Manifest Deliveries Accordion */}
+                            <button
+                              onClick={() => setExpandedBatchId(isExpanded ? null : batch.id)}
+                              className="w-full py-1.5 px-3 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 flex items-center justify-between transition-colors cursor-pointer"
+                            >
+                              <span>View Customer Deliveries ({batch.deliveries.length})</span>
+                              {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                            </button>
+
+                            {/* Manifest Deliveries List */}
+                            {isExpanded && (
+                              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2 max-h-48 overflow-y-auto text-xs">
+                                {batch.deliveries.length > 0 ? (
+                                  batch.deliveries.map((d: any) => (
+                                    <div key={d.id} className="p-2 bg-white rounded-lg border border-slate-200 space-y-1">
+                                      <div className="flex items-center justify-between">
+                                        <span className="font-bold text-black">{d.customerName || "Customer"}</span>
+                                        <span
+                                          className={`px-2 py-0.2 text-[9px] font-black rounded-md ${
+                                            d.orderType === "SUBSCRIPTION"
+                                              ? "bg-amber-100 text-amber-950 border border-amber-300"
+                                              : "bg-blue-100 text-blue-950 border border-blue-300"
+                                          }`}
+                                        >
+                                          {d.orderType === "SUBSCRIPTION" ? "SUBSCRIPTION" : "DAILY ORDER"}
+                                        </span>
+                                      </div>
+                                      <p className="text-[11px] font-mono text-slate-500">{d.customerPhone}</p>
+                                      <p className="text-[11px] text-slate-700 font-semibold truncate">{d.mealName || "Meal Bowl"}</p>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <p className="text-[11px] text-slate-500 text-center py-2">
+                                    No individual orders assigned to this batch yet.
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="col-span-full text-center py-12 text-slate-500 font-medium">
+                      No delivery batches configured for today.
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
