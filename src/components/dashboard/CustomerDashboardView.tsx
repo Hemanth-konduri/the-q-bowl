@@ -3465,13 +3465,21 @@ export function CustomerDashboardView() {
                 type="button"
                 disabled={isLoggingOut}
                 onClick={async () => {
+                  if (isLoggingOut) return;
                   setIsLoggingOut(true);
                   try {
+                    // Call backend logout endpoint
                     await fetch("/api/auth/logout", { method: "POST" });
                   } catch (e) {
                     console.error("Logout error:", e);
                   } finally {
-                    router.push("/login");
+                    // Clear cookie and local session data directly on the client
+                    document.cookie = "session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0";
+                    try {
+                      sessionStorage.clear();
+                    } catch (_) {}
+                    // Force a hard redirect to login to cleanly reset all state
+                    window.location.replace("/login");
                   }
                 }}
                 className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-red-600 hover:bg-red-700 active:scale-95 text-white font-outfit font-black text-sm uppercase tracking-wider border-2 border-black shadow-[3px_3px_0_#000] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
