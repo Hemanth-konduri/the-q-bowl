@@ -79,7 +79,6 @@ export default function Hero() {
         {/* DESKTOP LEFT STICKER: SMASHED FRESH */}
         <p
           className="
-            gsap-float
             absolute
             z-30
             top-[28%]
@@ -104,7 +103,6 @@ export default function Hero() {
         {/* DESKTOP RIGHT STICKER: BOLD FLAVOR */}
         <p
           className="
-            gsap-float
             absolute
             z-30
             top-[38%]
@@ -129,7 +127,6 @@ export default function Hero() {
         {/* DESKTOP THE / BOWL DISPLAY TEXT */}
         <h1
           className="
-            gsap-pop
             absolute
             inset-0
             font-mouse-memoirs
@@ -151,7 +148,7 @@ export default function Hero() {
           MOBILE HERO SECTION ("THE" -> BIG BIRYANI -> "BOWL")
           ========================================================= */}
       <div className="md:hidden relative z-20 w-full flex-1 flex flex-col items-center justify-center pt-2">
-        
+
         {/* TOP: "THE" + STICKER */}
         <div className="relative w-full text-center flex items-center justify-center">
           <p
@@ -180,7 +177,7 @@ export default function Hero() {
 
           <h1
             className="
-              gsap-pop
+              gsap-pop-the
               font-mouse-memoirs
               text-[38vw]
               leading-[0.7]
@@ -191,7 +188,7 @@ export default function Hero() {
               select-none
             "
           >
-            THE
+            <span className="animate-title-the">THE</span>
           </h1>
 
           <p
@@ -219,30 +216,39 @@ export default function Hero() {
           </p>
         </div>
 
-        {/* MIDDLE: ENLARGED BIRYANI IMAGE */}
+        {/* MIDDLE: ENLARGED BIRYANI IMAGE WITH AMBIENT GLOW */}
         <div
           className="
             gsap-hero-dish
+            gsap-dish-entry
             relative
             z-10
             w-[88vw]
             h-[88vw]
             max-w-[380px]
             max-h-[380px]
-            my-[-4vw]
+            mt-[5vw]
+            mb-[-8vw]
+            translate-y-11
+            mx-auto
             flex items-center justify-center
             pointer-events-none
           "
         >
+          {/* Subtle Warm Amber Glow Halo */}
+          <div className="absolute w-[75%] h-[75%] rounded-full bg-[#E5A00D]/25 blur-2xl animate-warm-glow pointer-events-none" />
+
           <Image
             src={biryaniImg}
             alt="Q1 Bowl Artisan Hyderabadi Dum Biryani"
             priority
             className="
+              relative
+              z-10
               w-full
               h-full
               object-contain
-              drop-shadow-[0_22px_38px_rgba(0,0,0,0.45)]
+              animate-dish-float-3d
             "
           />
         </div>
@@ -251,7 +257,7 @@ export default function Hero() {
         <div className="relative w-full text-center">
           <h1
             className="
-              gsap-pop
+              gsap-pop-bowl
               font-mouse-memoirs
               text-[38vw]
               leading-[0.7]
@@ -262,7 +268,7 @@ export default function Hero() {
               select-none
             "
           >
-            BOWL
+            <span className="animate-title-bowl">BOWL</span>
           </h1>
         </div>
       </div>

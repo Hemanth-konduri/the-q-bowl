@@ -270,6 +270,79 @@ html, body {
   animation: floatBowl5 6.8s ease-in-out infinite;
 }
 
+@keyframes dishFloat3D {
+  0% {
+    transform: translateY(0px) rotate(0deg) scale(1);
+    filter: drop-shadow(0 20px 30px rgba(0,0,0,0.45));
+  }
+  25% {
+    transform: translateY(-5px) rotate(-1.5deg) scale(1.015);
+    filter: drop-shadow(0 24px 34px rgba(229,160,13,0.3));
+  }
+  50% {
+    transform: translateY(5px) rotate(1.5deg) scale(1.02);
+    filter: drop-shadow(0 26px 36px rgba(0,0,0,0.5));
+  }
+  75% {
+    transform: translateY(-3px) rotate(-1deg) scale(1.01);
+    filter: drop-shadow(0 22px 32px rgba(229,160,13,0.25));
+  }
+  100% {
+    transform: translateY(0px) rotate(0deg) scale(1);
+    filter: drop-shadow(0 20px 30px rgba(0,0,0,0.45));
+  }
+}
+
+@keyframes warmGlowPulse {
+  0%, 100% {
+    transform: scale(0.85);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.75;
+  }
+}
+
+.animate-dish-float-3d {
+  animation: dishFloat3D 6.5s ease-in-out infinite;
+  will-change: transform, filter;
+}
+
+.animate-warm-glow {
+  animation: warmGlowPulse 4s ease-in-out infinite;
+}
+
+@keyframes titleFloatThe {
+  0%, 100% {
+    transform: translateY(0px) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(1.5deg);
+  }
+}
+
+@keyframes titleFloatBowl {
+  0%, 100% {
+    transform: translateY(0px) rotate(1.5deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(-1.5deg);
+  }
+}
+
+.animate-title-the {
+  animation: titleFloatThe 3.8s ease-in-out infinite;
+  display: inline-block;
+  will-change: transform;
+}
+
+.animate-title-bowl {
+  animation: titleFloatBowl 4.2s ease-in-out infinite;
+  display: inline-block;
+  will-change: transform;
+}
+
 @keyframes slideDownFromTop {
   0% {
     transform: translateY(-100%);

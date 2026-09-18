@@ -28,6 +28,7 @@ import {
   Receipt,
   CalendarCheck,
   Settings as SettingsIcon,
+  LogOut,
   Package,
   Truck,
   CheckCircle2,
@@ -61,6 +62,7 @@ import {
   QrCode,
 } from "lucide-react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { AddressModal, AddressItem } from "./AddressModal";
 import { FoodDetailModal, FoodDetailItem } from "./FoodDetailModal";
 import { formatOrderId } from "@/lib/utils/orderIdFormatter";
@@ -161,6 +163,9 @@ interface FoodItem {
 }
 
 export function CustomerDashboardView() {
+  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   // Slider State
   const [currentSlide, setCurrentSlide] = useState(0);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
@@ -3442,6 +3447,46 @@ export function CustomerDashboardView() {
                 className="px-4 py-2 rounded-xl bg-black text-[#E5A00D] font-outfit font-black text-xs uppercase tracking-wider border-2 border-black shadow-[2px_2px_0_#E5A00D]"
               >
                 Manage Addresses
+              </button>
+            </div>
+          </div>
+
+          {/* Account & Session Management Card (with prominent Logout for mobile & desktop) */}
+          <div className="rounded-3xl border-3 border-black bg-white p-6 sm:p-8 shadow-[5px_5px_0_#000] space-y-4">
+            <div className="flex items-center justify-between border-b-2 border-black/10 pb-4">
+              <div>
+                <h4 className="font-outfit font-black text-base uppercase text-black">Account Session</h4>
+                <p className="text-xs text-zinc-600 font-medium">Securely sign out of your account on this device.</p>
+              </div>
+            </div>
+
+            <div className="pt-1">
+              <button
+                type="button"
+                disabled={isLoggingOut}
+                onClick={async () => {
+                  setIsLoggingOut(true);
+                  try {
+                    await fetch("/api/auth/logout", { method: "POST" });
+                  } catch (e) {
+                    console.error("Logout error:", e);
+                  } finally {
+                    router.push("/login");
+                  }
+                }}
+                className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-red-600 hover:bg-red-700 active:scale-95 text-white font-outfit font-black text-sm uppercase tracking-wider border-2 border-black shadow-[3px_3px_0_#000] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+              >
+                {isLoggingOut ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin text-white" />
+                    <span>Signing Out...</span>
+                  </>
+                ) : (
+                  <>
+                    <LogOut size={16} />
+                    <span>Log Out of Account</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

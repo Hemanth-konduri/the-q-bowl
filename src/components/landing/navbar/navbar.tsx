@@ -85,21 +85,28 @@ export default function Navbar() {
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
 
             {/* Primary Order CTA Pill */}
-            <Link
-              href="#menu"
-              className={`font-outfit text-xs sm:text-sm font-extrabold uppercase tracking-wider px-3 py-1.5 sm:px-6 sm:py-2.5 rounded-full border-2 transition-all duration-500 flex items-center gap-1 sm:gap-1.5 shrink-0 ${isDarkSection
+            <button
+              onClick={() => {
+                const el = document.getElementById("menu");
+                if (el) {
+                  el.scrollIntoView({ behavior: "smooth" });
+                } else {
+                  window.location.href = "#menu";
+                }
+              }}
+              className={`font-outfit text-xs sm:text-sm font-extrabold uppercase tracking-wider px-3 py-1.5 sm:px-6 sm:py-2.5 rounded-full border-2 transition-all duration-500 flex items-center gap-1 sm:gap-1.5 shrink-0 cursor-pointer active:scale-95 ${isDarkSection
                   ? "bg-[#E5A00D] text-black border-[#E5A00D] shadow-[2px_2px_0px_#FFF8EE] sm:shadow-[3px_3px_0px_#FFF8EE] hover:bg-white"
                   : "bg-black text-[#f5e3cd] border-black shadow-[2px_2px_0px_#000] sm:shadow-[3px_3px_0px_#000] hover:bg-zinc-900"
                 }`}
             >
               <Utensils className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-colors duration-500 ${isDarkSection ? "text-black" : "text-[#E5A00D]"}`} />
               <span>Order Now</span>
-            </Link>
+            </button>
 
             {/* Menu Toggle Button */}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className={`flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-full border-2 font-outfit text-xs sm:text-sm font-extrabold transition-all duration-500 shrink-0 ${isDarkSection
+              className={`flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-full border-2 font-outfit text-xs sm:text-sm font-extrabold transition-all duration-500 shrink-0 cursor-pointer ${isDarkSection
                   ? "bg-[#FFF8EE] text-black border-[#E5A00D] shadow-[2px_2px_0px_#E5A00D] sm:shadow-[3px_3px_0px_#E5A00D] hover:bg-[#E5A00D]"
                   : "bg-[#FFF8EE] text-black border-black shadow-[2px_2px_0px_#000000] sm:shadow-[3px_3px_0px_#000000] hover:bg-black hover:text-white"
                 }`}
@@ -165,7 +172,17 @@ export default function Navbar() {
                 <a
                   key={idx}
                   href={item.href}
-                  onClick={() => setMenuOpen(false)}
+                  onClick={(e) => {
+                    setMenuOpen(false);
+                    const targetId = item.href.replace("#", "");
+                    const targetEl = document.getElementById(targetId);
+                    if (targetEl) {
+                      e.preventDefault();
+                      setTimeout(() => {
+                        targetEl.scrollIntoView({ behavior: "smooth" });
+                      }, 100);
+                    }
+                  }}
                   className="hover:text-[#E5A00D] transition-colors flex items-center justify-between group py-1 border-b border-white/5 sm:border-transparent"
                 >
                   <span>{item.label}</span>

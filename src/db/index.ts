@@ -30,9 +30,9 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 /**
- * Executes a database operation with automatic single retry on transient network/pool drops (e.g. ECONNRESET)
+ * Executes a database operation with automatic retry on transient network/pool/DNS drops (e.g. ECONNRESET, ENOTFOUND, EAI_AGAIN)
  */
-export async function withDbRetry<T>(operation: () => Promise<T>, maxRetries = 2): Promise<T> {
+export async function withDbRetry<T>(operation: () => Promise<T>, maxRetries = 3): Promise<T> {
   let attempt = 0;
   while (true) {
     try {
@@ -42,13 +42,21 @@ export async function withDbRetry<T>(operation: () => Promise<T>, maxRetries = 2
       const isConnectionError =
         err?.code === "ECONNRESET" ||
         err?.cause?.code === "ECONNRESET" ||
+        err?.code === "ENOTFOUND" ||
+        err?.cause?.code === "ENOTFOUND" ||
+        err?.code === "EAI_AGAIN" ||
+        err?.cause?.code === "EAI_AGAIN" ||
+        err?.code === "ETIMEDOUT" ||
+        err?.cause?.code === "ETIMEDOUT" ||
         err?.message?.includes("ECONNRESET") ||
+        err?.message?.includes("ENOTFOUND") ||
         err?.message?.includes("connection reset") ||
-        err?.message?.includes("Connection terminated");
+        err?.message?.includes("Connection terminated") ||
+        err?.message?.includes("getaddrinfo");
 
       if (attempt <= maxRetries && isConnectionError) {
-        console.warn(`[DB Retry] Retrying operation due to connection reset (attempt ${attempt}/${maxRetries})...`);
-        await new Promise((res) => setTimeout(res, 150 * attempt));
+        console.warn(`[DB Retry] Retrying operation due to network/DNS drop (attempt ${attempt}/${maxRetries})...`);
+        await new Promise((res) => setTimeout(res, 200 * attempt));
         continue;
       }
       throw err;

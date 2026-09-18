@@ -45,9 +45,9 @@ export function AdminSidebar() {
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-white p-5 text-black z-50 overflow-y-auto border-r border-slate-200">
-      {/* Brand Header with Logo */}
-      <div 
-        onClick={() => handleNavigate("/admin/dashboard")}
+      {/* Brand Header with Logo -> Links to Landing Page */}
+      <Link 
+        href="/"
         className="flex items-center gap-3 mb-8 px-1 cursor-pointer group"
       >
         <div className="relative h-10 w-10 rounded-xl bg-[#E5A00D] p-1 flex items-center justify-center text-black shrink-0 border border-amber-400 shadow-sm group-hover:scale-105 transition-transform">
@@ -63,7 +63,7 @@ export function AdminSidebar() {
           <h1 className="text-xl font-black tracking-tight text-black font-sans uppercase">Q Bowl</h1>
           <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#E5A00D]">Admin Panel</span>
         </div>
-      </div>
+      </Link>
 
       <nav className="space-y-1.5">
         {menu.map((item) => {

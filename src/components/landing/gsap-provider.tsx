@@ -10,7 +10,7 @@ export function useGsapAnimations() {
 
     gsap.registerPlugin(ScrollTrigger);
 
-    // Hero 3D Bowl Parallax Scale & Float on Scroll
+    // Hero 3D Bowl Parallax Scale & Float on Scroll (Desktop)
     const heroDish = document.querySelector(".gsap-hero-dish");
     if (heroDish) {
       gsap.to(heroDish, {
@@ -27,12 +27,32 @@ export function useGsapAnimations() {
       });
     }
 
-    // Hero Text Stagger Pop Entrance
-    gsap.fromTo(
-      ".gsap-pop",
-      { y: 50, opacity: 0, scale: 0.95 },
-      { y: 0, opacity: 1, scale: 1, duration: 1, ease: "back.out(1.4)", stagger: 0.12 }
-    );
+    // Hero Sequential Entrance Timeline: 1. "THE", 2. Dish, 3. "BOWL"
+    const tl = gsap.timeline({ defaults: { ease: "back.out(1.5)" } });
+
+    tl.fromTo(
+      ".gsap-pop-the",
+      { y: -35, opacity: 0, scale: 0.85 },
+      { y: 0, opacity: 1, scale: 1, duration: 0.65 }
+    )
+      .fromTo(
+        ".gsap-dish-entry",
+        { y: 40, opacity: 0, scale: 0.7, rotate: -15 },
+        { y: 0, opacity: 1, scale: 1, rotate: 0, duration: 0.75, ease: "back.out(1.8)" },
+        "-=0.2"
+      )
+      .fromTo(
+        ".gsap-pop-bowl",
+        { y: 35, opacity: 0, scale: 0.85 },
+        { y: 0, opacity: 1, scale: 1, duration: 0.65 },
+        "-=0.3"
+      )
+      .fromTo(
+        ".gsap-pop",
+        { y: 30, opacity: 0, scale: 0.95 },
+        { y: 0, opacity: 1, scale: 1, duration: 0.6, stagger: 0.08 },
+        "-=0.3"
+      );
 
     // Parallax Drift for Floating Badge Labels
     const floatBadges = document.querySelectorAll(".gsap-float");

@@ -56,6 +56,14 @@ export default function DailyMenuPreview() {
       if (res.ok) {
         const user = await res.json();
         if (user && user.id) {
+          if (user.role === "ADMIN") {
+            router.push("/admin/dashboard");
+            return;
+          }
+          if (user.role === "DELIVERY_STAFF") {
+            router.push("/delivery-dashboard");
+            return;
+          }
           router.push(`/dashboard#meal-${dish.id}`);
           return;
         }

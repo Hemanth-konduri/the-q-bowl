@@ -278,13 +278,20 @@ export default function CraftStory() {
           </p>
 
           <div className="gsap-reveal pt-4 pb-6 sm:pt-7 sm:pb-16">
-            <Link
-              href="/#menu"
-              className="inline-flex items-center gap-2 rounded-full border-2 border-black bg-black px-6 py-2.5 font-outfit text-sm font-bold uppercase tracking-wider text-white shadow-[3px_3px_0px_#000000] transition-all hover:scale-105 hover:bg-[#E5A00D] hover:text-black sm:px-8 sm:py-4 sm:text-xl"
+            <button
+              onClick={() => {
+                const el = document.getElementById("menu");
+                if (el) {
+                  el.scrollIntoView({ behavior: "smooth" });
+                } else {
+                  window.location.href = "#menu";
+                }
+              }}
+              className="inline-flex items-center gap-2 rounded-full border-2 border-black bg-black px-6 py-2.5 font-outfit text-sm font-bold uppercase tracking-wider text-white shadow-[3px_3px_0px_#000000] transition-all hover:scale-105 hover:bg-[#E5A00D] hover:text-black active:scale-95 sm:px-8 sm:py-4 sm:text-xl cursor-pointer"
             >
               <span>Explore The Flavors</span>
               <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
-            </Link>
+            </button>
           </div>
 
         </div>
@@ -332,13 +339,20 @@ export default function CraftStory() {
                   <span className="font-outfit text-sm font-extrabold text-black">
                     {item.price}
                   </span>
-                  <Link
-                    href="/#menu"
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-black bg-[#FFF8EE] border border-black px-2.5 py-0.5 rounded-full shadow-[1px_1px_0px_#000] active:scale-95"
+                  <button
+                    onClick={() => {
+                      const el = document.getElementById("menu");
+                      if (el) {
+                        el.scrollIntoView({ behavior: "smooth" });
+                      } else {
+                        window.location.href = "#menu";
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-black bg-[#FFF8EE] border border-black px-2.5 py-0.5 rounded-full shadow-[1px_1px_0px_#000] active:scale-95 cursor-pointer"
                   >
                     <span>Order</span>
                     <ArrowRight className="w-3 h-3" />
-                  </Link>
+                  </button>
                 </div>
               </div>
             </div>
