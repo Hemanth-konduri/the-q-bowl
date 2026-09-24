@@ -213,20 +213,20 @@ export default function AdminDeliveryPage() {
     <div className="min-h-screen bg-white text-slate-900 font-sans">
       <AdminSidebar />
 
-      <div className="pl-64 flex flex-col min-h-screen bg-white">
+      <div className="lg:pl-64 pl-0 flex flex-col min-h-screen bg-white transition-all duration-300">
         <AdminNavbar />
 
-        <main className="flex-1 p-8 space-y-8 bg-white max-w-[1600px] mx-auto w-full">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-white max-w-[1600px] mx-auto w-full overflow-x-hidden">
           {/* Header Action Bar */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-200">
             <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-xl bg-black text-[#E5A00D] flex items-center justify-center font-bold shadow-none border border-black shrink-0">
-                <Bike className="w-6 h-6" />
+              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-black text-[#E5A00D] flex items-center justify-center font-bold shadow-none border border-black shrink-0">
+                <Bike className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-black text-black uppercase tracking-tight">
-                    Today's Delivery Operations
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-xl sm:text-2xl font-black text-black uppercase tracking-tight">
+                    Today&apos;s Delivery Operations
                   </h1>
                   <span className="px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider bg-[#E5A00D] text-black">
                     Today Only

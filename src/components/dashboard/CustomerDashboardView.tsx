@@ -2137,10 +2137,10 @@ export function CustomerDashboardView() {
             ) : (
               <div className="divide-y divide-black/10">
                 {userOrders.map((ord) => (
-                  <div key={ord.id} className="py-4 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                  <div key={ord.id} className="py-4 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <FileText size={16} className="text-[#E5A00D]" />
+                        <FileText size={16} className="text-[#E5A00D] shrink-0" />
                         <p className="font-outfit font-black text-sm text-black">INVOICE {formatOrderId(ord.id)}</p>
                       </div>
                       <p className="text-zinc-500 font-semibold text-[11px]">
@@ -2151,11 +2151,11 @@ export function CustomerDashboardView() {
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-zinc-100">
                       <span className="font-outfit font-black text-xl text-black">₹{ord.total}</span>
                       <button
                         onClick={() => setInvoiceModalOrder(ord)}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-black text-[#E5A00D] hover:bg-[#E5A00D] hover:text-black border-2 border-black font-outfit font-black text-xs uppercase tracking-wider transition-all shadow-[2px_2px_0_#000]"
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-black text-[#E5A00D] hover:bg-[#E5A00D] hover:text-black border-2 border-black font-outfit font-black text-xs uppercase tracking-wider transition-all shadow-[2px_2px_0_#000] active:scale-95 ml-auto sm:ml-0"
                       >
                         <Receipt size={13} />
                         <span>View Invoice</span>

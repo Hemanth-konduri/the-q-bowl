@@ -133,18 +133,18 @@ export default function AdminAnalyticsPage() {
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans">
       <AdminSidebar />
-      <div className="pl-64 flex flex-col min-h-screen bg-white">
+      <div className="lg:pl-64 pl-0 flex flex-col min-h-screen bg-white transition-all duration-300">
         <AdminNavbar />
 
-        <main className="flex-1 p-8 space-y-8 bg-white">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-white max-w-full overflow-x-hidden">
           {/* Header & Filter Controls */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
             <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-2xl bg-black text-[#E5A00D] flex items-center justify-center font-extrabold shadow-sm border border-neutral-800">
-                <BarChart3 className="w-6 h-6" />
+              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-2xl bg-black text-[#E5A00D] flex items-center justify-center font-extrabold shadow-sm border border-neutral-800 shrink-0">
+                <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
               <div>
-                <h1 className="text-2xl font-black text-black uppercase tracking-tight font-sans">
+                <h1 className="text-xl sm:text-2xl font-black text-black uppercase tracking-tight font-sans">
                   Analytics &amp; Business Intelligence
                 </h1>
                 <p className="text-xs font-bold text-slate-500">
@@ -153,9 +153,9 @@ export default function AdminAnalyticsPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 overflow-x-auto pb-1 md:pb-0">
               {/* Range Filters */}
-              <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200">
+              <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl border border-slate-200 shrink-0">
                 {[
                   { label: "Today", value: "TODAY" },
                   { label: "This Week", value: "THIS_WEEK" },

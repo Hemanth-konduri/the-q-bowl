@@ -6,8 +6,19 @@ const secret = new TextEncoder().encode(process.env.JWT_SECRET!);
 const ADMIN_LOGIN_ROUTE = "/admin";
 const ADMIN_PREFIX = "/admin/";
 
+// ✅ NEW (works for BOTH Web Cookies AND Mobile App Tokens):
 async function getSessionPayload(req: NextRequest) {
-  const token = req.cookies.get("session")?.value;
+  // 1. Check if token is coming from Mobile App Header
+  const authHeader = req.headers.get("Authorization") || req.headers.get("authorization");
+  let token = authHeader?.startsWith("Bearer ")
+    ? authHeader.substring(7)
+    : undefined;
+
+  // 2. If not from mobile, check website cookie
+  if (!token) {
+    token = req.cookies.get("session")?.value;
+  }
+
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secret);
@@ -17,8 +28,21 @@ async function getSessionPayload(req: NextRequest) {
   }
 }
 
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  // Handle CORS preflight requests from mobile / web dev tools
+  if (req.method === "OPTIONS") {
+    return new NextResponse(null, {
+      status: 200,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,PATCH,OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+      },
+    });
+  }
 
   // Always allow static assets and auth API
   if (pathname.startsWith("/api/auth") || pathname.startsWith("/_next") || pathname.startsWith("/favicon")) {

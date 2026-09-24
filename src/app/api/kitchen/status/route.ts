@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/db";
+import { db, withDbRetry } from "@/db";
 import { kitchenSettings } from "@/db/schema";
 import { getKitchenSettings } from "@/lib/kitchen-store";
 
@@ -7,8 +7,20 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const existing = await db.select().from(kitchenSettings).limit(1);
-    if (existing.length > 0) {
+    // Wrap database query with timeout (3s) and retry mechanism
+    const fetchFromDb = async () => {
+      return await withDbRetry(async () => {
+        return await db.select().from(kitchenSettings).limit(1);
+      }, 2);
+    };
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("DB_TIMEOUT")), 3000)
+    );
+
+    const existing = await Promise.race([fetchFromDb(), timeoutPromise]);
+
+    if (existing && existing.length > 0) {
       const row = existing[0];
       const isOpenNow = row.kitchenStatus === "OPEN" && !row.isOrderingPaused;
       return NextResponse.json(

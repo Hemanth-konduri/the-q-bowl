@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Bell,
   Search,
@@ -14,6 +15,7 @@ import {
   Loader2,
   X,
   ChevronRight,
+  Menu,
 } from "lucide-react";
 import { formatOrderId } from "@/lib/utils/orderIdFormatter";
 
@@ -59,8 +61,14 @@ export function AdminNavbar() {
   const [searchResults, setSearchResults] = useState<SearchResults | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [mobileSearchVisible, setMobileSearchVisible] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Toggle mobile sidebar
+  function handleToggleSidebar() {
+    window.dispatchEvent(new CustomEvent("toggle-admin-sidebar"));
+  }
 
   // Fetch Admin Profile on mount
   useEffect(() => {
@@ -143,6 +151,7 @@ export function AdminNavbar() {
         setProfileOpen(false);
         setNotifOpen(false);
         setSearchOpen(false);
+        setMobileSearchVisible(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -169,22 +178,45 @@ export function AdminNavbar() {
     : "AD";
 
   return (
-    <header className="sticky top-0 z-40 h-20 border-b border-slate-200 bg-white" ref={containerRef}>
-      <div className="flex h-full items-center justify-between px-6">
-        {/* ── Search Bar ── */}
-        <div className="relative w-[420px]">
-          <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm focus-within:border-[#E5A00D] focus-within:bg-white transition-colors">
+    <header className="sticky top-0 z-40 h-16 sm:h-20 border-b border-slate-200 bg-white" ref={containerRef}>
+      <div className="flex h-full items-center justify-between px-3 sm:px-6 gap-2 sm:gap-4">
+        {/* ── Mobile Sidebar Hamburger Button & Mobile Brand ── */}
+        <div className="flex items-center gap-2 lg:hidden">
+          <button
+            onClick={handleToggleSidebar}
+            className="p-2 sm:p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-black shrink-0 transition-colors focus:outline-none"
+            aria-label="Open sidebar menu"
+          >
+            <Menu size={20} />
+          </button>
+          
+          <Link href="/admin/dashboard" className="flex items-center gap-1.5 sm:hidden">
+            <div className="h-8 w-8 rounded-lg bg-[#E5A00D] p-1 flex items-center justify-center shrink-0 border border-amber-400">
+              <Image
+                src="/the_q_bowl_logo.png"
+                alt="Q Bowl Logo"
+                width={20}
+                height={20}
+                className="object-contain rounded"
+              />
+            </div>
+          </Link>
+        </div>
+
+        {/* ── Search Bar (Desktop / Tablet & Expandable Mobile) ── */}
+        <div className="relative flex-1 max-w-[420px] hidden sm:block">
+          <div className="flex items-center gap-2 sm:gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 sm:px-4 py-2 sm:py-2.5 shadow-sm focus-within:border-[#E5A00D] focus-within:bg-white transition-colors">
             {isSearching ? (
-              <Loader2 size={18} className="text-[#E5A00D] animate-spin shrink-0" />
+              <Loader2 size={16} className="text-[#E5A00D] animate-spin shrink-0" />
             ) : (
-              <Search size={18} className="text-black/50 shrink-0" />
+              <Search size={16} className="text-black/50 shrink-0" />
             )}
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search customers, orders..."
-              className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400 text-black font-medium"
+              placeholder="Search customers, orders, menu..."
+              className="w-full bg-transparent text-xs sm:text-sm outline-none placeholder:text-slate-400 text-black font-medium"
             />
             {searchQuery && (
               <button
@@ -193,9 +225,9 @@ export function AdminNavbar() {
                   setSearchResults(null);
                   setSearchOpen(false);
                 }}
-                className="text-slate-400 hover:text-black"
+                className="text-slate-400 hover:text-black shrink-0"
               >
-                <X size={16} />
+                <X size={15} />
               </button>
             )}
           </div>
@@ -313,13 +345,24 @@ export function AdminNavbar() {
           )}
         </div>
 
-        {/* ── Right Controls ── */}
-        <div className="flex items-center gap-4">
+        {/* ── Mobile Search Icon Button (shown only on small mobile screens) ── */}
+        <div className="sm:hidden relative">
+          <button
+            onClick={() => setMobileSearchVisible(!mobileSearchVisible)}
+            className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-black hover:bg-slate-100"
+            aria-label="Toggle search"
+          >
+            <Search size={18} />
+          </button>
+        </div>
+
+        {/* ── Right Controls (Notifications & Profile) ── */}
+        <div className="flex items-center gap-2 sm:gap-4 ml-auto">
           {/* Bell Notifications */}
           <div className="relative">
             <button
               onClick={handleToggleNotifs}
-              className="relative rounded-xl bg-slate-50 p-3 border border-slate-200 hover:bg-slate-100 hover:border-[#E5A00D] transition-colors shadow-sm focus:outline-none"
+              className="relative rounded-xl bg-slate-50 p-2 sm:p-3 border border-slate-200 hover:bg-slate-100 hover:border-[#E5A00D] transition-colors shadow-sm focus:outline-none"
               title="Notifications"
             >
               <Bell size={18} className="text-black" />
@@ -332,7 +375,7 @@ export function AdminNavbar() {
 
             {/* Notifications Popover */}
             {notifOpen && (
-              <div className="absolute right-0 mt-3 w-80 bg-white border border-slate-200 rounded-xl shadow-xl p-4 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-3">
+              <div className="absolute right-0 sm:right-0 mt-3 w-72 sm:w-80 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-xl shadow-xl p-4 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-3">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                   <h4 className="font-black text-xs text-black uppercase tracking-wider">
                     Notifications
@@ -378,12 +421,12 @@ export function AdminNavbar() {
                 setNotifOpen(false);
                 setSearchOpen(false);
               }}
-              className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 hover:bg-slate-100 hover:border-[#E5A00D] transition-colors shadow-sm text-left focus:outline-none"
+              className="flex items-center gap-2 sm:gap-3 rounded-xl border border-slate-200 bg-slate-50 p-1.5 sm:px-3 sm:py-2 hover:bg-slate-100 hover:border-[#E5A00D] transition-colors shadow-sm text-left focus:outline-none"
             >
-              <div className="h-10 w-10 rounded-full bg-[#E5A00D] text-black font-black flex items-center justify-center text-sm border border-amber-400 shrink-0">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-[#E5A00D] text-black font-black flex items-center justify-center text-xs sm:text-sm border border-amber-400 shrink-0">
                 {initials}
               </div>
-              <div className="leading-tight pr-1">
+              <div className="leading-tight pr-1 hidden sm:block">
                 <p className="text-sm font-black text-black">{profile?.name || "Admin Owner"}</p>
                 <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">
                   {profile?.role || "Owner"}
@@ -392,7 +435,7 @@ export function AdminNavbar() {
             </button>
 
             {profileOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-lg p-2 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1">
+              <div className="absolute right-0 mt-2 w-56 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-xl shadow-lg p-2 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1">
                 <div className="px-3 py-2 border-b border-slate-100">
                   <p className="text-xs font-black text-black">{profile?.name || "Admin Owner"}</p>
                   <p className="text-[11px] font-mono text-slate-500 truncate mt-0.5">
@@ -411,8 +454,130 @@ export function AdminNavbar() {
           </div>
         </div>
       </div>
+
+      {/* Mobile Search Overlay Bar */}
+      {mobileSearchVisible && (
+        <div className="sm:hidden px-3 py-2 bg-slate-50 border-b border-slate-200 animate-in slide-in-from-top duration-150 relative">
+          <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
+            {isSearching ? (
+              <Loader2 size={14} className="text-[#E5A00D] animate-spin shrink-0" />
+            ) : (
+              <Search size={14} className="text-black/50 shrink-0" />
+            )}
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search customers, orders, menu..."
+              className="w-full bg-transparent text-xs outline-none text-black font-medium"
+              autoFocus
+            />
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  setSearchResults(null);
+                  setSearchOpen(false);
+                }}
+                className="text-slate-400 hover:text-black"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* Search Results in Mobile Overlay */}
+          {searchOpen && searchResults && (
+            <div className="mt-2 bg-white border border-slate-200 rounded-xl shadow-xl p-3 max-h-72 overflow-y-auto space-y-3">
+              {/* Customers */}
+              {searchResults.customers.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                    Customers ({searchResults.customers.length})
+                  </p>
+                  <div className="space-y-1">
+                    {searchResults.customers.map((c) => (
+                      <Link
+                        key={c.id}
+                        href="/admin/customers"
+                        onClick={() => {
+                          setSearchOpen(false);
+                          setMobileSearchVisible(false);
+                        }}
+                        className="flex items-center justify-between p-1.5 hover:bg-[#FFF8EE] rounded-lg text-xs font-bold text-black"
+                      >
+                        <span>{c.name || "Customer"}</span>
+                        <span className="text-[10px] font-mono text-slate-400">{c.phone || c.email}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Orders */}
+              {searchResults.orders.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                    Orders ({searchResults.orders.length})
+                  </p>
+                  <div className="space-y-1">
+                    {searchResults.orders.map((o) => (
+                      <Link
+                        key={o.id}
+                        href="/admin/orders"
+                        onClick={() => {
+                          setSearchOpen(false);
+                          setMobileSearchVisible(false);
+                        }}
+                        className="flex items-center justify-between p-1.5 hover:bg-[#FFF8EE] rounded-lg text-xs font-bold text-black"
+                      >
+                        <span className="font-mono">{formatOrderId(o.id)}</span>
+                        <span className="text-[10px] font-semibold text-slate-500">₹{o.total}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Menu */}
+              {searchResults.menu.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                    Menu Items ({searchResults.menu.length})
+                  </p>
+                  <div className="space-y-1">
+                    {searchResults.menu.map((m) => (
+                      <Link
+                        key={m.id}
+                        href="/admin/menu"
+                        onClick={() => {
+                          setSearchOpen(false);
+                          setMobileSearchVisible(false);
+                        }}
+                        className="flex items-center justify-between p-1.5 hover:bg-[#FFF8EE] rounded-lg text-xs font-bold text-black"
+                      >
+                        <span>{m.name}</span>
+                        <span className="text-[10px] font-semibold text-slate-500">₹{m.price}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {searchResults.customers.length === 0 &&
+                searchResults.orders.length === 0 &&
+                searchResults.menu.length === 0 && (
+                  <div className="text-center py-4 text-xs text-slate-500">
+                    No results found.
+                  </div>
+                )}
+            </div>
+          )}
+        </div>
+      )}
     </header>
   );
 }
 
 export default AdminNavbar;
+

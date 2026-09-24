@@ -204,15 +204,17 @@ export default function Navbar() {
             <div className="flex items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
               <Link
                 href="/login"
+                prefetch={true}
                 onClick={() => setMenuOpen(false)}
-                className="flex-1 sm:flex-initial px-5 py-2.5 sm:px-6 sm:py-3 rounded-full bg-[#E5A00D] text-black font-outfit text-xs sm:text-sm font-extrabold uppercase tracking-wider text-center hover:bg-white transition-all shadow-[2px_2px_0px_#000] sm:shadow-[3px_3px_0px_#000]"
+                className="flex-1 sm:flex-initial px-5 py-2.5 sm:px-6 sm:py-3 rounded-full bg-[#E5A00D] text-black font-outfit text-xs sm:text-sm font-extrabold uppercase tracking-wider text-center hover:bg-white transition-all shadow-[2px_2px_0px_#000] sm:shadow-[3px_3px_0px_#000] active:scale-95"
               >
                 Sign In
               </Link>
               <Link
                 href="/register"
+                prefetch={true}
                 onClick={() => setMenuOpen(false)}
-                className="flex-1 sm:flex-initial px-5 py-2.5 sm:px-6 sm:py-3 rounded-full bg-[#FFF8EE] text-black font-outfit text-xs sm:text-sm font-extrabold uppercase tracking-wider text-center hover:bg-[#E5A00D] transition-all shadow-[2px_2px_0px_#000] sm:shadow-[3px_3px_0px_#000]"
+                className="flex-1 sm:flex-initial px-5 py-2.5 sm:px-6 sm:py-3 rounded-full bg-[#FFF8EE] text-black font-outfit text-xs sm:text-sm font-extrabold uppercase tracking-wider text-center hover:bg-[#E5A00D] transition-all shadow-[2px_2px_0px_#000] sm:shadow-[3px_3px_0px_#000] active:scale-95"
               >
                 Register
               </Link>

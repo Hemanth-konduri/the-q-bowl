@@ -17,8 +17,12 @@ export default function LoginPage() {
   useEffect(() => {
     let isMounted = true;
     async function checkExistingSession() {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+
       try {
-        const res = await fetch("/api/auth/me");
+        const res = await fetch("/api/auth/me", { signal: controller.signal });
+        clearTimeout(timeoutId);
         if (res.ok) {
           const user = await res.json();
           if (user?.id) {
@@ -33,8 +37,9 @@ export default function LoginPage() {
           }
         }
       } catch {
-        // Continue displaying login form if not authenticated
+        // Timeout or network error: gracefully continue displaying login form
       } finally {
+        clearTimeout(timeoutId);
         if (isMounted) setCheckingSession(false);
       }
     }
@@ -143,6 +148,7 @@ export default function LoginPage() {
           {/* ── Google OAuth Button ── */}
           <a
             href="/api/auth/google"
+            target="_top"
             className="flex w-full items-center justify-center gap-2.5 rounded-xl border-2 border-black bg-white px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider text-black shadow-[2.5px_2.5px_0px_#000] transition-all hover:bg-[#FFF8EE] hover:shadow-[3px_3px_0px_#E5A00D] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24">

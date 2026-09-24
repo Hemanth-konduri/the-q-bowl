@@ -8,11 +8,15 @@ export type SessionPayload = {
   role: string;
 };
 
-export async function createSession(payload: SessionPayload) {
-  const token = await new SignJWT(payload)
+export async function generateToken(payload: SessionPayload): Promise<string> {
+  return await new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("30d")
     .sign(secret);
+}
+
+export async function createSession(payload: SessionPayload) {
+  const token = await generateToken(payload);
 
   const cookieStore = await cookies();
   cookieStore.set("session", token, {
@@ -24,9 +28,27 @@ export async function createSession(payload: SessionPayload) {
   });
 }
 
+import { headers } from "next/headers";
+
 export async function getSession(): Promise<SessionPayload | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("session")?.value;
+  // 1. Check Authorization Bearer header (Mobile App)
+  let token: string | undefined;
+  try {
+    const headerList = await headers();
+    const authHeader = headerList.get("authorization") || headerList.get("Authorization");
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.substring(7);
+    }
+  } catch {}
+
+  // 2. Fallback to cookie (Web App)
+  if (!token) {
+    try {
+      const cookieStore = await cookies();
+      token = cookieStore.get("session")?.value;
+    } catch {}
+  }
+
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secret);

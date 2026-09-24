@@ -232,6 +232,7 @@ function RegisterContent() {
               {/* ── Google OAuth Button ── */}
               <a
                 href="/api/auth/google"
+                target="_top"
                 className="flex w-full items-center justify-center gap-2.5 rounded-xl border-2 border-black bg-white px-4 py-2.5 text-xs font-extrabold uppercase tracking-wider text-black shadow-[2.5px_2.5px_0px_#000] transition-all hover:bg-[#FFF8EE] hover:shadow-[3px_3px_0px_#E5A00D] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
               >
                 <svg className="h-4 w-4" viewBox="0 0 24 24">

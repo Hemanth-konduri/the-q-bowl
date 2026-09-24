@@ -210,31 +210,31 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="min-h-screen bg-white text-slate-900 font-sans relative">
-      {/* ── Fixed Left Sidebar ── */}
+      {/* ── Fixed Left Sidebar (Responsive Drawer on Mobile) ── */}
       <AdminSidebar />
 
       {/* ── Main Content Area ── */}
-      <div className="pl-64 flex flex-col min-h-screen bg-white">
+      <div className="lg:pl-64 pl-0 flex flex-col min-h-screen bg-white transition-all duration-300">
         {/* ── Sticky Top Navbar ── */}
         <AdminNavbar />
 
         {/* ── Dashboard Page Content ── */}
-        <main className="flex-1 p-8 space-y-8 bg-white">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-white max-w-full overflow-x-hidden">
           {/* Top Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-black text-black tracking-tight uppercase">
+              <h1 className="text-2xl sm:text-3xl font-black text-black tracking-tight uppercase">
                 Admin Overview
               </h1>
-              <p className="text-sm font-bold text-slate-600 mt-1">
-                Real-time kitchen dispatch, subscriber meal production & user access control.
+              <p className="text-xs sm:text-sm font-bold text-slate-600 mt-1">
+                Real-time kitchen dispatch, subscriber meal production &amp; user access control.
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <button
                 onClick={() => fetchOverviewData(true)}
                 disabled={refreshing}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-black font-bold text-xs rounded-xl border border-slate-300 transition-colors shadow-sm disabled:opacity-50"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 text-black font-bold text-xs rounded-xl border border-slate-300 transition-colors shadow-sm disabled:opacity-50"
               >
                 <RefreshCw size={14} className={refreshing ? "animate-spin text-[#E5A00D]" : ""} />
                 {refreshing ? "Syncing..." : "Sync Database"}
@@ -258,90 +258,98 @@ export default function AdminDashboardPage() {
               {/* ════════════════════════════════════════════════════════════ */}
               {/* ROW 1: 4 KPI CARDS WITH COLOR GRADIENTS & MINI GRAPH SPARKLINE */}
               {/* ════════════════════════════════════════════════════════════ */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
                 {/* Card 1: Active Subscriptions */}
-                <div className="bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 text-black p-6 rounded-2xl shadow-md flex flex-col justify-between relative overflow-hidden group">
+                <div className="bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 text-black p-3.5 sm:p-6 rounded-2xl shadow-md flex flex-col justify-between relative overflow-hidden group">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-black uppercase tracking-wider text-black/80">
-                      Active Subscriptions
+                    <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-black/80 line-clamp-1">
+                      Subscriptions
                     </span>
-                    <div className="h-10 w-10 rounded-xl bg-black/10 flex items-center justify-center font-bold text-black border border-black/20">
-                      <Utensils className="w-5 h-5" />
+                    <div className="h-7 w-7 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-black/10 flex items-center justify-center font-bold text-black border border-black/20 shrink-0">
+                      <Utensils className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
                     </div>
                   </div>
 
-                  <div className="mt-4 flex items-end justify-between">
+                  <div className="mt-2 sm:mt-4 flex items-end justify-between gap-1">
                     <div>
-                      <span className="text-3xl font-black tracking-tight">{kpi.activeSubscriptions}</span>
-                      <p className="text-[11px] font-bold text-black/80 mt-1">Active meal plan subscribers</p>
+                      <span className="text-xl sm:text-3xl font-black tracking-tight">{kpi.activeSubscriptions}</span>
+                      <p className="text-[10px] sm:text-[11px] font-bold text-black/80 mt-0.5 line-clamp-1">Active Subscribers</p>
                     </div>
                     {/* Mini Sparkline Graph */}
-                    {renderSparkline(kpi.sparklines?.subscriptions, "#000000")}
+                    <div className="hidden min-[400px]:block shrink-0">
+                      {renderSparkline(kpi.sparklines?.subscriptions, "#000000")}
+                    </div>
                   </div>
                 </div>
 
                 {/* Card 2: Daily Revenue */}
-                <div className="bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-800 text-white p-6 rounded-2xl shadow-md flex flex-col justify-between relative overflow-hidden group">
+                <div className="bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-800 text-white p-3.5 sm:p-6 rounded-2xl shadow-md flex flex-col justify-between relative overflow-hidden group">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-black uppercase tracking-wider text-emerald-100">
-                      Daily Gross Revenue
+                    <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-emerald-100 line-clamp-1">
+                      Gross Revenue
                     </span>
-                    <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center font-bold text-white border border-white/20">
-                      <TrendingUp className="w-5 h-5" />
+                    <div className="h-7 w-7 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-white/10 flex items-center justify-center font-bold text-white border border-white/20 shrink-0">
+                      <TrendingUp className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
                     </div>
                   </div>
 
-                  <div className="mt-4 flex items-end justify-between">
+                  <div className="mt-2 sm:mt-4 flex items-end justify-between gap-1">
                     <div>
-                      <span className="text-3xl font-black tracking-tight">₹{kpi.todayRevenue.toLocaleString()}</span>
-                      <p className="text-[11px] font-bold text-emerald-100 mt-1">Settled payments today</p>
+                      <span className="text-xl sm:text-3xl font-black tracking-tight">₹{kpi.todayRevenue.toLocaleString()}</span>
+                      <p className="text-[10px] sm:text-[11px] font-bold text-emerald-100 mt-0.5 line-clamp-1">Settled Today</p>
                     </div>
                     {/* Mini Sparkline Graph */}
-                    {renderSparkline(kpi.sparklines?.revenue, "#A7F3D0")}
+                    <div className="hidden min-[400px]:block shrink-0">
+                      {renderSparkline(kpi.sparklines?.revenue, "#A7F3D0")}
+                    </div>
                   </div>
                 </div>
 
                 {/* Card 3: Total Orders Today */}
-                <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-blue-800 text-white p-6 rounded-2xl shadow-md flex flex-col justify-between relative overflow-hidden group">
+                <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-blue-800 text-white p-3.5 sm:p-6 rounded-2xl shadow-md flex flex-col justify-between relative overflow-hidden group">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-black uppercase tracking-wider text-indigo-100">
-                      Total Orders Today
+                    <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-indigo-100 line-clamp-1">
+                      Orders Today
                     </span>
-                    <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center font-bold text-white border border-white/20">
-                      <Package className="w-5 h-5" />
+                    <div className="h-7 w-7 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-white/10 flex items-center justify-center font-bold text-white border border-white/20 shrink-0">
+                      <Package className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
                     </div>
                   </div>
 
-                  <div className="mt-4 flex items-end justify-between">
+                  <div className="mt-2 sm:mt-4 flex items-end justify-between gap-1">
                     <div>
-                      <span className="text-3xl font-black tracking-tight">{kpi.ordersToday}</span>
-                      <p className="text-[11px] font-bold text-indigo-100 mt-1">Normal + Subscription orders</p>
+                      <span className="text-xl sm:text-3xl font-black tracking-tight">{kpi.ordersToday}</span>
+                      <p className="text-[10px] sm:text-[11px] font-bold text-indigo-100 mt-0.5 line-clamp-1">Normal + Plan</p>
                     </div>
                     {/* Mini Sparkline Graph */}
-                    {renderSparkline(kpi.sparklines?.orders, "#BFDBFE")}
+                    <div className="hidden min-[400px]:block shrink-0">
+                      {renderSparkline(kpi.sparklines?.orders, "#BFDBFE")}
+                    </div>
                   </div>
                 </div>
 
                 {/* Card 4: Avg Kitchen SLA */}
-                <div className="bg-gradient-to-br from-purple-600 via-purple-700 to-pink-600 text-white p-6 rounded-2xl shadow-md flex flex-col justify-between relative overflow-hidden group">
+                <div className="bg-gradient-to-br from-purple-600 via-purple-700 to-pink-600 text-white p-3.5 sm:p-6 rounded-2xl shadow-md flex flex-col justify-between relative overflow-hidden group">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-black uppercase tracking-wider text-purple-100">
-                      Kitchen SLA / On-Time
+                    <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-purple-100 line-clamp-1">
+                      Kitchen SLA
                     </span>
-                    <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center font-bold text-white border border-white/20">
-                      <Clock className="w-5 h-5" />
+                    <div className="h-7 w-7 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl bg-white/10 flex items-center justify-center font-bold text-white border border-white/20 shrink-0">
+                      <Clock className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
                     </div>
                   </div>
 
-                  <div className="mt-4 flex items-end justify-between">
+                  <div className="mt-2 sm:mt-4 flex items-end justify-between gap-1">
                     <div>
-                      <span className="text-3xl font-black tracking-tight">{kpi.avgSlaRate}</span>
-                      <p className="text-[11px] font-bold text-purple-100 mt-1">
-                        {kpi.onTimePercent} dispatch target
+                      <span className="text-xl sm:text-3xl font-black tracking-tight">{kpi.avgSlaRate}</span>
+                      <p className="text-[10px] sm:text-[11px] font-bold text-purple-100 mt-0.5 line-clamp-1">
+                        {kpi.onTimePercent} On-Time
                       </p>
                     </div>
                     {/* Mini Sparkline Graph */}
-                    {renderSparkline(kpi.sparklines?.sla, "#E9D5FF")}
+                    <div className="hidden min-[400px]:block shrink-0">
+                      {renderSparkline(kpi.sparklines?.sla, "#E9D5FF")}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -350,87 +358,87 @@ export default function AdminDashboardPage() {
               {/* ROW 2: CONTAINER FOR SUBSCRIBER MEAL PREP REQUIREMENTS      */}
               {/* (EXCLUDES TODAY'S NORMAL ORDERS)                             */}
               {/* ════════════════════════════════════════════════════════════ */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
                   <div className="flex items-center gap-2.5">
-                    <div className="h-8 w-8 rounded-xl bg-[#E5A00D] text-black flex items-center justify-center font-black">
+                    <div className="h-8 w-8 rounded-xl bg-[#E5A00D] text-black flex items-center justify-center font-black shrink-0">
                       <ChefHat size={18} />
                     </div>
                     <div>
-                      <h3 className="font-black text-base text-black uppercase tracking-tight">
+                      <h3 className="font-black text-sm sm:text-base text-black uppercase tracking-tight">
                         Subscriber Daily Meal Preparation Requirements
                       </h3>
-                      <p className="text-xs text-slate-500 font-bold">
+                      <p className="text-[11px] sm:text-xs text-slate-500 font-bold">
                         Scheduled cooking quantities for active subscribers (excludes normal custom orders)
                       </p>
                     </div>
                   </div>
-                  <span className="px-3 py-1 bg-black text-[#E5A00D] font-black text-xs rounded-full">
+                  <span className="self-start sm:self-auto px-3 py-1 bg-black text-[#E5A00D] font-black text-xs rounded-full">
                     {mealPrep.total} Total Meals
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 pt-2">
                   {/* Card 1: Breakfast */}
-                  <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-200 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-amber-200 text-amber-900 flex items-center justify-center font-bold">
-                        <Sunrise className="w-5 h-5 text-amber-700" />
+                  <div className="p-3 sm:p-4 rounded-xl bg-amber-50/80 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-amber-200 text-amber-900 flex items-center justify-center font-bold shrink-0">
+                        <Sunrise className="w-4 h-4 sm:w-5 sm:h-5 text-amber-700" />
                       </div>
                       <div>
-                        <p className="text-xs font-extrabold uppercase text-slate-500">Breakfast</p>
-                        <p className="text-2xl font-black text-slate-900">{mealPrep.breakfast}</p>
+                        <p className="text-[10px] sm:text-xs font-extrabold uppercase text-slate-500">Breakfast</p>
+                        <p className="text-lg sm:text-2xl font-black text-slate-900">{mealPrep.breakfast}</p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-extrabold bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-full">
-                      7:30 AM Slot
+                    <span className="self-start sm:self-auto text-[9px] sm:text-[10px] font-extrabold bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-full">
+                      7:30 AM
                     </span>
                   </div>
 
                   {/* Card 2: Lunch */}
-                  <div className="p-4 rounded-xl bg-orange-50/80 border border-orange-200 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-orange-200 text-orange-900 flex items-center justify-center font-bold">
-                        <Sun className="w-5 h-5 text-orange-700" />
+                  <div className="p-3 sm:p-4 rounded-xl bg-orange-50/80 border border-orange-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-orange-200 text-orange-900 flex items-center justify-center font-bold shrink-0">
+                        <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-orange-700" />
                       </div>
                       <div>
-                        <p className="text-xs font-extrabold uppercase text-slate-500">Lunch</p>
-                        <p className="text-2xl font-black text-slate-900">{mealPrep.lunch}</p>
+                        <p className="text-[10px] sm:text-xs font-extrabold uppercase text-slate-500">Lunch</p>
+                        <p className="text-lg sm:text-2xl font-black text-slate-900">{mealPrep.lunch}</p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-extrabold bg-orange-200/80 text-orange-900 px-2 py-0.5 rounded-full">
-                      12:30 PM Slot
+                    <span className="self-start sm:self-auto text-[9px] sm:text-[10px] font-extrabold bg-orange-200/80 text-orange-900 px-2 py-0.5 rounded-full">
+                      12:30 PM
                     </span>
                   </div>
 
                   {/* Card 3: Dinner */}
-                  <div className="p-4 rounded-xl bg-indigo-50/80 border border-indigo-200 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-indigo-200 text-indigo-900 flex items-center justify-center font-bold">
-                        <Moon className="w-5 h-5 text-indigo-700" />
+                  <div className="p-3 sm:p-4 rounded-xl bg-indigo-50/80 border border-indigo-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-indigo-200 text-indigo-900 flex items-center justify-center font-bold shrink-0">
+                        <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-700" />
                       </div>
                       <div>
-                        <p className="text-xs font-extrabold uppercase text-slate-500">Dinner</p>
-                        <p className="text-2xl font-black text-slate-900">{mealPrep.dinner}</p>
+                        <p className="text-[10px] sm:text-xs font-extrabold uppercase text-slate-500">Dinner</p>
+                        <p className="text-lg sm:text-2xl font-black text-slate-900">{mealPrep.dinner}</p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-extrabold bg-indigo-200/80 text-indigo-900 px-2 py-0.5 rounded-full">
-                      7:30 PM Slot
+                    <span className="self-start sm:self-auto text-[9px] sm:text-[10px] font-extrabold bg-indigo-200/80 text-indigo-900 px-2 py-0.5 rounded-full">
+                      7:30 PM
                     </span>
                   </div>
 
                   {/* Card 4: Total Subscriber Meals */}
-                  <div className="p-4 rounded-xl bg-black text-white flex items-center justify-between border border-neutral-800">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-[#E5A00D] text-black flex items-center justify-center font-black">
-                        <Utensils className="w-5 h-5" />
+                  <div className="p-3 sm:p-4 rounded-xl bg-black text-white flex flex-col sm:flex-row sm:items-center justify-between gap-2 border border-neutral-800">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-[#E5A00D] text-black flex items-center justify-center font-black shrink-0">
+                        <Utensils className="w-4 h-4 sm:w-5 sm:h-5" />
                       </div>
                       <div>
-                        <p className="text-xs font-extrabold uppercase text-slate-300">Total Prep</p>
-                        <p className="text-2xl font-black text-white">{mealPrep.total}</p>
+                        <p className="text-[10px] sm:text-xs font-extrabold uppercase text-slate-300">Total Prep</p>
+                        <p className="text-lg sm:text-2xl font-black text-white">{mealPrep.total}</p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-black bg-[#E5A00D] text-black px-2 py-0.5 rounded-full">
+                    <span className="self-start sm:self-auto text-[9px] sm:text-[10px] font-black bg-[#E5A00D] text-black px-2 py-0.5 rounded-full">
                       Today
                     </span>
                   </div>
@@ -440,13 +448,13 @@ export default function AdminDashboardPage() {
               {/* ════════════════════════════════════════════════════════════ */}
               {/* ROW 3: LIVE ORDERS CONTAINER WITH ACCEPT & TRACKING BUTTONS  */}
               {/* ════════════════════════════════════════════════════════════ */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+              <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-4">
                   <div>
-                    <h3 className="font-black text-lg text-black uppercase">
+                    <h3 className="font-black text-base sm:text-lg text-black uppercase">
                       Live Customer Orders &amp; Dispatch Tracker
                     </h3>
-                    <p className="text-xs text-slate-500 font-bold">
+                    <p className="text-[11px] sm:text-xs text-slate-500 font-bold">
                       Incoming normal and subscription orders requiring kitchen action
                     </p>
                   </div>
@@ -455,7 +463,126 @@ export default function AdminDashboardPage() {
                   </span>
                 </div>
 
-                <div className="overflow-x-auto">
+                {/* ── Mobile Phone View (All details displayed on screen without horizontal scrolling) ── */}
+                <div className="sm:hidden space-y-3">
+                  {ordersList.length > 0 ? (
+                    ordersList.map((order) => (
+                      <div
+                        key={order.id}
+                        className="bg-slate-50/80 border border-slate-200 rounded-xl p-3.5 space-y-3 shadow-none"
+                      >
+                        {/* Top: Order ID, Time & Status */}
+                        <div className="flex items-center justify-between gap-2 border-b border-slate-200/80 pb-2.5">
+                          <div>
+                            <p className="font-mono font-black text-black text-xs">
+                              {formatOrderId(order.id)}
+                            </p>
+                            <p className="text-[10px] text-slate-400">
+                              {new Date(order.createdAt).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </p>
+                          </div>
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                              order.status === "DELIVERED"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : order.status === "OUT_FOR_DELIVERY"
+                                ? "bg-blue-100 text-blue-800"
+                                : order.status === "PREPARING" || order.status === "CONFIRMED"
+                                ? "bg-[#E5A00D] text-black"
+                                : "bg-amber-100 text-amber-900"
+                            }`}
+                          >
+                            {order.status}
+                          </span>
+                        </div>
+
+                        {/* Customer & Order Details Grid */}
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              Customer
+                            </p>
+                            <p className="font-bold text-black text-xs truncate">
+                              {order.customerName}
+                            </p>
+                            <p className="text-[10px] font-mono text-slate-500 truncate">
+                              {order.customerPhone || order.customerEmail}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                              Amount &amp; Type
+                            </p>
+                            <p className="font-black text-black text-sm">
+                              ₹{order.total}
+                            </p>
+                            <span
+                              className={`inline-block px-2 py-0.2 rounded text-[9px] font-black uppercase ${
+                                order.type === "SUBSCRIPTION"
+                                  ? "bg-amber-100 text-black border border-amber-300"
+                                  : "bg-slate-200 text-slate-800 border border-slate-300"
+                              }`}
+                            >
+                              {order.type}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons (Full-width for easy touch interaction) */}
+                        <div className="pt-2 border-t border-slate-200/80 flex items-center justify-end gap-2">
+                          {order.status === "PENDING" && (
+                            <button
+                              onClick={() => handleUpdateOrderStatus(order.id, "PREPARING")}
+                              disabled={updatingOrderId === order.id}
+                              className="w-full py-2 bg-black hover:bg-neutral-800 text-[#E5A00D] font-black text-xs rounded-xl transition-colors shadow-sm disabled:opacity-50"
+                            >
+                              Accept Order
+                            </button>
+                          )}
+
+                          {(order.status === "PENDING" ||
+                            order.status === "PREPARING" ||
+                            order.status === "CONFIRMED" ||
+                            order.status === "READY") && (
+                            <button
+                              onClick={() => handleUpdateOrderStatus(order.id, "OUT_FOR_DELIVERY")}
+                              disabled={updatingOrderId === order.id}
+                              className="w-full py-2 bg-[#E5A00D] hover:bg-amber-500 text-black font-black text-xs rounded-xl transition-colors shadow-sm disabled:opacity-50"
+                            >
+                              Track / Dispatch
+                            </button>
+                          )}
+
+                          {order.status === "OUT_FOR_DELIVERY" && (
+                            <button
+                              onClick={() => handleUpdateOrderStatus(order.id, "DELIVERED")}
+                              disabled={updatingOrderId === order.id}
+                              className="w-full py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs rounded-xl transition-colors shadow-sm disabled:opacity-50"
+                            >
+                              Mark Delivered
+                            </button>
+                          )}
+
+                          {order.status === "DELIVERED" && (
+                            <span className="w-full py-1.5 text-xs font-bold text-emerald-700 flex items-center justify-center gap-1 bg-emerald-50 rounded-xl border border-emerald-200">
+                              <CheckCircle2 size={14} /> Delivered / Completed
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-6 text-slate-500 font-medium text-xs bg-slate-50 rounded-xl border border-slate-200">
+                      No live customer orders found in the database.
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Desktop & Tablet View (Exact Table Unchanged) ── */}
+                <div className="hidden sm:block overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead>
                       <tr className="border-b border-slate-200 text-slate-400 font-extrabold uppercase tracking-wider">
@@ -525,7 +652,7 @@ export default function AdminDashboardPage() {
 
                             {/* Action Buttons */}
                             <td className="py-3.5 pl-4 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
+                              <div className="flex items-center justify-end gap-1.5 flex-wrap">
                                 {order.status === "PENDING" && (
                                   <button
                                     onClick={() => handleUpdateOrderStatus(order.id, "PREPARING")}
@@ -580,7 +707,7 @@ export default function AdminDashboardPage() {
               {/* ════════════════════════════════════════════════════════════ */}
               {/* ROW 4: USER ACCESS REQUESTS & REVENUE GRAPH (2 COLUMNS)     */}
               {/* ════════════════════════════════════════════════════════════ */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
                 {/* Left 6 Cols: User Access & Verification Requests */}
                 <div className="lg:col-span-6 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-3">

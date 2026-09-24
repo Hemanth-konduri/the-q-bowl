@@ -297,19 +297,19 @@ export default function AdminMenuPage() {
       <AdminSidebar />
 
       {/* ── Main Content Area ── */}
-      <div className="pl-64 flex flex-col min-h-screen bg-white">
+      <div className="lg:pl-64 pl-0 flex flex-col min-h-screen bg-white transition-all duration-300">
         {/* ── Sticky Top Navbar ── */}
         <AdminNavbar />
 
         {/* ── Page Body ── */}
-        <main className="flex-1 p-8 space-y-8 bg-white">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8 bg-white max-w-full overflow-x-hidden">
           {/* Top Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-black text-black tracking-tight uppercase">
+              <h1 className="text-2xl sm:text-3xl font-black text-black tracking-tight uppercase">
                 Menu Management &amp; Daily Availability Scheduler
               </h1>
-              <p className="text-sm font-bold text-slate-600 mt-1">
+              <p className="text-xs sm:text-sm font-bold text-slate-600 mt-1">
                 Schedule date-wise &amp; meal timing availability for breakfast, lunch, and dinner.
               </p>
             </div>
@@ -317,7 +317,7 @@ export default function AdminMenuPage() {
               <button
                 onClick={() => loadInitialData(true)}
                 disabled={refreshing}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-black font-bold text-xs rounded-xl border border-slate-300 transition-colors shadow-sm disabled:opacity-50"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 text-black font-bold text-xs rounded-xl border border-slate-300 transition-colors shadow-sm disabled:opacity-50"
               >
                 <RefreshCw size={14} className={refreshing ? "animate-spin text-[#E5A00D]" : ""} />
                 {refreshing ? "Syncing..." : "Sync Catalog"}
