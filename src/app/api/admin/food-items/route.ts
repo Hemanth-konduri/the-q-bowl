@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { db, withDbRetry } from "@/db";
 import { foodItems, categories, menuItems } from "@/db/schema";
 import { requireAdminApi } from "@/lib/auth-guard";
 import { deleteStorageFile } from "@/lib/supabase-storage";
@@ -11,27 +11,29 @@ export async function GET() {
   if (auth.error) return auth.error;
 
   try {
-    const list = await db
-      .select({
-        id: foodItems.id,
-        categoryId: foodItems.categoryId,
-        categoryName: categories.name,
-        name: foodItems.name,
-        description: foodItems.description,
-        imageUrl: foodItems.imageUrl,
-        price: foodItems.price,
-        deliveryCharge: foodItems.deliveryCharge,
-        calories: foodItems.calories,
-        protein: foodItems.protein,
-        rating: foodItems.rating,
-        isVeg: foodItems.isVeg,
-        mealType: foodItems.mealType,
-        isAvailable: foodItems.isAvailable,
-        createdAt: foodItems.createdAt,
-      })
-      .from(foodItems)
-      .leftJoin(categories, eq(foodItems.categoryId, categories.id))
-      .orderBy(desc(foodItems.createdAt));
+    const list = await withDbRetry(async () => {
+      return await db
+        .select({
+          id: foodItems.id,
+          categoryId: foodItems.categoryId,
+          categoryName: categories.name,
+          name: foodItems.name,
+          description: foodItems.description,
+          imageUrl: foodItems.imageUrl,
+          price: foodItems.price,
+          deliveryCharge: foodItems.deliveryCharge,
+          calories: foodItems.calories,
+          protein: foodItems.protein,
+          rating: foodItems.rating,
+          isVeg: foodItems.isVeg,
+          mealType: foodItems.mealType,
+          isAvailable: foodItems.isAvailable,
+          createdAt: foodItems.createdAt,
+        })
+        .from(foodItems)
+        .leftJoin(categories, eq(foodItems.categoryId, categories.id))
+        .orderBy(desc(foodItems.createdAt));
+    }, 2);
 
     return NextResponse.json(list);
   } catch (error) {

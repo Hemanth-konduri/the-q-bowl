@@ -1,45 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { db, withDbRetry } from "@/db";
 import { subscriptionMealPricing, foodItems, categories } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
-import { requireAdmin } from "@/lib/auth-guard";
+import { requireAdminApi } from "@/lib/auth-guard";
 
 export async function GET() {
-  try {
-    await requireAdmin();
+  const auth = await requireAdminApi();
+  if (auth.error) return auth.error;
 
-    const pricings = await db
-      .select({
-        id: subscriptionMealPricing.id,
-        mealId: subscriptionMealPricing.mealId,
-        pricePerMeal: subscriptionMealPricing.pricePerMeal,
-        isActive: subscriptionMealPricing.isActive,
-        createdAt: subscriptionMealPricing.createdAt,
-        updatedAt: subscriptionMealPricing.updatedAt,
-        mealName: foodItems.name,
-        mealDescription: foodItems.description,
-        mealImageUrl: foodItems.imageUrl,
-        mealCalories: foodItems.calories,
-        mealIsVeg: foodItems.isVeg,
-        standardPrice: foodItems.price,
-        categoryName: categories.name,
-      })
-      .from(subscriptionMealPricing)
-      .leftJoin(foodItems, eq(subscriptionMealPricing.mealId, foodItems.id))
-      .leftJoin(categories, eq(foodItems.categoryId, categories.id))
-      .orderBy(desc(subscriptionMealPricing.createdAt));
+  try {
+    const pricings = await withDbRetry(async () => {
+      return await db
+        .select({
+          id: subscriptionMealPricing.id,
+          mealId: subscriptionMealPricing.mealId,
+          pricePerMeal: subscriptionMealPricing.pricePerMeal,
+          isActive: subscriptionMealPricing.isActive,
+          createdAt: subscriptionMealPricing.createdAt,
+          updatedAt: subscriptionMealPricing.updatedAt,
+          mealName: foodItems.name,
+          mealDescription: foodItems.description,
+          mealImageUrl: foodItems.imageUrl,
+          mealCalories: foodItems.calories,
+          mealIsVeg: foodItems.isVeg,
+          standardPrice: foodItems.price,
+          categoryName: categories.name,
+        })
+        .from(subscriptionMealPricing)
+        .leftJoin(foodItems, eq(subscriptionMealPricing.mealId, foodItems.id))
+        .leftJoin(categories, eq(foodItems.categoryId, categories.id))
+        .orderBy(desc(subscriptionMealPricing.createdAt));
+    }, 2);
 
     return NextResponse.json({ pricings });
   } catch (error: any) {
     console.error("Admin Pricing GET Error:", error);
-    return NextResponse.json({ error: error.message || "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: error.message || "Failed to fetch pricing" }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    await requireAdmin();
+  const auth = await requireAdminApi();
+  if (auth.error) return auth.error;
 
+  try {
     const body = await req.json();
     const { id, mealId, pricePerMeal, isActive = true } = body;
 
@@ -106,9 +110,10 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  try {
-    await requireAdmin();
+  const auth = await requireAdminApi();
+  if (auth.error) return auth.error;
 
+  try {
     const { searchParams } = new URL(req.url);
     let id = searchParams.get("id");
     if (!id) {

@@ -3,7 +3,7 @@ import { jwtVerify } from "jose";
 
 const secret = new TextEncoder().encode(process.env.JWT_SECRET!);
 
-const ADMIN_LOGIN_ROUTE = "/admin";
+const ADMIN_LOGIN_ROUTE = "/login";
 const ADMIN_PREFIX = "/admin/";
 
 // ✅ NEW (works for BOTH Web Cookies AND Mobile App Tokens):
@@ -60,11 +60,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // ── Admin login page (/admin) ──
-  if (pathname === ADMIN_LOGIN_ROUTE) {
+  // ── Admin login page (/admin) -> redirect to universal login ──
+  if (pathname === "/admin") {
     if (session?.role === "ADMIN") return NextResponse.redirect(new URL("/admin/dashboard", req.url));
     if (session && session.role !== "ADMIN") return NextResponse.redirect(new URL("/dashboard", req.url));
-    return NextResponse.next();
+    return NextResponse.redirect(new URL("/login", req.url));
   }
 
   // ── Delivery Boy protected routes (/delivery-dashboard) ──

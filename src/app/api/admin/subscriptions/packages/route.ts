@@ -1,29 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { db, withDbRetry } from "@/db";
 import { subscriptionPackages } from "@/db/schema";
 import { eq, desc, asc } from "drizzle-orm";
-import { requireAdmin } from "@/lib/auth-guard";
+import { requireAdminApi } from "@/lib/auth-guard";
 
 export async function GET() {
-  try {
-    await requireAdmin();
+  const auth = await requireAdminApi();
+  if (auth.error) return auth.error;
 
-    const packages = await db
-      .select()
-      .from(subscriptionPackages)
-      .orderBy(asc(subscriptionPackages.mealCredits));
+  try {
+    const packages = await withDbRetry(async () => {
+      return await db
+        .select()
+        .from(subscriptionPackages)
+        .orderBy(asc(subscriptionPackages.mealCredits));
+    }, 2);
 
     return NextResponse.json({ packages });
   } catch (error: any) {
     console.error("Admin Packages GET Error:", error);
-    return NextResponse.json({ error: error.message || "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: error.message || "Failed to fetch packages" }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    await requireAdmin();
+  const auth = await requireAdminApi();
+  if (auth.error) return auth.error;
 
+  try {
     const body = await req.json();
     const { id, name, mealCredits, discount = 0, isFeatured = false, isActive = true } = body;
 
@@ -83,9 +87,10 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  try {
-    await requireAdmin();
+  const auth = await requireAdminApi();
+  if (auth.error) return auth.error;
 
+  try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 

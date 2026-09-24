@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { db, withDbRetry } from "@/db";
 import {
   subscriptions,
   users,
@@ -15,32 +15,34 @@ export async function GET() {
   if (auth.error) return auth.error;
 
   try {
-    const list = await db
-      .select({
-        id: subscriptions.id,
-        userId: subscriptions.userId,
-        userName: users.name,
-        userEmail: users.email,
-        userPhone: users.phone,
-        mealName: foodItems.name,
-        mealsRemaining: subscriptions.mealsRemaining,
-        totalMeals: subscriptions.totalMeals,
-        mealsUsed: subscriptions.mealsUsed,
-        mealsPerDay: subscriptions.mealsPerDay,
-        mealTiming: subscriptions.mealTiming,
-        dietaryPreference: subscriptions.dietaryPreference,
-        pricePaid: subscriptions.pricePaid,
-        startDate: subscriptions.startDate,
-        expectedEndDate: subscriptions.expectedEndDate,
-        status: subscriptions.status,
-        createdAt: subscriptions.createdAt,
-        deliveryAddress: addresses.address,
-      })
-      .from(subscriptions)
-      .leftJoin(users, eq(subscriptions.userId, users.id))
-      .leftJoin(foodItems, eq(subscriptions.mealId, foodItems.id))
-      .leftJoin(addresses, eq(subscriptions.addressId, addresses.id))
-      .orderBy(desc(subscriptions.createdAt));
+    const list = await withDbRetry(async () => {
+      return await db
+        .select({
+          id: subscriptions.id,
+          userId: subscriptions.userId,
+          userName: users.name,
+          userEmail: users.email,
+          userPhone: users.phone,
+          mealName: foodItems.name,
+          mealsRemaining: subscriptions.mealsRemaining,
+          totalMeals: subscriptions.totalMeals,
+          mealsUsed: subscriptions.mealsUsed,
+          mealsPerDay: subscriptions.mealsPerDay,
+          mealTiming: subscriptions.mealTiming,
+          dietaryPreference: subscriptions.dietaryPreference,
+          pricePaid: subscriptions.pricePaid,
+          startDate: subscriptions.startDate,
+          expectedEndDate: subscriptions.expectedEndDate,
+          status: subscriptions.status,
+          createdAt: subscriptions.createdAt,
+          deliveryAddress: addresses.address,
+        })
+        .from(subscriptions)
+        .leftJoin(users, eq(subscriptions.userId, users.id))
+        .leftJoin(foodItems, eq(subscriptions.mealId, foodItems.id))
+        .leftJoin(addresses, eq(subscriptions.addressId, addresses.id))
+        .orderBy(desc(subscriptions.createdAt));
+    }, 2);
 
     return NextResponse.json(list);
   } catch (error) {

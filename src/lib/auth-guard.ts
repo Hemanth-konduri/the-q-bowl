@@ -11,7 +11,7 @@ import { NextResponse } from "next/server";
  */
 export async function requireAdmin() {
   const session = await getSession();
-  if (!session) redirect("/admin");
+  if (!session) redirect("/login");
 
   const user = await db
     .select({ id: users.id, role: users.role, isActive: users.isActive })
@@ -20,7 +20,7 @@ export async function requireAdmin() {
     .limit(1);
 
   if (!user.length || user[0].role !== "ADMIN" || !user[0].isActive) {
-    redirect("/admin");
+    redirect("/login");
   }
 
   return user[0];

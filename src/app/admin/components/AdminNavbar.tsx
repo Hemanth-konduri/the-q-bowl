@@ -164,7 +164,7 @@ export function AdminNavbar() {
     } catch (err) {
       console.error("Logout error:", err);
     } finally {
-      router.push("/admin");
+      router.push("/login");
     }
   }
 
