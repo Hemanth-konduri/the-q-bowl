@@ -329,17 +329,15 @@ export default function AdminDeliveryPage() {
                 <button
                   type="button"
                   onClick={() => setActiveSlot("BREAKFAST")}
-                  className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${
-                    activeSlot === "BREAKFAST"
+                  className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${activeSlot === "BREAKFAST"
                       ? "bg-black text-white shadow-none"
                       : "text-slate-600 hover:text-black"
-                  }`}
+                    }`}
                 >
                   <Sunrise className="w-4 h-4 text-[#E5A00D]" />
                   <span>Breakfast Section</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                    activeSlot === "BREAKFAST" ? "bg-[#E5A00D] text-black" : "bg-slate-200 text-slate-700"
-                  }`}>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${activeSlot === "BREAKFAST" ? "bg-[#E5A00D] text-black" : "bg-slate-200 text-slate-700"
+                    }`}>
                     {summary.breakfastCount}
                   </span>
                 </button>
@@ -347,17 +345,15 @@ export default function AdminDeliveryPage() {
                 <button
                   type="button"
                   onClick={() => setActiveSlot("LUNCH")}
-                  className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${
-                    activeSlot === "LUNCH"
+                  className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${activeSlot === "LUNCH"
                       ? "bg-black text-white shadow-none"
                       : "text-slate-600 hover:text-black"
-                  }`}
+                    }`}
                 >
                   <Sun className="w-4 h-4 text-[#E5A00D]" />
                   <span>Lunch Section</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                    activeSlot === "LUNCH" ? "bg-[#E5A00D] text-black" : "bg-slate-200 text-slate-700"
-                  }`}>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${activeSlot === "LUNCH" ? "bg-[#E5A00D] text-black" : "bg-slate-200 text-slate-700"
+                    }`}>
                     {summary.lunchCount}
                   </span>
                 </button>
@@ -365,17 +361,15 @@ export default function AdminDeliveryPage() {
                 <button
                   type="button"
                   onClick={() => setActiveSlot("DINNER")}
-                  className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${
-                    activeSlot === "DINNER"
+                  className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${activeSlot === "DINNER"
                       ? "bg-black text-white shadow-none"
                       : "text-slate-600 hover:text-black"
-                  }`}
+                    }`}
                 >
                   <Moon className="w-4 h-4 text-[#E5A00D]" />
                   <span>Dinner Section</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                    activeSlot === "DINNER" ? "bg-[#E5A00D] text-black" : "bg-slate-200 text-slate-700"
-                  }`}>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${activeSlot === "DINNER" ? "bg-[#E5A00D] text-black" : "bg-slate-200 text-slate-700"
+                    }`}>
                     {summary.dinnerCount}
                   </span>
                 </button>
@@ -383,16 +377,14 @@ export default function AdminDeliveryPage() {
                 <button
                   type="button"
                   onClick={() => setActiveSlot("ALL")}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${
-                    activeSlot === "ALL"
+                  className={`px-4 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 ${activeSlot === "ALL"
                       ? "bg-black text-white shadow-none"
                       : "text-slate-600 hover:text-black"
-                  }`}
+                    }`}
                 >
                   <span>All Today's Meals</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                    activeSlot === "ALL" ? "bg-[#E5A00D] text-black" : "bg-slate-200 text-slate-700"
-                  }`}>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${activeSlot === "ALL" ? "bg-[#E5A00D] text-black" : "bg-slate-200 text-slate-700"
+                    }`}>
                     {summary.totalDeliveriesToday}
                   </span>
                 </button>
@@ -402,18 +394,16 @@ export default function AdminDeliveryPage() {
               <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
                 <button
                   onClick={() => setViewMode("CARDS")}
-                  className={`p-2 rounded-lg text-xs font-bold flex items-center gap-1.5 ${
-                    viewMode === "CARDS" ? "bg-white text-black border border-slate-300" : "text-slate-500"
-                  }`}
+                  className={`p-2 rounded-lg text-xs font-bold flex items-center gap-1.5 ${viewMode === "CARDS" ? "bg-white text-black border border-slate-300" : "text-slate-500"
+                    }`}
                 >
                   <Grid className="w-4 h-4" />
                   Cards View
                 </button>
                 <button
                   onClick={() => setViewMode("TABLE")}
-                  className={`p-2 rounded-lg text-xs font-bold flex items-center gap-1.5 ${
-                    viewMode === "TABLE" ? "bg-white text-black border border-slate-300" : "text-slate-500"
-                  }`}
+                  className={`p-2 rounded-lg text-xs font-bold flex items-center gap-1.5 ${viewMode === "TABLE" ? "bg-white text-black border border-slate-300" : "text-slate-500"
+                    }`}
                 >
                   <List className="w-4 h-4" />
                   Table View
@@ -614,11 +604,10 @@ export default function AdminDeliveryPage() {
                         type="button"
                         onClick={() => handleStatusUpdate(item, "MAKING")}
                         disabled={updatingId === item.id}
-                        className={`py-2 px-1 rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-1 border ${
-                          item.deliveryStatus === "MAKING"
+                        className={`py-2 px-1 rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-1 border ${item.deliveryStatus === "MAKING"
                             ? "bg-amber-500 text-white border-amber-600 ring-2 ring-amber-500/20"
                             : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                        }`}
+                          }`}
                       >
                         <ChefHat className="w-3.5 h-3.5" />
                         Making Order
@@ -629,11 +618,10 @@ export default function AdminDeliveryPage() {
                         type="button"
                         onClick={() => handleStatusUpdate(item, "OUT_FOR_DELIVERY")}
                         disabled={updatingId === item.id}
-                        className={`py-2 px-1 rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-1 border ${
-                          item.deliveryStatus === "OUT_FOR_DELIVERY"
+                        className={`py-2 px-1 rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-1 border ${item.deliveryStatus === "OUT_FOR_DELIVERY"
                             ? "bg-blue-600 text-white border-blue-700 ring-2 ring-blue-600/20"
                             : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                        }`}
+                          }`}
                       >
                         <Truck className="w-3.5 h-3.5" />
                         Out En Route
@@ -644,11 +632,10 @@ export default function AdminDeliveryPage() {
                         type="button"
                         onClick={() => handleStatusUpdate(item, "DELIVERED")}
                         disabled={updatingId === item.id}
-                        className={`py-2 px-1 rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-1 border ${
-                          item.deliveryStatus === "DELIVERED"
+                        className={`py-2 px-1 rounded-xl text-[11px] font-black transition-all flex items-center justify-center gap-1 border ${item.deliveryStatus === "DELIVERED"
                             ? "bg-emerald-600 text-white border-emerald-700 ring-2 ring-emerald-600/20"
                             : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                        }`}
+                          }`}
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         Delivered

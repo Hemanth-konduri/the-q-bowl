@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import MobilePullToRefresh from "@/components/common/MobilePullToRefresh";
 
 export const metadata: Metadata = {
   title: "Q1 Bowl | Artisan Cloud Kitchen & Meal Subscriptions",
@@ -26,7 +27,9 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col font-sans bg-[#f5e3cd] text-[#1B4D3E] selection:bg-[#1B4D3E] selection:text-white">
-        {children}
+        <MobilePullToRefresh>
+          {children}
+        </MobilePullToRefresh>
       </body>
     </html>
   );

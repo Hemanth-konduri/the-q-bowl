@@ -337,7 +337,7 @@ export async function PATCH(req: NextRequest) {
           .update(orders)
           .set({ status: dbOrderStatus as any, updatedAt: new Date() })
           .where(eq(orders.id, targetId));
-      } catch (e) {}
+      } catch (e) { }
     } else if (orderType === "SUBSCRIBER") {
       try {
         await db

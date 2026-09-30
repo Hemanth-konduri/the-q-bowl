@@ -23,9 +23,19 @@ import {
   Eye,
   X,
   ExternalLink,
+  Bike,
+  Check,
 } from "lucide-react";
 import { getDocumentViewUrl } from "@/lib/supabase-storage";
 import { formatOrderId } from "@/lib/utils/orderIdFormatter";
+
+interface DeliveryBoy {
+  id: string;
+  fullName: string;
+  phone: string;
+  email?: string;
+  isActive: boolean;
+}
 
 interface KpiData {
   activeSubscriptions: number;
@@ -115,6 +125,24 @@ export default function AdminDashboardPage() {
   const [requestsList, setRequestsList] = useState<AccessRequest[]>([]);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsDay[]>([]);
 
+  // Delivery Partners List for Dispatch Assignment
+  const [deliveryBoys, setDeliveryBoys] = useState<DeliveryBoy[]>([]);
+  const [dispatchModalOrder, setDispatchModalOrder] = useState<LiveOrder | null>(null);
+  const [selectedDriverId, setSelectedDriverId] = useState<string>("");
+  const [dispatching, setDispatching] = useState(false);
+
+  async function fetchDeliveryBoys() {
+    try {
+      const res = await fetch("/api/admin/delivery-partners");
+      if (res.ok) {
+        const list = await res.json();
+        setDeliveryBoys(Array.isArray(list) ? list : []);
+      }
+    } catch (err) {
+      console.error("Error fetching delivery boys:", err);
+    }
+  }
+
   // 1. Load Overview Data from Database
   async function fetchOverviewData(isManual = false) {
     if (isManual) setRefreshing(true);
@@ -138,16 +166,17 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     fetchOverviewData();
+    fetchDeliveryBoys();
   }, []);
 
   // 2. Handle Order Status Mutations (Accept / Dispatch / Deliver)
-  async function handleUpdateOrderStatus(orderId: string, newStatus: string) {
+  async function handleUpdateOrderStatus(orderId: string, newStatus: string, deliveryPartnerId?: string) {
     setUpdatingOrderId(orderId);
     try {
       const res = await fetch("/api/admin/orders", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, status: newStatus }),
+        body: JSON.stringify({ orderId, status: newStatus, deliveryPartnerId }),
       });
       if (res.ok) {
         setOrdersList((prev) =>
@@ -159,6 +188,17 @@ export default function AdminDashboardPage() {
     } finally {
       setUpdatingOrderId(null);
     }
+  }
+
+  async function handleConfirmDispatch(e: React.FormEvent) {
+    e.preventDefault();
+    if (!dispatchModalOrder || !selectedDriverId) return;
+
+    setDispatching(true);
+    await handleUpdateOrderStatus(dispatchModalOrder.id, "OUT_FOR_DELIVERY", selectedDriverId);
+    setDispatching(false);
+    setDispatchModalOrder(null);
+    setSelectedDriverId("");
   }
 
   // 3. Handle User Access Verification Approvals / Rejections
@@ -548,11 +588,15 @@ export default function AdminDashboardPage() {
                             order.status === "CONFIRMED" ||
                             order.status === "READY") && (
                             <button
-                              onClick={() => handleUpdateOrderStatus(order.id, "OUT_FOR_DELIVERY")}
+                              onClick={() => {
+                                setDispatchModalOrder(order);
+                                setSelectedDriverId(deliveryBoys[0]?.id || "");
+                              }}
                               disabled={updatingOrderId === order.id}
-                              className="w-full py-2 bg-[#E5A00D] hover:bg-amber-500 text-black font-black text-xs rounded-xl transition-colors shadow-sm disabled:opacity-50"
+                              className="w-full py-2 bg-[#E5A00D] hover:bg-amber-500 text-black font-black text-xs rounded-xl transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-1.5"
                             >
-                              Track / Dispatch
+                              <Bike size={13} />
+                              <span>Dispatch</span>
                             </button>
                           )}
 
@@ -665,11 +709,15 @@ export default function AdminDashboardPage() {
 
                                 {(order.status === "PENDING" || order.status === "PREPARING" || order.status === "CONFIRMED" || order.status === "READY") && (
                                   <button
-                                    onClick={() => handleUpdateOrderStatus(order.id, "OUT_FOR_DELIVERY")}
+                                    onClick={() => {
+                                      setDispatchModalOrder(order);
+                                      setSelectedDriverId(deliveryBoys[0]?.id || "");
+                                    }}
                                     disabled={updatingOrderId === order.id}
-                                    className="px-3 py-1 bg-[#E5A00D] hover:bg-amber-500 text-black font-black text-[11px] rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                                    className="px-3 py-1 bg-[#E5A00D] hover:bg-amber-500 text-black font-black text-[11px] rounded-lg transition-colors shadow-sm disabled:opacity-50 flex items-center gap-1"
                                   >
-                                    Track / Dispatch
+                                    <Bike size={13} />
+                                    <span>Dispatch</span>
                                   </button>
                                 )}
 
@@ -1069,6 +1117,132 @@ export default function AdminDashboardPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════ */}
+      {/* ASSIGN DELIVERY BOY & DISPATCH MODAL                          */}
+      {/* ════════════════════════════════════════════════════════════ */}
+      {dispatchModalOrder && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white border-2 border-black w-full max-w-lg rounded-3xl shadow-[8px_8px_0_#000] p-6 sm:p-8 space-y-6 relative text-black">
+            
+            <div className="flex items-center justify-between border-b-2 border-black/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-[#E5A00D] border-2 border-black flex items-center justify-center text-black shadow-[2px_2px_0_#000]">
+                  <Bike size={20} />
+                </div>
+                <div>
+                  <h3 className="font-outfit text-xl font-black uppercase text-black">
+                    Assign Delivery Boy
+                  </h3>
+                  <p className="text-xs font-bold text-slate-500">
+                    Order {formatOrderId(dispatchModalOrder.id)} • {dispatchModalOrder.customerName}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setDispatchModalOrder(null)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-black transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Order Destination Snapshot */}
+            <div className="bg-[#FFF8EE] p-4 rounded-2xl border-2 border-black space-y-1 text-xs font-medium">
+              <p className="font-outfit font-black text-xs uppercase text-slate-500">Customer Contact</p>
+              <p className="font-bold text-black">{dispatchModalOrder.customerName}</p>
+              <p className="text-slate-600 font-semibold text-[11px] font-mono">
+                {dispatchModalOrder.customerPhone || dispatchModalOrder.customerEmail}
+              </p>
+              <p className="text-[#E5A00D] font-black text-xs pt-1">
+                Order Total: ₹{dispatchModalOrder.total} • Status: {dispatchModalOrder.status}
+              </p>
+            </div>
+
+            {/* Delivery Driver Selector */}
+            <form onSubmit={handleConfirmDispatch} className="space-y-4">
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-black mb-2">
+                  Select Delivery Fleet Boy
+                </label>
+
+                {deliveryBoys.length === 0 ? (
+                  <div className="p-4 rounded-2xl border-2 border-dashed border-rose-300 bg-rose-50 text-rose-800 text-xs font-bold text-center">
+                    No active delivery boys registered. Go to Admin Credentials to create delivery staff accounts first.
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    {deliveryBoys.map((driver) => {
+                      const isSelected = selectedDriverId === driver.id;
+                      return (
+                        <div
+                          key={driver.id}
+                          onClick={() => setSelectedDriverId(driver.id)}
+                          className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between ${
+                            isSelected
+                              ? "border-black bg-[#E5A00D] shadow-[3px_3px_0_#000] scale-[1.01]"
+                              : "border-slate-200 bg-white hover:border-black hover:bg-slate-50"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`h-8 w-8 rounded-xl border border-black flex items-center justify-center font-outfit font-black text-xs ${
+                              isSelected ? "bg-black text-[#FFF8EE]" : "bg-[#FFF8EE] text-black"
+                            }`}>
+                              {driver.fullName.slice(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-outfit font-black text-xs uppercase text-black">{driver.fullName}</p>
+                              <p className="text-[11px] font-mono font-bold text-slate-700">{driver.phone || "No phone"}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                              driver.isActive ? "bg-emerald-100 text-emerald-800 border-emerald-300" : "bg-zinc-100 text-zinc-500 border-zinc-300"
+                            }`}>
+                              {driver.isActive ? "Active (Online)" : "Off Duty"}
+                            </span>
+                            {isSelected && <Check size={16} className="text-black stroke-[3]" />}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Buttons */}
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDispatchModalOrder(null)}
+                  className="px-4 py-2.5 rounded-xl border-2 border-black bg-white hover:bg-slate-100 font-outfit font-black text-xs uppercase tracking-wider text-black transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!selectedDriverId || dispatching}
+                  className="px-6 py-2.5 rounded-xl border-2 border-black bg-black text-[#E5A00D] hover:bg-[#E5A00D] hover:text-black font-outfit font-black text-xs uppercase tracking-wider transition-all shadow-[2px_2px_0_#000] disabled:opacity-50 flex items-center gap-2"
+                >
+                  {dispatching ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Dispatching...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Bike size={14} />
+                      <span>Confirm &amp; Dispatch Order</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+
           </div>
         </div>
       )}
