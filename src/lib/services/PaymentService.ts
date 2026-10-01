@@ -1,5 +1,13 @@
 import { db } from "@/db";
-import { payments, paymentEvents, subscriptions, subscriptionDeliveries } from "@/db/schema";
+import {
+  payments,
+  paymentEvents,
+  subscriptions,
+  subscriptionDeliveries,
+  orders,
+  orderItems,
+  deliveryAssignments,
+} from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export class PaymentService {
@@ -90,7 +98,7 @@ export class PaymentService {
   }
 
   /**
-   * Updates payment status to FAILED and cleans up unfulfilled pending subscription
+   * Updates payment status to FAILED and cleans up unfulfilled pending subscription or order
    */
   public static async updatePaymentFailed(razorpayOrderId: string) {
     const existing = await db
@@ -114,6 +122,21 @@ export class PaymentService {
       if (subRows.length > 0 && subRows[0].status === "PAUSED") {
         await db.delete(subscriptionDeliveries).where(eq(subscriptionDeliveries.subscriptionId, current.subscriptionId));
         await db.delete(subscriptions).where(eq(subscriptions.id, current.subscriptionId));
+      }
+    }
+
+    // Clean up unfulfilled order record if payment failed or was dismissed before checkout completion
+    if (current.purpose === "ORDER" && current.orderId) {
+      const ordRows = await db
+        .select()
+        .from(orders)
+        .where(eq(orders.id, current.orderId))
+        .limit(1);
+
+      if (ordRows.length > 0 && ordRows[0].status === "PENDING") {
+        await db.delete(orderItems).where(eq(orderItems.orderId, current.orderId));
+        await db.delete(deliveryAssignments).where(eq(deliveryAssignments.orderId, current.orderId));
+        await db.delete(orders).where(eq(orders.id, current.orderId));
       }
     }
 

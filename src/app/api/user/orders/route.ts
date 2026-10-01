@@ -146,14 +146,30 @@ export async function GET() {
       }
     }
 
-    const ordersWithDetails = userOrders.map((ord) => {
-      return {
-        ...ord,
-        items: itemsByOrder.get(ord.id) || [],
-        delivery: deliveryByOrder.get(ord.id) || null,
-        payment: paymentByOrder.get(ord.id) || null,
-      };
-    });
+    const ordersWithDetails = userOrders
+      .map((ord) => {
+        return {
+          ...ord,
+          items: itemsByOrder.get(ord.id) || [],
+          delivery: deliveryByOrder.get(ord.id) || null,
+          payment: paymentByOrder.get(ord.id) || null,
+        };
+      })
+      .filter((ord) => {
+        // Exclude unfulfilled Razorpay checkout attempt orders where payment was never completed
+        if (
+          ord.status === "PENDING" &&
+          ord.payment &&
+          ord.payment.status === "PENDING" &&
+          ord.payment.method !== "CASH_ON_DELIVERY"
+        ) {
+          return false;
+        }
+        if (ord.status === "PENDING" && ord.payment && ord.payment.status === "FAILED") {
+          return false;
+        }
+        return true;
+      });
 
     return NextResponse.json({ orders: ordersWithDetails });
   } catch (error) {
@@ -222,7 +238,6 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-
 
     // Fetch user's cart or initialize it
     let userCartRows = await db
