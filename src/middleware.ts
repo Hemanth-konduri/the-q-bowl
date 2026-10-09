@@ -116,6 +116,15 @@ export async function middleware(req: NextRequest) {
 
   // ── Public landing page ──
   if (pathname === "/") {
+    if (session) {
+      if (session.role === "ADMIN") {
+        return NextResponse.redirect(new URL("/admin/dashboard", req.url));
+      }
+      if (session.role === "DELIVERY_STAFF") {
+        return NextResponse.redirect(new URL("/delivery-dashboard", req.url));
+      }
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
     return NextResponse.next();
   }
 
